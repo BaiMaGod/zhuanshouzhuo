@@ -21,12 +21,15 @@
 <div id="message" class="message" role="status" aria-live="polite"></div>
 <div class="tools"><button id="left" aria-label="选中手镯逆时针旋转1度">↶ 1°</button><button id="right" aria-label="选中手镯顺时针旋转1度">↷ 1°</button><button id="align" class="accent">自动对准一扣</button></div>
 <div class="secondary"><button id="undo">撤销</button><button id="restart">重新开始</button><button id="demo">演示整关</button></div>
-<p class="note">拖动或点击镯子，用 ↶ / ↷ 微调。第 6、7 关体验跟随卡扣。<br>金扣固定在所属手镯上，碰到其他镯子的实体边缘便停止；<br>金扣在连接处扣住另一只镯子，转对方的细缺口对准扣位就解开。<br>每只镯子必须解除全部连接才消除。演示和自动对准也遵守碰撞。</p>
+<p class="note">共 12 关，第 8–12 关增加到 6、8、9、12、16 只手镯。<br>拖动或点击镯子，用 ↶ / ↷ 微调。第 6、7、9 关体验跟随卡扣。<br>金扣固定在所属手镯上，碰到其他镯子的实体边缘便停止；<br>转另一只镯子的细缺口对准金扣，就解除连接。<br>每只镯子必须解除全部连接才消除。演示和自动对准也遵守碰撞。</p>
 </main>
 <script>
 (()=>{'use strict';
 const $=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg';
 const colours=[['#d8b458','#f6df99'],['#67ad91','#b1e1c2'],['#7babc3','#c4dfef'],['#ca958a','#f1c7b2'],['#a493bc','#dbcee9']];
+function gridLevel(name,columns,rows,radius,top,hint){const spacing=2*radius+28,left=200-(columns-1)*spacing/2,points=[],edges=[],rotations=[];
+ for(let row=0;row<rows;row++)for(let col=0;col<columns;col++){const i=row*columns+col,id=String.fromCharCode(65+i);points.push([left+col*spacing,top+row*spacing]);rotations.push([35,135,225,315][i%4]);if(col<columns-1)edges.push([id,String.fromCharCode(66+i)]);if(row<rows-1)edges.push([id,String.fromCharCode(65+i+columns)])}
+ return{name,radius,points,edges,rotations,hint};}
 const levels=[
  {name:'01 · 找到缺口',points:[[200,260]],edges:[['A',null,270]],hint:'拖动金色手镯，让右侧缺口转到上方固定卡扣。'},
  {name:'02 · 双镯相连',points:[[200,190],[200,340]],edges:[['A','B']],hint:'两个手镯都能转。任意一端的缺口对准中间卡扣，即可拆开。'},
@@ -34,7 +37,12 @@ const levels=[
  {name:'04 · 四方机关',points:[[125,185],[275,185],[125,335],[275,335]],edges:[['A','B'],['A','C'],['B','D'],['C','D']],hint:'每个手镯有两个连接。逐扣解开，观察剩余连接数量。'},
  {name:'05 · 中心四扣',radius:53,points:[[200,265],[200,139],[326,265],[200,391],[74,265]],edges:[['A','B'],['A','C'],['A','D'],['A','E']],hint:'中心 A 镯有四个卡扣。你可以先拆外侧，也可以旋转中心逐扣释放。'},
  {name:'06 · 真实接触扣位',points:[[121,265],[279,265]],rotations:[220,90],edges:[],follow:[{a:'A',b:'B',offset:140,docked:true}],hint:'两镯不重叠。金扣固定在 A 上并扣住 B 左侧：先试转 A，会被扣住；再选绿镯 B，把下方细缺口转到左侧金扣，重合就拆开。'},
- {name:'07 · 脱扣后仍会挡住',points:[[121,205],[279,205],[200,342]],rotations:[220,90,0],edges:[['C',null,90],['A',null,180]],follow:[{a:'A',b:'B',offset:140,docked:true}],hint:'先转 B 的细缺口对准左侧金扣。B 拆掉后，顺时针转 A：金扣跟着移动，会被 C 挡住。将 C 缺口转到下方银扣拆掉 C，再解开 A 左侧银扣。'}
+ {name:'07 · 脱扣后仍会挡住',points:[[121,205],[279,205],[200,342]],rotations:[220,90,0],edges:[['C',null,90],['A',null,180]],follow:[{a:'A',b:'B',offset:140,docked:true}],hint:'先转 B 的细缺口对准左侧金扣。B 拆掉后，顺时针转 A：金扣跟着移动，会被 C 挡住。将 C 缺口转到下方银扣拆掉 C，再解开 A 左侧银扣。'},
+ gridLevel('08 · 六镯连阵',2,3,55,127,'6 只手镯、7 个固定扣。先拆角上的镯子，或让中间镯子逐一对准三个连接。'),
+ {name:'09 · 八镯金扣',radius:42,points:[[144,97],[256,97],[144,209],[256,209],[144,321],[256,321],[144,433],[256,433]],rotations:[220,90,220,90,220,90,220,90],edges:[['A',null,180],['C',null,180],['E',null,180],['G',null,180]],follow:[{a:'A',b:'B',offset:140,docked:true},{a:'C',b:'D',offset:140,docked:true},{a:'E',b:'F',offset:140,docked:true},{a:'G',b:'H',offset:140,docked:true}],hint:'8 只手镯、4 个金扣。右列 B、D、F、H 的细缺口转到左侧金扣，逐对解开；左列仍连着银扣，再转缺口到左侧银扣拆掉。'},
+ gridLevel('10 · 九镯棋盘',3,3,45,147,'9 只手镯、12 个固定扣。中心 E 有四个连接，只解一个扣不会消除。'),
+ gridLevel('11 · 十二连环',3,4,45,76,'12 只手镯、17 个固定扣。拆掉边角后，继续清理中间的多扣手镯。'),
+ gridLevel('12 · 十六镯挑战',4,4,32,115,'16 只手镯、24 个固定扣。点击中心字母选中，拖动转圈，或用 1° 按钮微调细缺口。')
 ];
 let state,chosen='A',history=[],drag=null,busy=false,demo=false,epoch=0,winTimer=0,blocked=null;
 const nodes=new Map(),clamps=new Map();
@@ -46,7 +54,7 @@ function active(r){return state.locks.filter(l=>!l.broken&&(l.a===r.id||l.b===r.
 function target(r,l){return norm(Math.atan2(l.y-r.y,l.x-r.x)*180/Math.PI)}
 function say(s){$('message').textContent=s}
 function save(){history.push(JSON.stringify(state));if(history.length>80)history.shift()}
-function makeState(index){const lev=levels[index],rings=lev.points.map(([x,y],i)=>({id:String.fromCharCode(65+i),x,y,radius:lev.radius||65,gapWidth:8,gapHalf:Math.asin(4/((lev.radius||65)-9.5))*180/Math.PI,rot:lev.rotations?.[i]??[0,180,35,215,130][i],removed:false}));
+function makeState(index){const lev=levels[index],rings=lev.points.map(([x,y],i)=>({id:String.fromCharCode(65+i),x,y,radius:lev.radius||65,gapWidth:8,gapHalf:Math.asin(4/((lev.radius||65)-9.5))*180/Math.PI,rot:lev.rotations?.[i]??[0,180,35,215,130][i%5],removed:false}));
  const locks=lev.edges.map(([a,b,angle],i)=>{const ra=rings.find(r=>r.id===a),rb=rings.find(r=>r.id===b);const p=rb?{x:(ra.x+rb.x)/2,y:(ra.y+rb.y)/2}:point(ra,angle,ra.radius+6);return{id:'K'+(i+1),type:'fixed',a,b,x:p.x,y:p.y,axis:rb?Math.atan2(rb.y-ra.y,rb.x-ra.x)*180/Math.PI:angle,pinRadius:3.5,broken:false}});
  for(const r of rings){const attached=locks.filter(l=>l.a===r.id||l.b===r.id);while(attached.some(l=>Math.abs(diff(r.rot,target(r,l)))<35))r.rot=norm(r.rot+45)}
  for(const spec of lev.follow||[]){const owner=rings.find(r=>r.id===spec.a);locks.push({...spec,id:'K'+(locks.length+1),type:'follow',orbit:owner.radius+13,halfLength:13,pinRadius:3.5,seatRotation:owner.rot,socketAngle:norm(Math.atan2(rings.find(r=>r.id===spec.b).y-owner.y,rings.find(r=>r.id===spec.b).x-owner.x)*180/Math.PI+180),broken:false})}
@@ -82,12 +90,12 @@ function cancel(){blocked=null;epoch++;busy=false;demo=false;drag=null;clearTime
 function mount(){nodes.clear();clamps.clear();$('rings').replaceChildren();$('locks').replaceChildren();
  for(const [i,r] of state.rings.entries()){if(r.removed)continue;const g=element('g',{'class':'ring','data-ring':r.id},$('rings'));
  const halo=element('circle',{cx:r.x,cy:r.y,r:r.radius+19,'class':'halo'},g);
- const path=element('path',{fill:'none',stroke:colours[i][0],'stroke-width':19,'stroke-linecap':'butt',filter:'url(#shadow)','pointer-events':'none'},g);
- const shine=element('path',{fill:'none',stroke:colours[i][1],'stroke-width':6,'stroke-linecap':'butt',opacity:.65,'pointer-events':'none'},g);
+ const path=element('path',{fill:'none',stroke:colours[i%colours.length][0],'stroke-width':19,'stroke-linecap':'butt',filter:'url(#shadow)','pointer-events':'none'},g);
+ const shine=element('path',{fill:'none',stroke:colours[i%colours.length][1],'stroke-width':6,'stroke-linecap':'butt',opacity:.65,'pointer-events':'none'},g);
  const dot=element('circle',{r:2,'class':'gapdot'},g);const hit=element('path',{'class':'hit'},g);
- element('circle',{cx:r.x,cy:r.y,r:25,fill:'transparent','pointer-events':'all'},g);
- const label=element('text',{x:r.x,y:r.y-17,'class':'ringlabel'},g);label.textContent=r.id;
- const count=element('text',{x:r.x,y:r.y+30,'class':'locklabel'},g);
+ element('circle',{cx:r.x,cy:r.y,r:Math.min(25,r.radius-12),fill:'transparent','pointer-events':'all'},g);
+ const label=element('text',{x:r.x,y:r.y-(r.radius<=45?6:17),'class':'ringlabel'},g);label.textContent=r.id;
+ const count=element('text',{x:r.x,y:r.y+(r.radius<=45?12:30),'class':'locklabel'},g);
  if(state.locks.some(l=>l.type==='follow'&&l.a===r.id))element('circle',{cx:r.x,cy:r.y,r:r.radius+13,fill:'none',stroke:'#c2a164','stroke-width':1,'stroke-dasharray':'2 5',opacity:.4,'pointer-events':'none'},g);
  nodes.set(r.id,{g,halo,path,shine,dot,hit,count});}
  for(const l of state.locks){if(l.broken&&l.type==='fixed')continue;if(l.type==='follow'&&state.rings.find(r=>r.id===l.a).removed)continue;
@@ -101,7 +109,7 @@ function mount(){nodes.clear();clamps.clear();$('rings').replaceChildren();$('lo
  if(l.type==='follow'){element('circle',{cx:-13,cy:0,r:2.5,fill:'#a47732'},g);const label=element('text',{x:p.x,y:p.y-22,'text-anchor':'middle','font-size':10,fill:'#a47732','data-owner-label':l.id},holder);label.textContent='随 '+l.a;}
  if(!l.b)element('circle',{cx:-22,cy:0,r:4,fill:'#7f9184'},g);clamps.set(l.id,holder);}
  update();}
-function update(){for(const r of state.rings){const n=nodes.get(r.id);if(!n)continue;const d=arc(r);n.path.setAttribute('d',d);n.shine.setAttribute('d',d);n.hit.setAttribute('d',d);const p=point(r,r.rot,r.radius+16);n.dot.setAttribute('cx',p.x);n.dot.setAttribute('cy',p.y);n.path.setAttribute('stroke',blocked?.ring===r.id?'#d36854':colours[state.rings.indexOf(r)][0]);n.halo.style.display=!r.removed&&chosen===r.id?'':'none';n.count.textContent=active(r).length+' 个卡扣';if(r.removed)n.g.classList.add('removed')}
+function update(){for(const r of state.rings){const n=nodes.get(r.id);if(!n)continue;const d=arc(r);n.path.setAttribute('d',d);n.shine.setAttribute('d',d);n.hit.setAttribute('d',d);const p=point(r,r.rot,r.radius+16);n.dot.setAttribute('cx',p.x);n.dot.setAttribute('cy',p.y);n.path.setAttribute('stroke',blocked?.ring===r.id?'#d36854':colours[state.rings.indexOf(r)%colours.length][0]);n.halo.style.display=!r.removed&&chosen===r.id?'':'none';n.count.textContent=active(r).length+(r.radius<=45?' 扣':' 个卡扣');if(r.removed)n.g.classList.add('removed')}
  const live=state.rings.filter(r=>!r.removed);$('progress').innerHTML=`已拆 <b>${state.rings.length-live.length}/${state.rings.length}</b>`;$('moves').textContent=state.moves;$('selected').textContent=live.length?'选中 '+chosen+' 镯':'全部完成';
  for(const id of['left','right','align'])$(id).disabled=busy||demo||!live.length;$('undo').disabled=!history.length;
  for(const l of state.locks){const holder=clamps.get(l.id);if(!holder)continue;if(l.type==='follow'){const p=pose(l),g=holder.firstElementChild;g.setAttribute('transform',`translate(${p.x} ${p.y}) rotate(${p.axis})`);g.style.filter=blocked?.pin===l.id?'drop-shadow(0 0 4px #d65537)':'';const label=holder.querySelector('[data-owner-label]');if(label){label.setAttribute('x',p.x);label.setAttribute('y',p.y-22)}if(state.rings.find(r=>r.id===l.a).removed)holder.classList.add('released')}else if(l.broken)holder.classList.add('released')}
@@ -137,10 +145,10 @@ $('align').onclick=()=>alignOne();$('left').onclick=()=>manual(-1);$('right').on
 $('restart').onclick=()=>load(state.index);$('level').onchange=()=>load(Number($('level').value));$('next').onclick=()=>load((state.index+1)%levels.length);
 $('undo').onclick=()=>{if(!history.length)return;cancel();state=JSON.parse(history.pop());chosen=state.rings.find(r=>!r.removed)?.id||'';mount();say('已撤销上一次操作，可以换一种拆解顺序。')};
 $('demo').onclick=async()=>{if(demo){cancel();update();say('演示已停止，你可以继续手动操作。');return}if(busy||!selected())return;demo=true;$('demo').textContent='停止演示';const token=epoch;let guard=0;
- while(demo&&token===epoch&&state.rings.some(r=>!r.removed)&&guard++<30){const plan=demoChoice();if(!plan)break;chosen=plan.r.id;const result=await animateTurn(plan.r,diff(plan.angle,plan.r.rot));if(token!==epoch||(result.blocked&&blocked?.ring!==plan.expectedBlock))break;await new Promise(resolve=>setTimeout(resolve,180))}
+ while(demo&&token===epoch&&state.rings.some(r=>!r.removed)&&guard++<state.locks.length+state.rings.length){const plan=demoChoice();if(!plan)break;chosen=plan.r.id;const result=await animateTurn(plan.r,diff(plan.angle,plan.r.rot));if(token!==epoch||(result.blocked&&blocked?.ring!==plan.expectedBlock))break;await new Promise(resolve=>setTimeout(resolve,180))}
  if(token===epoch){demo=false;$('demo').textContent='演示整关';update();if(blocked)blockedMessage()}};
 document.addEventListener('keydown',e=>{if(e.target.matches('select,button'))return;if(e.key==='ArrowLeft'){e.preventDefault();manual(-1)}if(e.key==='ArrowRight'){e.preventDefault();manual(1)}});
-levels.forEach((l,i)=>{const option=document.createElement('option');option.value=i;option.textContent=l.name;$('level').appendChild(option)});load(5);
+levels.forEach((l,i)=>{const option=document.createElement('option');option.value=i;option.textContent=l.name;$('level').appendChild(option)});load(7);
 })();
 </script>
 </html>
