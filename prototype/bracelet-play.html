@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>转手镯消除 · 可玩原型</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3ecdf;color:#3b5147;font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif}button,select{font:inherit}button{cursor:pointer;border:0;touch-action:manipulation}button:disabled{opacity:.38;cursor:default}button:focus-visible,select:focus-visible{outline:3px solid #d39b42;outline-offset:3px}.app{max-width:470px;margin:auto;padding:18px 16px 24px}.eyebrow{font-size:11px;letter-spacing:3px;color:#829386}header{display:flex;justify-content:space-between;align-items:center}h1{font-size:27px;letter-spacing:2px;margin:4px 0 14px}select{background:#fffcf4;border:1px solid #d5daca;border-radius:12px;padding:10px;color:#476654;max-width:165px}.lead{font-size:13px;line-height:1.7;margin:0 0 12px;color:#77877a}.stats{display:flex;justify-content:space-between;margin:0 0 9px;font-size:12px}.stats b{color:#2f7159}.stage{position:relative;background:radial-gradient(ellipse at 50% 40%,#fffcf5,#efe9db);border:1px solid #d7d9c8;border-radius:25px;box-shadow:0 12px 30px #59674412,inset 0 0 0 6px #ffffff50;overflow:hidden}svg{display:block;width:100%;height:auto;touch-action:none;user-select:none;-webkit-user-select:none}.ring{cursor:grab}.ring:active{cursor:grabbing}.hit{stroke:transparent;stroke-width:36;fill:none;pointer-events:stroke}.clamp{pointer-events:none;filter:drop-shadow(0 2px 2px #344c4e55)}.released{animation:unlock .36s forwards}.removed{pointer-events:none;animation:drop .55s ease-in forwards;transform-box:fill-box;transform-origin:center}@keyframes unlock{to{opacity:0;transform:translateY(12px)}}@keyframes drop{40%{opacity:1;transform:translateY(9px) scale(1.035)}100%{opacity:0;transform:translateY(72px) scale(.8) rotate(12deg)}}.halo{fill:none;stroke:#71957f;stroke-width:1.5;stroke-dasharray:3 6;opacity:.6;pointer-events:none}.gapdot{fill:#fff9e7;stroke:#d5a24c;stroke-width:2;pointer-events:none}.ringlabel{font-size:15px;font-weight:600;fill:#5d7162;text-anchor:middle;pointer-events:none}.locklabel{font-size:10px;fill:#768a82;text-anchor:middle}.message{min-height:47px;font-size:13px;line-height:1.6;padding:12px 5px 8px}.tools{display:grid;grid-template-columns:1fr 1fr 1.45fr;gap:8px}.tools button{padding:13px 6px;border-radius:12px;background:#e2e9dc;color:#3a6550;font-size:13px}.tools .accent{background:#376c53;color:#fff}.secondary{display:flex;gap:8px;margin-top:10px}.secondary button{flex:1;background:#fffcf4;border:1px solid #d4dacb;border-radius:10px;padding:10px;color:#647864;font-size:12px}.note{font-size:11px;line-height:1.8;color:#8c998a;margin-top:12px}.win{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#f6f3e8b8;backdrop-filter:blur(3px)}.win.show{display:flex}.card{text-align:center;background:#fffcf4;border:1px solid #d9dfcc;border-radius:22px;padding:26px;box-shadow:0 15px 35px #36563719;width:80%}.seal{font-size:42px;color:#58856a}.card h2{font-size:24px;margin:8px}.card p{font-size:13px;color:#7e8c78}.card button{border-radius:12px;background:#376c53;color:#fff;padding:13px 25px}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+</style>
+<main class="app">
+<div class="eyebrow">BRACELET / PUZZLE LAB</div>
+<header><h1>转手镯消除</h1><select id="level" aria-label="选择关卡"></select></header>
+<p class="lead">拖动手镯旋转。银扣固定，金扣随所属手镯转动。<br>金扣碰到其他手镯会被挡住，先把对方缺口转过来。</p>
+<div class="stats"><span id="progress"></span><span id="selected"></span><span>操作 <b id="moves">0</b></span></div>
+<div class="stage">
+<svg id="board" viewBox="0 0 400 530" aria-label="手镯拆解棋盘">
+<defs><linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e7eee8"/><stop offset=".45" stop-color="#98aaa4"/><stop offset="1" stop-color="#4f6861"/></linearGradient><filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#4c6255" flood-opacity=".2"/></filter></defs>
+<g id="rings"></g><g id="locks"></g>
+<text x="200" y="508" text-anchor="middle" fill="#8b9786" font-size="10">银色：固定扣　金色：跟随扣　红色：碰撞受阻</text>
+</svg>
+<div id="win" class="win"><div class="card"><div class="seal">✧</div><h2>全部拆解完成</h2><p id="result"></p><button id="next">下一关 →</button></div></div>
+</div>
+<div id="message" class="message" role="status" aria-live="polite"></div>
+<div class="tools"><button id="left" aria-label="选中手镯逆时针旋转15度">↶ 15°</button><button id="right" aria-label="选中手镯顺时针旋转15度">↷ 15°</button><button id="align" class="accent">自动对准一扣</button></div>
+<div class="secondary"><button id="undo">撤销</button><button id="restart">重新开始</button><button id="demo">演示整关</button></div>
+<p class="note">拖动或点击镯子，用 ↶ / ↷ 微调。第 6、7 关体验跟随卡扣。<br>金扣固定在所属手镯上，碰到其他镯子的实体边缘便停止；<br>转动对方的缺口让出通道，再转动所属手镯把金扣带出去。<br>每只镯子必须解除全部连接才消除。演示和自动对准也遵守碰撞。</p>
+</main>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg';
+const colours=[['#d8b458','#f6df99'],['#67ad91','#b1e1c2'],['#7babc3','#c4dfef'],['#ca958a','#f1c7b2'],['#a493bc','#dbcee9']];
+const levels=[
+ {name:'01 · 找到缺口',points:[[200,260]],edges:[['A',null,270]],hint:'拖动金色手镯，让右侧缺口转到上方固定卡扣。'},
+ {name:'02 · 双镯相连',points:[[200,190],[200,340]],edges:[['A','B']],hint:'两个手镯都能转。任意一端的缺口对准中间卡扣，即可拆开。'},
+ {name:'03 · 多扣拆解',points:[[200,115],[200,265],[200,415]],edges:[['A','B'],['B','C']],hint:'绿色 B 镯连接两个卡扣。只解开一个时，它仍然保留。'},
+ {name:'04 · 四方机关',points:[[125,185],[275,185],[125,335],[275,335]],edges:[['A','B'],['A','C'],['B','D'],['C','D']],hint:'每个手镯有两个连接。逐扣解开，观察剩余连接数量。'},
+ {name:'05 · 中心四扣',radius:53,points:[[200,265],[200,139],[326,265],[200,391],[74,265]],edges:[['A','B'],['A','C'],['A','D'],['A','E']],hint:'中心 A 镯有四个卡扣。你可以先拆外侧，也可以旋转中心逐扣释放。'},
+ {name:'06 · 金扣会挡住',points:[[145,265],[250,265]],rotations:[220,0],edges:[],follow:[{a:'A',b:'B',offset:140,gateAngle:135,exitRotation:320}],hint:'先选 A 镯按 ↷：金扣跟着转，碰到 B 镯就停住。再将 B 缺口转向左下，继续顺时针转 A，让金扣从 B 缺口脱出。'},
+ {name:'07 · 先拆挡路镯',points:[[145,210],[250,210],[180,343]],rotations:[220,0,0],edges:[['B',null,270],['C',null,270]],follow:[{a:'A',b:'B',offset:140,gateAngle:135,exitRotation:320}],hint:'C 镯挡在金扣的路径上。先将 C 缺口转到上方银扣；再解开 B 上方银扣，把 B 缺口转向左下，最后转 A 带出金扣。'}
+];
+let state,chosen='A',history=[],drag=null,busy=false,demo=false,epoch=0,winTimer=0,blocked=null;
+const nodes=new Map(),clamps=new Map();
+const norm=a=>(a%360+360)%360,diff=(a,b)=>((a-b+540)%360)-180;
+function element(tag,attrs,parent){const el=document.createElementNS(NS,tag);for(const [k,v]of Object.entries(attrs))el.setAttribute(k,v);parent.appendChild(el);return el}
+function point(r,a,rad=r.radius){a*=Math.PI/180;return{x:r.x+Math.cos(a)*rad,y:r.y+Math.sin(a)*rad}}
+function arc(r){const p=point(r,r.rot+32),q=point(r,r.rot+328);return`M ${p.x} ${p.y} A ${r.radius} ${r.radius} 0 1 1 ${q.x} ${q.y}`}
+function active(r){return state.locks.filter(l=>!l.broken&&(l.a===r.id||l.b===r.id))}
+function target(r,l){return norm(Math.atan2(l.y-r.y,l.x-r.x)*180/Math.PI)}
+function say(s){$('message').textContent=s}
+function save(){history.push(JSON.stringify(state));if(history.length>80)history.shift()}
+function makeState(index){const lev=levels[index],rings=lev.points.map(([x,y],i)=>({id:String.fromCharCode(65+i),x,y,radius:lev.radius||65,rot:lev.rotations?.[i]??[0,180,35,215,130][i],removed:false}));
+ const locks=lev.edges.map(([a,b,angle],i)=>{const ra=rings.find(r=>r.id===a),rb=rings.find(r=>r.id===b);const p=rb?{x:(ra.x+rb.x)/2,y:(ra.y+rb.y)/2}:point(ra,angle,ra.radius+6);return{id:'K'+(i+1),type:'fixed',a,b,x:p.x,y:p.y,axis:rb?Math.atan2(rb.y-ra.y,rb.x-ra.x)*180/Math.PI:angle,broken:false}});
+ for(const r of rings){const attached=locks.filter(l=>l.a===r.id||l.b===r.id);while(attached.some(l=>Math.abs(diff(r.rot,target(r,l)))<35))r.rot=norm(r.rot+45)}
+ for(const spec of lev.follow||[]){const owner=rings.find(r=>r.id===spec.a);locks.push({...spec,id:'K'+(locks.length+1),type:'follow',orbit:owner.radius+13,halfLength:13,pinRadius:8.5,broken:false})}
+ return{index,rings,locks,moves:0};}
+// A follows its owner's local angle. The latch and the physical pin have separate lifetimes.
+function pose(l){if(l.type==='fixed')return l;const r=state.rings.find(r=>r.id===l.a),axis=norm(r.rot+l.offset),v=axis*Math.PI/180,p=point(r,axis,l.orbit);return{...p,axis,p1:{x:p.x-Math.cos(v)*l.halfLength,y:p.y-Math.sin(v)*l.halfLength},p2:{x:p.x+Math.cos(v)*l.halfLength,y:p.y+Math.sin(v)*l.halfLength}}}
+function physicalPins(){return state.locks.filter(l=>l.type==='follow'&&!state.rings.find(r=>r.id===l.a).removed)}
+function pointSegment(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,len=dx*dx+dy*dy,t=len?Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/len)):0;return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy)}
+function cross(a,b,c){return(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x)}
+function segmentDistance(a,b,c,d){const abC=cross(a,b,c),abD=cross(a,b,d),cdA=cross(c,d,a),cdB=cross(c,d,b);if(abC*abD<0&&cdA*cdB<0)return 0;return Math.min(pointSegment(a,c,d),pointSegment(b,c,d),pointSegment(c,a,b),pointSegment(d,a,b))}
+function pinHits(l,p,r){const thickness=9.5+l.pinRadius,near=pointSegment(r,p.p1,p.p2),far=Math.max(Math.hypot(p.p1.x-r.x,p.p1.y-r.y),Math.hypot(p.p2.x-r.x,p.p2.y-r.y));if(near>r.radius+thickness||far<r.radius-thickness)return false;
+ // The rendered arc is approximated at two degrees, with its sagitta added conservatively.
+ const safety=r.radius*(1-Math.cos(Math.PI/180))+.001;let a=point(r,r.rot+32);
+ for(let angle=34;angle<=328;angle+=2){const b=point(r,r.rot+angle);if(segmentDistance(p.p1,p.p2,a,b)<thickness+safety)return true;a=b}return false}
+function collision(){for(const l of physicalPins()){const p=pose(l);for(const r of state.rings){if(!r.removed&&r.id!==l.a&&pinHits(l,p,r))return{pin:l.id,owner:l.a,ring:r.id}}}return null}
+function settle(opened){if(!opened)return;const freed=[];for(const x of state.rings){if(!x.removed&&active(x).length===0){x.removed=true;freed.push(x.id)}}
+ if(state.rings.find(x=>x.id===chosen)?.removed)chosen=state.rings.find(x=>!x.removed)?.id||'';
+ say(`解开 ${opened} 个卡扣。`+(freed.length?`${freed.join('、')} 镯已消除！`:'还有连接，请继续拆解。'));
+ if(state.rings.every(x=>x.removed)){const token=epoch;clearTimeout(winTimer);winTimer=setTimeout(()=>{if(token!==epoch)return;$('result').textContent=`${state.rings.length} 只手镯全部消除 · ${state.moves} 次操作`;$('next').textContent=state.index===levels.length-1?'再玩一次 ↻':'下一关 →';$('win').classList.add('show')},580)}}
+function load(index){cancel();history=[];state=makeState(index);chosen='A';$('level').value=index;mount();say(levels[index].hint)}
+function cancel(){blocked=null;epoch++;busy=false;demo=false;drag=null;clearTimeout(winTimer);$('win').classList.remove('show');$('demo').textContent='演示整关';}
+function mount(){nodes.clear();clamps.clear();$('rings').replaceChildren();$('locks').replaceChildren();
+ for(const [i,r] of state.rings.entries()){if(r.removed)continue;const g=element('g',{'class':'ring','data-ring':r.id},$('rings'));
+ const halo=element('circle',{cx:r.x,cy:r.y,r:r.radius+19,'class':'halo'},g);
+ const path=element('path',{fill:'none',stroke:colours[i][0],'stroke-width':19,'stroke-linecap':'round',filter:'url(#shadow)','pointer-events':'none'},g);
+ const shine=element('path',{fill:'none',stroke:colours[i][1],'stroke-width':6,'stroke-linecap':'round',opacity:.65,'pointer-events':'none'},g);
+ const dot=element('circle',{r:4,'class':'gapdot'},g);const hit=element('path',{'class':'hit'},g);
+ element('circle',{cx:r.x,cy:r.y,r:25,fill:'transparent','pointer-events':'all'},g);
+ const label=element('text',{x:r.x,y:r.y-17,'class':'ringlabel'},g);label.textContent=r.id;
+ const count=element('text',{x:r.x,y:r.y+30,'class':'locklabel'},g);
+ if(state.locks.some(l=>l.type==='follow'&&l.a===r.id))element('circle',{cx:r.x,cy:r.y,r:r.radius+13,fill:'none',stroke:'#c2a164','stroke-width':1,'stroke-dasharray':'2 5',opacity:.4,'pointer-events':'none'},g);
+ nodes.set(r.id,{g,halo,path,shine,dot,hit,count});}
+ for(const l of state.locks){if(l.broken&&l.type==='fixed')continue;if(l.type==='follow'&&state.rings.find(r=>r.id===l.a).removed)continue;
+ const holder=element('g',{'class':'clamp','data-lock':l.id},$('locks'));
+ const p=pose(l),g=element('g',{transform:`translate(${p.x} ${p.y}) rotate(${p.axis})`},holder);
+ const title=element('title',{},holder);title.textContent=l.type==='follow'?`随 ${l.a} 镯转动的卡扣，连接 ${l.b} 镯，碰到实体会停止`:'世界位置固定的卡扣';
+ if(l.type==='follow'){element('path',{d:'M -13 0 L 13 0',fill:'none',stroke:'#976d28','stroke-width':17,'stroke-linecap':'round'},g);element('path',{d:'M -13 0 L 13 0',fill:'none',stroke:'#e7b95e','stroke-width':16,'stroke-linecap':'round'},g)}else element('rect',{x:-19,y:-9,width:38,height:18,rx:5,fill:'url(#metal)',stroke:'#526b61','stroke-width':1},g);
+ for(const x of[-14,9])element('rect',{x,y:l.type==='follow'?-6:-13,width:5,height:l.type==='follow'?12:26,rx:2,fill:l.type==='follow'?'#f4d991':'#aebfb2',stroke:l.type==='follow'?'#976d28':'#617769','stroke-width':1},g);
+ element('circle',{cx:0,cy:0,r:4,fill:'#f0eee2',stroke:'#6c8376','stroke-width':1},g);
+ element('path',{d:'M -2 -1 L 2 1',stroke:'#607568','stroke-width':1.5},g);
+ if(l.type==='follow'){element('circle',{cx:-13,cy:0,r:4,fill:'#a47732'},g);const label=element('text',{x:p.x,y:p.y-22,'text-anchor':'middle','font-size':10,fill:'#a47732','data-owner-label':l.id},holder);label.textContent='随 '+l.a;}
+ if(!l.b)element('circle',{cx:-22,cy:0,r:4,fill:'#7f9184'},g);clamps.set(l.id,holder);}
+ update();}
+function update(){for(const r of state.rings){const n=nodes.get(r.id);if(!n)continue;const d=arc(r);n.path.setAttribute('d',d);n.shine.setAttribute('d',d);n.hit.setAttribute('d',d);const p=point(r,r.rot);n.dot.setAttribute('cx',p.x);n.dot.setAttribute('cy',p.y);n.path.setAttribute('stroke',blocked?.ring===r.id?'#d36854':colours[state.rings.indexOf(r)][0]);n.halo.style.display=!r.removed&&chosen===r.id?'':'none';n.count.textContent=active(r).length+' 个卡扣';if(r.removed)n.g.classList.add('removed')}
+ const live=state.rings.filter(r=>!r.removed);$('progress').innerHTML=`已拆 <b>${state.rings.length-live.length}/${state.rings.length}</b>`;$('moves').textContent=state.moves;$('selected').textContent=live.length?'选中 '+chosen+' 镯':'全部完成';
+ for(const id of['left','right','align'])$(id).disabled=busy||demo||!live.length;$('undo').disabled=!history.length;
+ for(const l of state.locks){const holder=clamps.get(l.id);if(!holder)continue;if(l.type==='follow'){const p=pose(l),g=holder.firstElementChild;g.setAttribute('transform',`translate(${p.x} ${p.y}) rotate(${p.axis})`);g.style.filter=blocked?.pin===l.id?'drop-shadow(0 0 4px #d65537)':'';const label=holder.querySelector('[data-owner-label]');if(label){label.setAttribute('x',p.x);label.setAttribute('y',p.y-22)}if(state.rings.find(r=>r.id===l.a).removed)holder.classList.add('released')}else if(l.broken)holder.classList.add('released')}
+}
+function check(r){const tolerance=32-(Math.asin(9.5/r.radius)+Math.atan2(13,r.radius))*180/Math.PI-1;let opened=0;
+ for(const l of active(r)){if(l.type==='fixed'&&Math.abs(diff(r.rot,target(r,l)))<=tolerance){l.broken=true;opened++}}
+ for(const l of state.locks){if(l.type!=='follow'||l.broken)continue;const receiver=state.rings.find(x=>x.id===l.b),p=pose(l);
+ // A follower detaches only after the whole pin clears the receiving ring through its gap.
+ if(pointSegment(receiver,p.p1,p.p2)>receiver.radius+9.5+l.pinRadius+.1){l.broken=true;opened++}}
+ settle(opened);return opened}
+function blockedMessage(){if(blocked)say(`金扣被 ${blocked.ring} 镯挡住，${blocked.owner} 镯无法继续转。把 ${blocked.ring} 镯缺口转到金扣处，或先拆掉挡路镯。`)}
+function turn(r,delta){blocked=null;let opened=0;const steps=Math.max(1,Math.ceil(Math.abs(delta)/.5)),step=delta/steps;
+ for(let i=0;i<steps&&!r.removed;i++){const before=r.rot;r.rot=norm(before+step);const hit=collision();if(hit){r.rot=before;
+ // Clamp to the first contact. No teleport across an occupied arc, even for a fast drag.
+ let low=0,high=1;for(let j=0;j<12;j++){const mid=(low+high)/2;r.rot=norm(before+step*mid);if(collision())high=mid;else low=mid}r.rot=norm(before+step*low);opened+=check(r);blocked=hit;break}
+ opened+=check(r)}update();blockedMessage();return{blocked:!!blocked,opened}}
+function selected(){return state.rings.find(r=>r.id===chosen&&!r.removed)}
+function manual(delta){const r=selected();if(!r||busy||demo)return;save();state.moves++;const result=turn(r,delta);if(!result.blocked&&!result.opened&&!r.removed&&active(r).length)say(`${r.id} 镯还连着 ${active(r).length} 个卡扣，请继续转动。`)}
+function boardPoint(e){const p=$('board').createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform($('board').getScreenCTM().inverse())}
+function polar(p,r){return Math.atan2(p.y-r.y,p.x-r.x)*180/Math.PI}
+$('board').addEventListener('pointerdown',e=>{if(busy||demo||drag||e.isPrimary===false)return;const g=e.target.closest('[data-ring]');if(!g)return;const r=state.rings.find(x=>x.id===g.dataset.ring);if(!r||r.removed)return;e.preventDefault();save();chosen=r.id;const p=boardPoint(e);drag={r,id:e.pointerId,angle:polar(p,r),x:e.clientX,y:e.clientY,moved:false};$('board').setPointerCapture(e.pointerId);update()});
+$('board').addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;const d=drag;if(Math.hypot(e.clientX-d.x,e.clientY-d.y)>4&&!d.moved){d.moved=true;state.moves++}const a=polar(boardPoint(e),d.r),delta=diff(norm(a),norm(d.angle));if(d.moved)turn(d.r,delta);d.angle=a});
+function end(e,cancelled=false){if(!drag||e.pointerId!==drag.id)return;const d=drag;drag=null;if(!cancelled&&!d.moved){state.moves++;turn(d.r,15)}update();if($('board').hasPointerCapture(e.pointerId))$('board').releasePointerCapture(e.pointerId)}
+$('board').addEventListener('pointerup',e=>end(e));$('board').addEventListener('pointercancel',e=>end(e,true));$('board').addEventListener('lostpointercapture',()=>{drag=null});
+async function animateTurn(r,delta,record=true){const token=epoch;if(record){save();state.moves++}const start=performance.now();let previous=0,result={blocked:false,opened:0};busy=true;update();
+ await new Promise(resolve=>{function frame(now){if(token!==epoch){resolve();return}const t=Math.min(1,(now-start)/650),angle=delta*(1-Math.pow(1-t,3));result=turn(r,angle-previous);previous=angle;if(t<1&&!r.removed&&!result.blocked)requestAnimationFrame(frame);else resolve()}requestAnimationFrame(frame)});
+ if(token===epoch){busy=false;update()}return result}
+async function alignOne(){const r=selected();if(!r||!active(r).length)return;const fixed=active(r).filter(l=>l.type==='fixed');let angle;
+ if(fixed.length){const l=fixed.reduce((best,l)=>Math.abs(diff(target(r,l),r.rot))<Math.abs(diff(target(r,best),r.rot))?l:best);angle=target(r,l)}
+ else{const l=active(r)[0];angle=l.a===r.id?l.exitRotation:l.gateAngle}
+ const result=await animateTurn(r,diff(angle,r.rot));if(!result.blocked&&!r.removed&&active(r).some(l=>l.type==='follow'&&l.b===r.id))say(`${r.id} 镯已让出金扣通道，再选所属手镯转动带出金扣。`);return result}
+function demoChoice(){const fixed=state.locks.find(l=>!l.broken&&l.type==='fixed');if(fixed){const r=state.rings.find(r=>r.id===fixed.a&&!r.removed);return{r,angle:target(r,fixed)}}
+ const l=state.locks.find(l=>l.type==='follow'&&!l.broken);if(!l)return null;const receiver=state.rings.find(r=>r.id===l.b);if(Math.abs(diff(receiver.rot,l.gateAngle))>1)return{r:receiver,angle:l.gateAngle};return{r:state.rings.find(r=>r.id===l.a),angle:l.exitRotation}}
+$('align').onclick=()=>alignOne();$('left').onclick=()=>manual(-15);$('right').onclick=()=>manual(15);
+$('restart').onclick=()=>load(state.index);$('level').onchange=()=>load(Number($('level').value));$('next').onclick=()=>load((state.index+1)%levels.length);
+$('undo').onclick=()=>{if(!history.length)return;cancel();state=JSON.parse(history.pop());chosen=state.rings.find(r=>!r.removed)?.id||'';mount();say('已撤销上一次操作，可以换一种拆解顺序。')};
+$('demo').onclick=async()=>{if(demo){cancel();update();say('演示已停止，你可以继续手动操作。');return}if(busy||!selected())return;demo=true;$('demo').textContent='停止演示';const token=epoch;let guard=0;
+ while(demo&&token===epoch&&state.rings.some(r=>!r.removed)&&guard++<30){const plan=demoChoice();if(!plan)break;chosen=plan.r.id;const result=await animateTurn(plan.r,diff(plan.angle,plan.r.rot));if(token!==epoch||result.blocked)break;await new Promise(resolve=>setTimeout(resolve,180))}
+ if(token===epoch){demo=false;$('demo').textContent='演示整关';update();if(blocked)blockedMessage()}};
+document.addEventListener('keydown',e=>{if(e.target.matches('select,button'))return;if(e.key==='ArrowLeft'){e.preventDefault();manual(-15)}if(e.key==='ArrowRight'){e.preventDefault();manual(15)}});
+levels.forEach((l,i)=>{const option=document.createElement('option');option.value=i;option.textContent=l.name;$('level').appendChild(option)});load(5);
+})();
+</script>
+</html>
