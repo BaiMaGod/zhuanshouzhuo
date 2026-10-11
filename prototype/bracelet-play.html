@@ -21,7 +21,7 @@
 <div id="message" class="message" role="status" aria-live="polite"></div>
 <div class="tools"><button id="left" aria-label="选中手镯逆时针旋转1度">↶ 1°</button><button id="right" aria-label="选中手镯顺时针旋转1度">↷ 1°</button><button id="align" class="accent">自动对准一扣</button></div>
 <div class="secondary"><button id="undo">撤销</button><button id="restart">重新开始</button><button id="demo">演示整关</button></div>
-<p class="note">拖动或点击镯子，用 ↶ / ↷ 微调。第 6、7 关体验跟随卡扣。<br>金扣固定在所属手镯上，碰到其他镯子的实体边缘便停止；<br>金扣碰到对方后，把对方的细缺口转到卡扣处，重合就解扣。<br>每只镯子必须解除全部连接才消除。演示和自动对准也遵守碰撞。</p>
+<p class="note">拖动或点击镯子，用 ↶ / ↷ 微调。第 6、7 关体验跟随卡扣。<br>金扣固定在所属手镯上，碰到其他镯子的实体边缘便停止；<br>金扣在连接处扣住另一只镯子，转对方的细缺口对准扣位就解开。<br>每只镯子必须解除全部连接才消除。演示和自动对准也遵守碰撞。</p>
 </main>
 <script>
 (()=>{'use strict';
@@ -33,8 +33,8 @@ const levels=[
  {name:'03 · 多扣拆解',points:[[200,115],[200,265],[200,415]],edges:[['A','B'],['B','C']],hint:'绿色 B 镯连接两个卡扣。只解开一个时，它仍然保留。'},
  {name:'04 · 四方机关',points:[[125,185],[275,185],[125,335],[275,335]],edges:[['A','B'],['A','C'],['B','D'],['C','D']],hint:'每个手镯有两个连接。逐扣解开，观察剩余连接数量。'},
  {name:'05 · 中心四扣',radius:53,points:[[200,265],[200,139],[326,265],[200,391],[74,265]],edges:[['A','B'],['A','C'],['A','D'],['A','E']],hint:'中心 A 镯有四个卡扣。你可以先拆外侧，也可以旋转中心逐扣释放。'},
- {name:'06 · 金扣会挡住',points:[[145,265],[250,265]],rotations:[220,0],edges:[],follow:[{a:'A',b:'B',offset:140,approachRotation:320}],hint:'先选 A 镯按 ↷：金扣跟着转，碰到 B 镯就停住。金扣停住后，选 B，将细缺口转到金扣接触处，重合就解开。'},
- {name:'07 · 先拆挡路镯',points:[[145,210],[250,210],[220,307]],rotations:[220,0,0],edges:[['B',null,270],['C',null,270]],follow:[{a:'A',b:'B',offset:140,approachRotation:320}],hint:'C 镯挡在金扣的路径上。先将 C 缺口转到上方银扣；再解开 B 上方银扣。转 A 让金扣靠到 B，最后转 B 的细缺口与金扣重合。'}
+ {name:'06 · 真实接触扣位',points:[[121,265],[279,265]],rotations:[220,90],edges:[],follow:[{a:'A',b:'B',offset:140,docked:true}],hint:'两镯不重叠。金扣固定在 A 上并扣住 B 左侧：先试转 A，会被扣住；再选绿镯 B，把下方细缺口转到左侧金扣，重合就拆开。'},
+ {name:'07 · 脱扣后仍会挡住',points:[[121,205],[279,205],[200,342]],rotations:[220,90,0],edges:[['C',null,90],['A',null,180]],follow:[{a:'A',b:'B',offset:140,docked:true}],hint:'先转 B 的细缺口对准左侧金扣。B 拆掉后，顺时针转 A：金扣跟着移动，会被 C 挡住。将 C 缺口转到下方银扣拆掉 C，再解开 A 左侧银扣。'}
 ];
 let state,chosen='A',history=[],drag=null,busy=false,demo=false,epoch=0,winTimer=0,blocked=null;
 const nodes=new Map(),clamps=new Map();
@@ -49,15 +49,17 @@ function save(){history.push(JSON.stringify(state));if(history.length>80)history
 function makeState(index){const lev=levels[index],rings=lev.points.map(([x,y],i)=>({id:String.fromCharCode(65+i),x,y,radius:lev.radius||65,gapWidth:8,gapHalf:Math.asin(4/((lev.radius||65)-9.5))*180/Math.PI,rot:lev.rotations?.[i]??[0,180,35,215,130][i],removed:false}));
  const locks=lev.edges.map(([a,b,angle],i)=>{const ra=rings.find(r=>r.id===a),rb=rings.find(r=>r.id===b);const p=rb?{x:(ra.x+rb.x)/2,y:(ra.y+rb.y)/2}:point(ra,angle,ra.radius+6);return{id:'K'+(i+1),type:'fixed',a,b,x:p.x,y:p.y,axis:rb?Math.atan2(rb.y-ra.y,rb.x-ra.x)*180/Math.PI:angle,pinRadius:3.5,broken:false}});
  for(const r of rings){const attached=locks.filter(l=>l.a===r.id||l.b===r.id);while(attached.some(l=>Math.abs(diff(r.rot,target(r,l)))<35))r.rot=norm(r.rot+45)}
- for(const spec of lev.follow||[]){const owner=rings.find(r=>r.id===spec.a);locks.push({...spec,id:'K'+(locks.length+1),type:'follow',orbit:owner.radius+13,halfLength:13,pinRadius:3.5,broken:false})}
- return{index,rings,locks,moves:0};}
+ for(const spec of lev.follow||[]){const owner=rings.find(r=>r.id===spec.a);locks.push({...spec,id:'K'+(locks.length+1),type:'follow',orbit:owner.radius+13,halfLength:13,pinRadius:3.5,seatRotation:owner.rot,socketAngle:norm(Math.atan2(rings.find(r=>r.id===spec.b).y-owner.y,rings.find(r=>r.id===spec.b).x-owner.x)*180/Math.PI+180),broken:false})}
+ const candidate={index,rings,locks,moves:0};validateGeometry(candidate);return candidate;}
+function validateGeometry(s){for(let i=0;i<s.rings.length;i++)for(let j=i+1;j<s.rings.length;j++){const a=s.rings[i],b=s.rings[j];if(Math.hypot(a.x-b.x,a.y-b.y)<a.radius+b.radius+19+.5)throw Error(`关卡无效：${a.id} 与 ${b.id} 的实体重叠`)}
+ for(const l of s.locks){if(l.type!=='follow'||!l.docked)continue;const a=s.rings.find(r=>r.id===l.a),b=s.rings.find(r=>r.id===l.b),axis=norm(a.rot+l.offset),p=point(a,axis,l.orbit),v=axis*Math.PI/180,p1={x:p.x-Math.cos(v)*l.halfLength,y:p.y-Math.sin(v)*l.halfLength},p2={x:p.x+Math.cos(v)*l.halfLength,y:p.y+Math.sin(v)*l.halfLength},socket=point(b,l.socketAngle);if(pointSegment(socket,p1,p2)>l.pinRadius+.01)throw Error(`关卡无效：${l.id} 卡扣未接触 ${b.id} 镯的实际扣位`)}}
 // A follower is welded to its owner. The receiving ring releases at a narrow aligned contact.
 function pose(l){if(l.type==='fixed')return l;const r=state.rings.find(r=>r.id===l.a),axis=norm(r.rot+l.offset),v=axis*Math.PI/180,p=point(r,axis,l.orbit);return{...p,axis,p1:{x:p.x-Math.cos(v)*l.halfLength,y:p.y-Math.sin(v)*l.halfLength},p2:{x:p.x+Math.cos(v)*l.halfLength,y:p.y+Math.sin(v)*l.halfLength}}}
 function physicalPins(){return state.locks.filter(l=>l.type==='follow'&&!state.rings.find(r=>r.id===l.a).removed)}
 function pointSegment(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,len=dx*dx+dy*dy,t=len?Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/len)):0;return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy)}
 function cross(a,b,c){return(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x)}
 function segmentDistance(a,b,c,d){const abC=cross(a,b,c),abD=cross(a,b,d),cdA=cross(c,d,a),cdB=cross(c,d,b);if(abC*abD<0&&cdA*cdB<0)return 0;return Math.min(pointSegment(a,c,d),pointSegment(b,c,d),pointSegment(c,a,b),pointSegment(d,a,b))}
-function contact(l,r){const p=pose(l),inner=r.radius-9.5,outer=r.radius+9.5,near=pointSegment(r,p.p1,p.p2),d1=Math.hypot(p.p1.x-r.x,p.p1.y-r.y),d2=Math.hypot(p.p2.x-r.x,p.p2.y-r.y),far=Math.max(d1,d2);let socket;
+function contact(l,r){if(l.docked&&!l.broken)return{angle:l.socketAngle,touching:true,point:point(r,l.socketAngle)};const p=pose(l),inner=r.radius-9.5,outer=r.radius+9.5,near=pointSegment(r,p.p1,p.p2),d1=Math.hypot(p.p1.x-r.x,p.p1.y-r.y),d2=Math.hypot(p.p2.x-r.x,p.p2.y-r.y),far=Math.max(d1,d2);let socket;
  if(far<r.radius)socket=d1>d2?p.p1:p.p2;
  else if(near>r.radius){const dx=p.p2.x-p.p1.x,dy=p.p2.y-p.p1.y,t=Math.max(0,Math.min(1,((r.x-p.p1.x)*dx+(r.y-p.p1.y)*dy)/(dx*dx+dy*dy)));socket={x:p.p1.x+t*dx,y:p.p1.y+t*dy}}
  else{const dx=p.p2.x-p.p1.x,dy=p.p2.y-p.p1.y,ox=p.p1.x-r.x,oy=p.p1.y-r.y,A=dx*dx+dy*dy,B=2*(ox*dx+oy*dy),C=ox*ox+oy*oy-r.radius*r.radius,D=Math.sqrt(Math.max(0,B*B-4*A*C)),ts=[(-B-D)/(2*A),(-B+D)/(2*A)],t=ts.find(t=>t>=0&&t<=1)??0;socket={x:p.p1.x+t*dx,y:p.p1.y+t*dy}}
@@ -70,7 +72,7 @@ function pinHits(l,p,r){const inner=r.radius-9.5,outer=r.radius+9.5,near=pointSe
  if(inside(p.p1,r)||inside(p.p2,r))return true;const first=r.rot+r.gapHalf,last=r.rot+360-r.gapHalf,steps=Math.ceil((last-first)/2),safety=outer*(1-Math.cos(Math.PI/180))+.001;
  for(const radius of[inner,outer]){let a=point(r,first,radius);for(let i=1;i<=steps;i++){const b=point(r,first+(last-first)*i/steps,radius);if(segmentDistance(p.p1,p.p2,a,b)<l.pinRadius+safety)return true;a=b}}
  for(const angle of[first,last])if(segmentDistance(p.p1,p.p2,point(r,angle,inner),point(r,angle,outer))<l.pinRadius+safety)return true;return false}
-function collision(){for(const l of physicalPins()){const p=pose(l);for(const r of state.rings){if(!r.removed&&r.id!==l.a&&!(r.id===l.b&&releaseReady(l))&&pinHits(l,p,r))return{pin:l.id,owner:l.a,ring:r.id}}}return null}
+function collision(){for(const l of physicalPins()){const owner=state.rings.find(r=>r.id===l.a);if(l.docked&&!l.broken&&Math.abs(diff(owner.rot,l.seatRotation))>.0001&&!releaseReady(l))return{pin:l.id,owner:l.a,ring:l.b};const p=pose(l);for(const r of state.rings){if(!r.removed&&r.id!==l.a&&!(r.id===l.b&&((l.docked&&!l.broken)||releaseReady(l)))&&pinHits(l,p,r))return{pin:l.id,owner:l.a,ring:r.id}}}return null}
 function settle(opened){if(!opened)return;const freed=[];for(const x of state.rings){if(!x.removed&&active(x).length===0){x.removed=true;freed.push(x.id)}}
  if(state.rings.find(x=>x.id===chosen)?.removed)chosen=state.rings.find(x=>!x.removed)?.id||'';
  say(`解开 ${opened} 个卡扣。`+(freed.length?`${freed.join('、')} 镯已消除！`:'还有连接，请继续拆解。'));
@@ -125,12 +127,12 @@ $('board').addEventListener('pointerup',e=>end(e));$('board').addEventListener('
 async function animateTurn(r,delta,record=true){const token=epoch;if(record){save();state.moves++}const start=performance.now();let previous=0,result={blocked:false,opened:0};busy=true;update();
  await new Promise(resolve=>{function frame(now){if(token!==epoch){resolve();return}const t=Math.min(1,(now-start)/650),angle=delta*(1-Math.pow(1-t,3));result=turn(r,angle-previous);previous=angle;if(t<1&&!r.removed&&!result.blocked)requestAnimationFrame(frame);else resolve()}requestAnimationFrame(frame)});
  if(token===epoch){busy=false;update()}return result}
-async function alignOne(){const r=selected();if(!r||!active(r).length)return;const fixed=active(r).filter(l=>l.type==='fixed');let angle;
+async function alignOne(){const r=selected();if(!r||!active(r).length)return;const dock=active(r).find(l=>l.type==='follow'&&l.docked&&l.a===r.id);if(dock){say(`金扣仍扣住 ${dock.b} 镯，先选 ${dock.b}，让细缺口转到金扣处。`);return}const fixed=active(r).filter(l=>l.type==='fixed');let angle;
  if(fixed.length){const l=fixed.reduce((best,l)=>Math.abs(diff(target(r,l),r.rot))<Math.abs(diff(target(r,best),r.rot))?l:best);angle=target(r,l)}
- else{const l=active(r)[0];if(l.a===r.id)angle=l.approachRotation;else{const c=contact(l,r);if(!c.touching){say(`先转 ${l.a} 镯，让金扣靠到 ${r.id} 镯边缘，再转 ${r.id} 的缺口对准。`);return}angle=c.angle}}
+ else{const l=active(r)[0];if(l.a===r.id)angle=r.rot;else{const c=contact(l,r);if(!c.touching){say(`先转 ${l.a} 镯，让金扣靠到 ${r.id} 镯边缘，再转 ${r.id} 的缺口对准。`);return}angle=c.angle}}
  return await animateTurn(r,diff(angle,r.rot))}
-function demoChoice(){const fixed=state.locks.find(l=>!l.broken&&l.type==='fixed');if(fixed){const r=state.rings.find(r=>r.id===fixed.a&&!r.removed);return{r,angle:target(r,fixed)}}
- const l=state.locks.find(l=>l.type==='follow'&&!l.broken);if(!l)return null;const receiver=state.rings.find(r=>r.id===l.b),c=contact(l,receiver);if(c.touching)return{r:receiver,angle:c.angle};return{r:state.rings.find(r=>r.id===l.a),angle:l.approachRotation,expectedBlock:l.b}}
+function demoChoice(){const latch=state.locks.find(l=>l.type==='follow'&&l.docked&&!l.broken);if(latch){const receiver=state.rings.find(r=>r.id===latch.b);return{r:receiver,angle:latch.socketAngle}}
+ const fixed=state.locks.find(l=>!l.broken&&l.type==='fixed');if(fixed){const r=state.rings.find(r=>r.id===fixed.a&&!r.removed);return{r,angle:target(r,fixed)}}return null}
 $('align').onclick=()=>alignOne();$('left').onclick=()=>manual(-1);$('right').onclick=()=>manual(1);
 $('restart').onclick=()=>load(state.index);$('level').onchange=()=>load(Number($('level').value));$('next').onclick=()=>load((state.index+1)%levels.length);
 $('undo').onclick=()=>{if(!history.length)return;cancel();state=JSON.parse(history.pop());chosen=state.rings.find(r=>!r.removed)?.id||'';mount();say('已撤销上一次操作，可以换一种拆解顺序。')};
