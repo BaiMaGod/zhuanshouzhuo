@@ -15,7 +15,8 @@ function sample(values:number[],angle:number):number{
 }
 export function jadeMesh(name:JadeName):JadeMesh{
  const cached=meshes.get(name);if(cached)return cached;
- const p=profiles[name],segments=192,rows=[0,.125,.5,.875,1],vertices:number[]=[],uvs:number[]=[],indices:number[]=[];
+ // At the largest board zoom, 64 arc segments deviate by under 0.2 stage pixels.
+ const p=profiles[name],segments=64,rows=[0,.5,1],vertices:number[]=[],uvs:number[]=[],indices:number[]=[];
  const r0=C.R-C.BAND/2,r1=C.R+C.BAND/2,half=Math.asin(C.GAP/(2*r0));
  for(let i=0;i<=segments;i++){
   const a=half+(Math.PI*2-2*half)*i/segments,cos=Math.cos(a),sin=Math.sin(a);
@@ -49,5 +50,5 @@ export function drawJade(g:Laya.Graphics,name:JadeName):void{
  }
 }
 export function jadeSprite(name:JadeName,x:number,y:number,scale=1,rotation=0):Laya.Sprite{
- const s=new Laya.Sprite();s.pos(x,y);s.scale(scale,scale);s.rotation=rotation;drawJade(s.graphics,name);s.cacheAs='bitmap';return s;
+ const s=new Laya.Sprite();s.pos(x,y);s.scale(scale,scale);s.rotation=rotation;drawJade(s.graphics,name);return s;
 }

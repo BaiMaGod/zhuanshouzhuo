@@ -6,7 +6,7 @@ declare namespace Laya {
  class Sprite {
   x:number;y:number;width:number;height:number;rotation:number;alpha:number;visible:boolean;
   mouseEnabled:boolean;mouseThrough:boolean;zOrder:number;name:string;
-  scaleX:number;scaleY:number;texture:Texture|null;graphics:Graphics;cacheAs:string;
+  scaleX:number;scaleY:number;texture:Texture|null;graphics:Graphics;
   parent:Sprite|null;
   constructor();
   addChild<T extends Sprite>(s:T):T;removeChildren():void;
