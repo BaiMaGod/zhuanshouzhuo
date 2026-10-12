@@ -3,11 +3,12 @@ import {Board} from './renderer.js';
 import {text,panel,Button,ornament,COLORS} from './ui.js';
 import {Audio} from './audio.js';
 import {Save} from './storage.js';
+import {JADE_ASSETS,jadeSprite} from './jade.js';
 import solutions from './solutions.js';
 import type {Action,Point,State,Result} from './types.js';
 
 const W=720,H=Math.round(Math.max(1180,Math.min(1600,innerHeight/Math.min(innerWidth,720)*720)));
-const ASSETS=['amber','peach','celadon','ice','ivory','shadow','garden','tray'].map(n=>'assets/'+n+'.png');
+const ASSETS=[...JADE_ASSETS,...['shadow','garden','tray'].map(n=>'assets/'+n+'.png')];
 class Game {
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
  save=new Save();audio=new Audio();model:GameModel|null=null;board:Board|null=null;
@@ -54,10 +55,10 @@ class Game {
   ornament(this.scene,220,345,280);
   const cy=H*.51;
   this.image(this.scene,'assets/tray.png',360,cy,600,570);
-  this.image(this.scene,'assets/shadow.png',290,cy-12,320,320,-42);
-  this.image(this.scene,'assets/amber.png',290,cy-18,320,320,-42);
-  this.image(this.scene,'assets/shadow.png',447,cy+100,290,290,150);
-  this.image(this.scene,'assets/peach.png',447,cy+93,290,290,150);
+  this.image(this.scene,'assets/shadow.png',290,cy-12,320,320,-42).alpha=.16;
+  this.scene.addChild(jadeSprite('amber',290,cy-18,320/110,-42));
+  this.image(this.scene,'assets/shadow.png',447,cy+100,290,290,150).alpha=.16;
+  this.scene.addChild(jadeSprite('peach',447,cy+93,290/110,150));
   text(this.scene,'轻转玉环，解开环环相扣',80,H-350,560,46,28,COLORS.ink,'center',true);
   this.scene.addChild(new Button(this.save.data.unlocked?'继续 · 第 '+(this.save.data.unlocked+1)+' 境':'入境解镯',130,H-272,460,86,()=>this.load(this.save.data.unlocked),true));
   this.scene.addChild(new Button('十境图谱',220,H-155,280,64,()=>this.levels()));

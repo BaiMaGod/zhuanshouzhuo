@@ -1,7 +1,7 @@
 import C0 from './core.js';
 import type {CoreAPI,State,Point,Ring,Block} from './types.js';
+import {JADE_NAMES,drawJade} from './jade.js';
 const C=C0 as unknown as CoreAPI;
-const materials=['amber','peach','celadon','ice','ivory'];
 export interface Ghost {r:Ring;state:State;start:number}
 interface RingView {root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite}
 export class Board {
@@ -29,9 +29,9 @@ export class Board {
   this.space.pos(-this.center.x,-this.center.y);
   s.rings.forEach((r,i)=>{
    const root=new Laya.Sprite();root.pos(r.x,r.y);this.space.addChild(root);
-   const shadow=new Laya.Sprite();shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-55,-52,110,110);root.addChild(shadow);
+   const shadow=new Laya.Sprite();shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-55,-53.5,110,110);shadow.alpha=.16;root.addChild(shadow);
    const halo=new Laya.Sprite();root.addChild(halo);
-   const body=new Laya.Sprite();body.graphics.drawImage(Laya.loader.getRes('assets/'+materials[i%5]+'.png'),-55,-55,110,110);root.addChild(body);
+   const body=new Laya.Sprite();drawJade(body.graphics,JADE_NAMES[i%5]);root.addChild(body);
    const label=new Laya.Text();label.text=r.id;label.fontSize=12;label.color='#85784f';label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
    this.rings.set(r.id,{root,body,halo,label,shadow});
   });
@@ -62,21 +62,23 @@ export class Board {
   const points=[[-9,-3.5],[9,-3.5],[9,3.5],[-9,3.5]].map(([x,y])=>{
    const q=C.rot({x,y},a);return[q.x+p.x,q.y+p.y];
   }).flat();
-  g.drawPoly(0,0,points,null,state==='aligned'?'#5ba283':'#9f946f',1.6);
+  g.drawPoly(0,0,points,null,state==='aligned'?'#4baf89':'#7d9c92',1.6);
   const u=C.rot({x:1,y:0},a),v={x:-u.y,y:u.x};
-  for(const sign of[-1,1])this.line(g,{x:p.x-u.x*8+v.x*sign*3,y:p.y-u.y*8+v.y*sign*3},{x:p.x+u.x*8+v.x*sign*3,y:p.y+u.y*8+v.y*sign*3},'#e3eee0',.7);
+  for(const sign of[-1,1])this.line(g,{x:p.x-u.x*8+v.x*sign*3,y:p.y-u.y*8+v.y*sign*3},{x:p.x+u.x*8+v.x*sign*3,y:p.y+u.y*8+v.y*sign*3},'#f4fff4',.85);
  }
  private drawRods(s:State,g:Laya.Graphics,ownerFilter?:string):void{
   for(const z of s.rods){
    if(!C.exists(s,z)||(ownerFilter!==undefined&&z.owner!==ownerFilter))continue;
    const p=C.pose(s,z),a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
-   this.line(g,p.p,p.q,hot?'#c27051':'#827b5e',4.4);
-   this.line(g,p.p,p.q,hot?'#e4aa7b':'#d7ded1',2.7);
+   this.line(g,p.p,p.q,hot?'#c27051':'#7b948a',4.4);
+   this.line(g,p.p,p.q,hot?'#e4aa7b':'#c9e4dc',2.9);
    const v=C.rot({x:0,y:-.8},a);
    this.line(g,{x:p.p.x+v.x,y:p.p.y+v.y},{x:p.q.x+v.x,y:p.q.y+v.y},'#fff9e5',.65);
    if(z.kind==='m'){
     const pts=[[-4,-4.5],[4,-4.5],[4,4.5],[-4,4.5]].map(([x,y])=>{const q=C.rot({x,y},a);return[p.p.x+q.x,p.p.y+q.y]}).flat();
-    g.drawPoly(0,0,pts,'#a99b66','#fff0ba',.8);g.drawCircle(p.p.x,p.p.y,1.2,'#f6e4a0');
+    g.drawPoly(0,0,pts,'#b8d8cc','#7d9e90',.8);
+    g.drawCircle(p.p.x,p.p.y,3,'#a0d5c7','#eafcee',.7);
+    g.drawCircle(p.p.x-.9,p.p.y-1.1,.8,'#f5fff7');
    }else{
     const mid={x:(p.p.x+p.q.x)/2,y:(p.p.y+p.q.y)/2};
     g.drawCircle(mid.x,mid.y,4.4,'#6b9687','#deecde',.8);

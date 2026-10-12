@@ -1,6 +1,6 @@
 # 转手镯消除 · 玉环十境
 
-LayaAir 3.4.0 的首版关卡游戏。规则采用已确认的 V3.2 设计文档及通过验收的十关 HTML 原型；环体几何、两类锁杆、重新扣合、归属消除及连续碰撞入口沿用同一规则模块。
+LayaAir 3.4.0 关卡游戏。V0.2 已换用五张独立 ImageGen 玉镯素材，采用原生纹理网格贴合真实环体与细缺口。规则采用已确认的 V3.2 设计文档及通过验收的十关 HTML 原型；环体几何、两类锁杆、重新扣合、归属消除及连续碰撞入口沿用同一规则模块。
 
 ## 当前内容
 
@@ -23,7 +23,7 @@ npx http-server dist -p 8080
 
 访问 `http://localhost:8080`。部署只需要 `dist/` 内容，服务器必须正确提供 JavaScript 模块的 MIME 类型。不能直接双击 HTML 以 file:// 打开。
 
-美术素材已经预生成，无需 Python 即可构建。重新生成可执行 `npm run art`，需要 Python 3、NumPy 和 Pillow。
+美术素材已经预生成，无需 Python 即可构建。V0.2 的生成 PNG 保存在 public/assets/jade-v2/，提示词与替换记录见 docs/玉镯素材重制_V0.2.md。scripts/measure-jade.py 只读取透明通道并记录纹理坐标，不改写图片。npm run art 仅用于保留的 V0.1 旧程序素材，运行界面已不再引用旧玉镯贴图。
 
 ## 工程结构
 

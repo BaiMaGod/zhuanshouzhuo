@@ -6,6 +6,7 @@ export function installHarness(){
   drawRect(...a){this.ops.push(['rect',...a])}drawCircle(...a){this.ops.push(['circle',...a])}
   drawLine(...a){this.ops.push(['line',...a])}drawPoly(...a){this.ops.push(['poly',...a])}
   drawPath(...a){this.ops.push(['path',...a])}drawImage(...a){this.ops.push(['image',a[0].url,...a.slice(1)])}
+  drawTriangles(texture,x,y,vertices,uvs,indices){this.ops.push(['mesh',texture.url,x,y,Array.from(vertices),Array.from(uvs),Array.from(indices)])}
  }
  class Sprite{
   constructor(){Object.assign(this,{x:0,y:0,width:0,height:0,rotation:0,alpha:1,visible:true,scaleX:1,scaleY:1,pivotX:0,pivotY:0,zOrder:0,parent:null,children:[],events:{},graphics:new Graphics})}
