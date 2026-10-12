@@ -1,0 +1,10 @@
+import {spawnSync} from 'node:child_process';
+import {rmSync,mkdirSync,cpSync,readFileSync,writeFileSync} from 'node:fs';
+rmSync('dist',{recursive:true,force:true});
+mkdirSync('dist',{recursive:true});
+const run=spawnSync(process.execPath,['node_modules/typescript/bin/tsc','--project','tsconfig.json'],{stdio:'inherit'});
+if(run.status!==0)process.exit(run.status||1);
+cpSync('public','dist',{recursive:true});
+const p=JSON.parse(readFileSync('package.json','utf8'));
+writeFileSync('dist/version.json',JSON.stringify({version:p.version,engine:'LayaAir 3.4.0',rules:'V3.2',levels:10})+'\n');
+console.log('Built 玉环十境 '+p.version);

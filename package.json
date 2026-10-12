@@ -1,0 +1,13 @@
+{
+  "name":"zhuanshouzhuo-laya",
+  "version":"0.1.0",
+  "private":true,
+  "type":"module",
+  "scripts":{
+    "build":"node scripts/build.mjs",
+    "typecheck":"node node_modules/typescript/bin/tsc --noEmit",
+    "test":"npm run build && node --test tests/*.test.mjs",
+    "art":"python3 scripts/generate-jade.py"
+  },
+  "devDependencies":{"typescript":"5.9.3"}
+}

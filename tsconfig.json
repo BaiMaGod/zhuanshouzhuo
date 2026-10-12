@@ -1,0 +1,9 @@
+{
+  "compilerOptions":{
+    "target":"ES2022","module":"ES2022","moduleResolution":"Bundler",
+    "lib":["ES2022","DOM","WebWorker"],"skipLibCheck":true,
+    "strict":true,"allowJs":true,"checkJs":false,
+    "outDir":"dist/js","rootDir":"src"
+  },
+  "include":["src/**/*"]
+}
