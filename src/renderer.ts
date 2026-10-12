@@ -31,7 +31,7 @@ export class Board {
    const root=new Laya.Sprite();root.pos(r.x,r.y);this.space.addChild(root);
    const shadow=new Laya.Sprite();shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-55,-53.5,110,110);shadow.alpha=.16;root.addChild(shadow);
    const halo=new Laya.Sprite();root.addChild(halo);
-   const body=new Laya.Sprite();drawJade(body.graphics,JADE_NAMES[i%5]);root.addChild(body);
+   const body=new Laya.Sprite();drawJade(body.graphics,JADE_NAMES[i%5]);body.cacheAs='bitmap';root.addChild(body);
    const label=new Laya.Text();label.text=r.id;label.fontSize=12;label.color='#85784f';label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
    this.rings.set(r.id,{root,body,halo,label,shadow});
   });

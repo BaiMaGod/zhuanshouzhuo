@@ -20,7 +20,7 @@ export class Button extends Laya.Sprite {
   this.label=text(this,title,0,-1,w,h,23,primary?'#fff5d6':COLORS.ink);
   this.on(Laya.Event.CLICK,this,()=>{if(this.enabled_)callback()});
  }
- set enabled(v:boolean){this.enabled_=v;this.alpha=v?1:.38}
+ set enabled(v:boolean){if(v===this.enabled_)return;this.enabled_=v;this.alpha=v?1:.38}
  get enabled():boolean{return this.enabled_}
 }
 export function ornament(parent:Laya.Sprite,x:number,y:number,w:number):void{

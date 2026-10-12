@@ -49,5 +49,5 @@ export function drawJade(g:Laya.Graphics,name:JadeName):void{
  }
 }
 export function jadeSprite(name:JadeName,x:number,y:number,scale=1,rotation=0):Laya.Sprite{
- const s=new Laya.Sprite();s.pos(x,y);s.scale(scale,scale);s.rotation=rotation;drawJade(s.graphics,name);return s;
+ const s=new Laya.Sprite();s.pos(x,y);s.scale(scale,scale);s.rotation=rotation;drawJade(s.graphics,name);s.cacheAs='bitmap';return s;
 }
