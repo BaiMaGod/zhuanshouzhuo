@@ -8,6 +8,9 @@ import solutions from './solutions.js';
 import type {Action,Point,State,Result} from './types.js';
 
 const W=720,H=Math.round(Math.max(1180,Math.min(1600,innerHeight/Math.min(innerWidth,720)*720)));
+// Keep UI and hit coordinates at 720 logical units, but bound mobile pixel fill.
+const RENDER_W=innerWidth<600?Math.min(W,Math.round(innerWidth*1.5)):W;
+const RENDER_SCALE=RENDER_W/W;
 const ASSETS=[...JADE_ASSETS,'assets/shadow.png',...['garden','tray','clasp'].map(n=>'assets/art-v3/'+n+'.png')];
 class Game {
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
@@ -18,6 +21,7 @@ class Game {
  busy=false;epoch=0;worker:Worker|null=null;finishPlan:((path:Action[]|null)=>void)|null=null;
  demoButton:Button|null=null;settled=false;tutorialSeen=false;modalOpen=false;
  constructor(){
+  this.root.scale(RENDER_SCALE,RENDER_SCALE);
   Laya.stage.addChild(this.root);this.root.addChild(this.scene);this.root.addChild(this.overlay);
   this.canvas=document.querySelector('#layaCanvas')||document.querySelector('canvas')!;
   this.audio.enabled=this.save.data.sound;
@@ -295,7 +299,7 @@ class Game {
  }
 }
 async function boot():Promise<void>{
- await Laya.init(W,H);Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
+ await Laya.init(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
  Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor='#e6debf';
  await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load();document.getElementById('boot')?.remove();
  if(new URLSearchParams(location.search).has('debug')){
