@@ -5,7 +5,7 @@ declare namespace Laya {
  function init(width:number,height:number):Promise<void>;
  class Sprite {
   x:number;y:number;width:number;height:number;rotation:number;alpha:number;visible:boolean;
-  mouseEnabled:boolean;mouseThrough:boolean;zOrder:number;name:string;
+  mouseEnabled:boolean;mouseThrough:boolean;cacheAs:string;zOrder:number;name:string;
   scaleX:number;scaleY:number;texture:Texture|null;graphics:Graphics;
   parent:Sprite|null;
   constructor();

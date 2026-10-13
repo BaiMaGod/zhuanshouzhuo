@@ -9,7 +9,7 @@ export function panel(parent:Laya.Sprite,x:number,y:number,w:number,h:number,r=2
  const s=new Laya.Sprite();s.pos(x,y);s.size(w,h);s.mouseEnabled=false;
  round(s.graphics,0,6,w,h,r,'rgba(61,64,37,0.20)');round(s.graphics,0,0,w,h,r,fill,line,2);
  round(s.graphics,5,5,w-10,h-10,Math.max(4,r-4),'rgba(255,255,255,0)',line,0.7);
- s.graphics.drawLine(r+8,3,w-r-8,3,'#fffef1',2);parent.addChild(s);return s;
+ s.graphics.drawLine(r+8,3,w-r-8,3,'#fffef1',2);s.cacheAs='bitmap';parent.addChild(s);return s;
 }
 // Graphics.drawPath in the bundled 3.4 engine only accepts move/line/arc/close.
 // Flatten quadratic curves locally rather than relying on an unsupported command.
@@ -56,6 +56,8 @@ export class Button extends Laya.Sprite {
   if(kind)icon(g,kind,w<90?(w-27)/2:18,(h-26)/2,26,primary?'#fff5d0':COLORS.ink);
   this.label=text(this,title,kind&&w>=90?41:0,-1,kind&&w>=90?w-49:w,h,h>=82?32:22,primary?'#fff9db':COLORS.ink);this.label.bold=primary;
   if(!title)this.label.visible=false;
+  // Cache only the sculpted decoration; text and input remain separate and sharp.
+  this.skin.cacheAs='bitmap';
   this.on(Laya.Event.MOUSE_DOWN,this,()=>this.press(true));
   this.on(Laya.Event.MOUSE_UP,this,()=>this.press(false));
   this.on(Laya.Event.MOUSE_OUT,this,()=>this.press(false));
