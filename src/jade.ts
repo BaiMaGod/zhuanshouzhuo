@@ -16,12 +16,16 @@ function sample(values:number[],angle:number):number{
 export function jadeMesh(name:JadeName):JadeMesh{
  const cached=meshes.get(name);if(cached)return cached;
  // At the largest board zoom, 64 arc segments deviate by under 0.2 stage pixels.
- const p=profiles[name],segments=64,rows=[0,.5,1],vertices:number[]=[],uvs:number[]=[],indices:number[]=[];
+ const p=profiles[name],segments=64,rows=[0,.15,.5,.85,1],vertices:number[]=[],uvs:number[]=[],indices:number[]=[];
  const r0=C.R-C.BAND/2,r1=C.R+C.BAND/2,half=Math.asin(C.GAP/(2*r0));
  for(let i=0;i<=segments;i++){
-  const a=half+(Math.PI*2-2*half)*i/segments,cos=Math.cos(a),sin=Math.sin(a);
-  const inner=sample(p.inner,a),outer=sample(p.outer,a);
+  const base=half+(Math.PI*2-2*half)*i/segments;
   for(const fraction of rows){
+   // Round the tips inward, never extending jade into the authoritative gap.
+   const cross=fraction*2-1,cap=C.BAND/2*(1-Math.sqrt(Math.max(0,1-cross*cross)))/C.R;
+   const edge=Math.max(0,1-Math.min(i,segments-i)/2);
+   const a=base+(i<segments/2?1:-1)*cap*edge,cos=Math.cos(a),sin=Math.sin(a);
+   const inner=sample(p.inner,a),outer=sample(p.outer,a);
    const radius=r0+(r1-r0)*fraction,sourceRadius=inner+(outer-inner)*fraction;
    vertices.push(cos*radius,sin*radius);
    uvs.push((p.cx+cos*sourceRadius)/p.width,(p.cy+sin*sourceRadius)/p.height);
@@ -37,16 +41,20 @@ export function jadeMesh(name:JadeName):JadeMesh{
 export function drawJade(g:Laya.Graphics,name:JadeName):void{
  const mesh=jadeMesh(name);
  g.drawTriangles(Laya.loader.getRes('assets/jade-v2/'+name+'.png'),0,0,mesh.vertices,mesh.uvs,mesh.indices);
- // Pale polished cut faces remain strictly inside the same band and narrow wedge.
- const inner=C.R-C.BAND/2,outer=C.R+C.BAND/2,half=Math.asin(C.GAP/(2*inner));
+ // A short curved highlight follows each smoothly polished rounded end.
+ const inner=C.R-C.BAND/2,half=Math.asin(C.GAP/(2*inner));
  const colors:Record<JadeName,[string,string]>={
   amber:['#fff0a7','#fffde8'],peach:['#ffe1d4','#fff9f2'],celadon:['#d2e9cc','#f7fff0'],
   ice:['#cceee5','#f7fffb'],ivory:['#fff1ca','#fffef2']
  };
  for(const sign of[-1,1]){
-  const a=sign*half,p=C.point({x:0,y:0},a/C.D,inner+.9),q=C.point({x:0,y:0},a/C.D,outer-.9);
-  g.drawLine(p.x,p.y,q.x,q.y,colors[name][0],1.15);
-  g.drawLine(p.x+.15,p.y+sign*.35,q.x-.15,q.y+sign*.35,colors[name][1],.42);
+  let last:{x:number;y:number}|null=null;
+  for(let i=1;i<12;i++){
+   const f=i/12,cross=f*2-1,a=sign*(half+C.BAND/2*(1-Math.sqrt(1-cross*cross))/C.R+.008);
+   const p=C.point({x:0,y:0},a/C.D,inner+C.BAND*f);
+   if(last)g.drawLine(last.x,last.y,p.x,p.y,sign<0?colors[name][1]:colors[name][0],.55);
+   last=p;
+  }
  }
 }
 export function jadeSprite(name:JadeName,x:number,y:number,scale=1,rotation=0):Laya.Sprite{

@@ -8,7 +8,7 @@ import solutions from './solutions.js';
 import type {Action,Point,State,Result} from './types.js';
 
 const W=720,H=Math.round(Math.max(1180,Math.min(1600,innerHeight/Math.min(innerWidth,720)*720)));
-const ASSETS=[...JADE_ASSETS,...['shadow','garden','tray'].map(n=>'assets/'+n+'.png')];
+const ASSETS=[...JADE_ASSETS,'assets/shadow.png',...['garden','tray','clasp'].map(n=>'assets/art-v3/'+n+'.png')];
 class Game {
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
  save=new Save();audio=new Audio();model:GameModel|null=null;board:Board|null=null;
@@ -25,9 +25,9 @@ class Game {
   this.canvas.addEventListener('pointermove',e=>this.move(e));
   this.canvas.addEventListener('pointerup',e=>this.up(e));
   this.canvas.addEventListener('pointercancel',()=>this.releaseDrag());
-  this.canvas.addEventListener('lostpointercapture',()=>{this.drag=null});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)this.cancel()});
-  window.addEventListener('blur',()=>this.releaseDrag());
+  this.canvas.addEventListener('lostpointercapture',()=>this.releaseDrag());
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){this.cancel();this.audio.stopAll()}});
+  window.addEventListener('blur',()=>{this.releaseDrag();this.audio.stopAll()});
   window.addEventListener('keydown',e=>{
    if(this.mode!=='game'||this.modalOpen)return;
    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();this.manual((e.key==='ArrowLeft'?-1:1)*(e.shiftKey?30:1))}
@@ -36,7 +36,7 @@ class Game {
   Laya.timer.frameLoop(1,this,this.tick);this.home();
  }
  background():void{
-  const bg=new Laya.Sprite();bg.graphics.drawImage(Laya.loader.getRes('assets/garden.png'),0,0,W,H);bg.mouseEnabled=false;this.scene.addChild(bg);
+  const bg=new Laya.Sprite();bg.graphics.drawImage(Laya.loader.getRes('assets/art-v3/garden.png'),0,0,W,H);bg.mouseEnabled=false;this.scene.addChild(bg);
  }
  clear(mode:Game['mode']):void{
   this.cancel();this.board?.destroy();this.board=null;this.model=null;
@@ -54,7 +54,7 @@ class Game {
   text(this.scene,'玉 环 十 境',100,273,520,48,28,COLORS.gold,'center',true);
   ornament(this.scene,220,345,280);
   const cy=H*.51;
-  this.image(this.scene,'assets/tray.png',360,cy,600,570);
+  this.image(this.scene,'assets/art-v3/tray.png',360,cy,600,570);
   this.image(this.scene,'assets/shadow.png',290,cy-12,320,320,-42).alpha=.16;
   this.scene.addChild(jadeSprite('amber',290,cy-18,320/110,-42));
   this.image(this.scene,'assets/shadow.png',447,cy+100,290,290,150).alpha=.16;
@@ -85,6 +85,7 @@ class Game {
  load(i:number):void{
   if(i<0||i>this.save.data.unlocked)return;
   this.clear('game');this.settled=false;this.model=new GameModel(i);
+  panel(this.scene,105,105,510,113,26,'rgba(255,251,232,0.94)','#cdb37b');
   this.scene.addChild(new Button('‹ 图谱',28,26,136,60,()=>this.levels()));
   const sound=new Button(this.audio.enabled?'音效 开':'音效 关',456,26,116,60,()=>{
    this.audio.enabled=!this.audio.enabled;this.save.data.sound=this.audio.enabled;this.save.persist();sound.label.text=this.audio.enabled?'音效 开':'音效 关';this.audio.play('select');
@@ -94,8 +95,9 @@ class Game {
   this.status=text(this.scene,'',70,179,580,38,21,COLORS.muted);
   ornament(this.scene,176,229,368);
   const plateH=H-616;
-  this.image(this.scene,'assets/tray.png',360,246+plateH/2,700,plateH);
+  this.image(this.scene,'assets/art-v3/tray.png',360,246+plateH/2,710,plateH);
   this.board=new Board(this.scene,{x:73,y:288,w:574,h:H-678});this.board.load(this.model.state);
+  panel(this.scene,35,H-366,650,109,22,'rgba(255,250,229,0.94)','#d4bf90');
   this.message=text(this.scene,C.levels[i].tip,52,H-354,616,94,22,COLORS.ink);
   const y=H-240;
   const specs:[string,number,number,boolean][]=[['↶ 30°',32,-30,false],['↶ 微调',197,-1,true],['微调 ↷',362,1,true],['30° ↷',527,30,false]];
@@ -122,10 +124,12 @@ class Game {
   if(this.demoButton)this.demoButton.label.text=this.busy?'停止':'演示';
  }
  releaseDrag():void{
+  this.audio.stopMotion();this.audio.resetContact();
   const d=this.drag;this.drag=null;
   if(d)try{if(this.canvas.hasPointerCapture(d.pointer))this.canvas.releasePointerCapture(d.pointer)}catch{}
  }
  cancel():void{
+  this.audio.stopAll();
   this.epoch++;this.busy=false;this.releaseDrag();
   this.worker?.terminate();this.worker=null;
   this.finishPlan?.(null);this.finishPlan=null;
@@ -168,15 +172,17 @@ class Game {
  }
  manual(delta:number):void{
   if(!this.model||!this.model.selected||this.busy||this.board?.animating||this.modalOpen)return;
-  this.model.begin();this.board!.hint=null;this.perform(this.model.selected,delta);
+  this.audio.resetContact();this.model.begin();this.board!.hint=null;this.perform(this.model.selected,delta);
  }
  perform(id:string,d:number):Result{
   const model=this.model!,before=C.clone(model.state),res=model.turn(id,d);
+  if(res.done){this.audio.motion(res.done);if(!res.blocked)this.audio.resetContact()}
   if(res.removed.length){
    this.releaseDrag();this.board!.release(before,model.state,res.removed);this.audio.play('clear');
    this.say(res.removed.join('、')+' 已解开。观察下一只手镯的扣位。');
   }else if(res.blocked){
-   this.board!.blocked=res.blocked;this.board!.blockUntil=performance.now()+550;this.audio.play('block');
+   this.board!.blocked=res.blocked;this.board!.blockUntil=performance.now()+550;
+   this.audio.collision(id+':'+res.blocked.rod+':'+res.blocked.target,Math.min(1,Math.abs(d)/8));
    this.say(res.blocked.kind==='captive'?id+' 的锁杆还套在 '+res.blocked.target+' 上，先处理 '+res.blocked.target+'。':id+' 的锁杆被挡住了。试试反向转动，或先拆旁边的手镯。');
   }else{
    const aligned=model.state.rods.some(z=>C.exists(model.state,z)&&C.endpoints(model.state,z).some((e,j)=>e.id===id&&model.state.states[z.id][j]==='aligned'));
@@ -246,6 +252,7 @@ class Game {
   if(token!==this.epoch)return;this.busy=false;this.sync();
  }
  tick():void{
+  this.audio.tick(performance.now());
   if(!this.model||!this.board||this.mode!=='game')return;
   if(this.board.animating||this.board.sparks.length||this.board.hint||performance.now()<this.board.blockUntil)this.board.draw(this.model.state);
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
@@ -287,7 +294,7 @@ class Game {
 async function boot():Promise<void>{
  await Laya.init(W,H);Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
  Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor='#e6debf';
- await Laya.loader.load(ASSETS);const g=new Game();document.getElementById('boot')?.remove();
+ await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load();document.getElementById('boot')?.remove();
  if(new URLSearchParams(location.search).has('debug')){
   (window as unknown as {jadeDebug:unknown}).jadeDebug={game:g,Core:C,getState:()=>g.model?C.clone(g.model.state):null};
  }

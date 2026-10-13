@@ -27,7 +27,7 @@ declare namespace Laya {
   drawLine(x1:number,y1:number,x2:number,y2:number,color:string,width?:number):void;
   drawPoly(x:number,y:number,pts:number[],fill:string|null,line?:string|null,lineWidth?:number):void;
   drawImage(texture:Texture,x?:number,y?:number,width?:number,height?:number):void;
-  drawTriangles(texture:Texture,x:number,y:number,vertices:Float32Array,uvs:Float32Array,indices:Uint16Array):void;
+  drawTriangles(texture:Texture,x:number,y:number,vertices:Float32Array,uvs:Float32Array,indices:Uint16Array,matrix?:null,alpha?:number,color?:string):void;
   drawPath(x:number,y:number,paths:unknown[],brush?:{fillStyle:string},pen?:{strokeStyle:string;lineWidth:number}):void;
  }
  class Texture {width:number;height:number}

@@ -1,6 +1,6 @@
 import C0 from './core.js';
 import type {CoreAPI,State,Point,Ring,Block} from './types.js';
-import {JADE_NAMES,drawJade} from './jade.js';
+import {JADE_NAMES,drawJade,jadeMesh} from './jade.js';
 const C=C0 as unknown as CoreAPI;
 export interface Ghost {r:Ring;state:State;start:number}
 interface RingView {root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite}
@@ -29,7 +29,12 @@ export class Board {
   this.space.pos(-this.center.x,-this.center.y);
   s.rings.forEach((r,i)=>{
    const root=new Laya.Sprite();root.pos(r.x,r.y);this.space.addChild(root);
-   const shadow=new Laya.Sprite();shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-55,-53.5,110,110);shadow.alpha=.16;root.addChild(shadow);
+   const shadow=new Laya.Sprite(),mesh=jadeMesh(JADE_NAMES[i%5]);
+   const tex=Laya.loader.getRes('assets/jade-v2/'+JADE_NAMES[i%5]+'.png');
+   // Existing soft shadow plus a matching rounded silhouette; no live blur/cache.
+   shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-55,-55,110,110);shadow.alpha=.85;
+   shadow.graphics.drawTriangles(tex,0,0,mesh.vertices,mesh.uvs,mesh.indices,null,.32,'#38423a');
+   const offset=C.rot({x:1.7,y:2.9},-this.turn);shadow.pos(offset.x,offset.y);root.addChild(shadow);
    const halo=new Laya.Sprite();root.addChild(halo);
    const body=new Laya.Sprite();drawJade(body.graphics,JADE_NAMES[i%5]);root.addChild(body);
    const label=new Laya.Text();label.text=r.id;label.fontSize=12;label.color='#85784f';label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
@@ -58,34 +63,42 @@ export class Board {
  get animating():boolean {return this.ghosts.length>0}
  private line(g:Laya.Graphics,p:Point,q:Point,c:string,w:number):void{g.drawLine(p.x,p.y,q.x,q.y,c,w)}
  private sleeve(g:Laya.Graphics,p:Point,a:number,state:string):void{
-  // The hollow cuff keeps its entire physical outline even after its target disappears.
-  const points=[[-9,-3.5],[9,-3.5],[9,3.5],[-9,3.5]].map(([x,y])=>{
-   const q=C.rot({x,y},a);return[q.x+p.x,q.y+p.y];
-  }).flat();
-  g.drawPoly(0,0,points,null,state==='aligned'?'#4baf89':'#7d9c92',1.6);
+  // Rounded silver sleeve retains its hollow opening, pose and complete outline.
+  const points:number[]=[];
+  for(const [x,y,start]of [[6,-.5,-90],[6,.5,0],[-6,.5,90],[-6,-.5,180]])
+   for(let step=0;step<=4;step++){
+    const t=(start+step*22.5)*C.D,q=C.rot({x:x+3*Math.cos(t),y:y+3*Math.sin(t)},a);
+    points.push(q.x+p.x,q.y+p.y);
+   }
+  g.drawPoly(1,1.3,points,null,'rgba(45,58,48,0.23)',2.1);
+  g.drawPoly(0,0,points,null,state==='aligned'?'#609f92':'#819b94',1.8);
+  g.drawPoly(0,0,points,null,'#dbece5',.95);
   const u=C.rot({x:1,y:0},a),v={x:-u.y,y:u.x};
-  for(const sign of[-1,1])this.line(g,{x:p.x-u.x*8+v.x*sign*3,y:p.y-u.y*8+v.y*sign*3},{x:p.x+u.x*8+v.x*sign*3,y:p.y+u.y*8+v.y*sign*3},'#f4fff4',.85);
+  for(const sign of[-1,1])this.line(g,{x:p.x-u.x*5.8+v.x*sign*2.8,y:p.y-u.y*5.8+v.y*sign*2.8},{x:p.x+u.x*5.8+v.x*sign*2.8,y:p.y+u.y*5.8+v.y*sign*2.8},sign<0?'#fffef4':'#b3cec5',.75);
+ }
+ private jewel(g:Laya.Graphics,p:Point,a:number):void{
+  const vertices=new Float32Array([[-7.6,-3.9],[7.6,-3.9],[7.6,3.9],[-7.6,3.9]].flatMap(([x,y])=>{
+   const q=C.rot({x,y},a);return[p.x+q.x,p.y+q.y];
+  }));
+  g.drawTriangles(Laya.loader.getRes('assets/art-v3/clasp.png'),0,0,vertices,new Float32Array([0,0,1,0,1,1,0,1]),new Uint16Array([0,1,2,0,2,3]));
  }
  private drawRods(s:State,g:Laya.Graphics,ownerFilter?:string):void{
   for(const z of s.rods){
    if(!C.exists(s,z)||(ownerFilter!==undefined&&z.owner!==ownerFilter))continue;
    const p=C.pose(s,z),a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
-   this.line(g,p.p,p.q,hot?'#c27051':'#7b948a',4.4);
-   this.line(g,p.p,p.q,hot?'#e4aa7b':'#c9e4dc',2.9);
+   const shadow=C.rot({x:1.1,y:1.8},-this.turn);
+   this.line(g,{x:p.p.x+shadow.x,y:p.p.y+shadow.y},{x:p.q.x+shadow.x,y:p.q.y+shadow.y},'rgba(46,63,51,0.25)',5.3);
+   this.line(g,p.p,p.q,hot?'#c27051':'#839f98',4.4);
+   this.line(g,p.p,p.q,hot?'#e4aa7b':'#d5e9e3',2.9);
    const v=C.rot({x:0,y:-.8},a);
    this.line(g,{x:p.p.x+v.x,y:p.p.y+v.y},{x:p.q.x+v.x,y:p.q.y+v.y},'#fff9e5',.65);
-   if(z.kind==='m'){
-    const pts=[[-4,-4.5],[4,-4.5],[4,4.5],[-4,4.5]].map(([x,y])=>{const q=C.rot({x,y},a);return[p.p.x+q.x,p.p.y+q.y]}).flat();
-    g.drawPoly(0,0,pts,'#b8d8cc','#7d9e90',.8);
-    g.drawCircle(p.p.x,p.p.y,3,'#a0d5c7','#eafcee',.7);
-    g.drawCircle(p.p.x-.9,p.p.y-1.1,.8,'#f5fff7');
-   }else{
-    const mid={x:(p.p.x+p.q.x)/2,y:(p.p.y+p.q.y)/2};
-    g.drawCircle(mid.x,mid.y,4.4,'#6b9687','#deecde',.8);
-    this.line(g,{x:mid.x-1.6,y:mid.y-1.6},{x:mid.x+1.6,y:mid.y+1.6},'#fffbec',.9);
-    this.line(g,{x:mid.x+1.6,y:mid.y-1.6},{x:mid.x-1.6,y:mid.y+1.6},'#fffbec',.9);
-   }
    C.endpoints(s,z).forEach((e,i)=>this.sleeve(g,e.p,a,s.states[z.id][i]));
+   this.jewel(g,z.kind==='m'?p.p:{x:(p.p.x+p.q.x)/2,y:(p.p.y+p.q.y)/2},a);
+   if(z.kind==='b'){
+    const mid={x:(p.p.x+p.q.x)/2,y:(p.p.y+p.q.y)/2};
+    this.line(g,{x:mid.x-1.1,y:mid.y-1.1},{x:mid.x+1.1,y:mid.y+1.1},'#fffef2',.7);
+    this.line(g,{x:mid.x+1.1,y:mid.y-1.1},{x:mid.x-1.1,y:mid.y+1.1},'#fffef2',.7);
+   }
   }
  }
  draw(s:State,now=performance.now()):void{
