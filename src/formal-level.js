@@ -1,7 +1,8 @@
-// Nine rotated chambers form one connected serpentine puzzle, not independent boards.
+// Interleave the middle row into its neighbors; keep ring and rod dimensions physical.
+// Nine chambers form one connected serpentine puzzle, not independent boards.
 // C's outgoing bridge prevents it rotating until the next chamber's G is removed.
-const headings=[0,0,90,180,180,90,0,0,0];
-const bases=[[0,0],[480,0],[960,0],[960,480],[480,480],[0,480],[0,960],[480,960],[960,960]];
+const headings=[0,0,0,180,180,180,0,0,0];
+const bases=[[0,0],[306,0],[612,0],[734,500],[428,500],[122,500],[-90,606],[216,606],[522,606]];
 const shape=[['G',0,0,180],['A',106,0,110],['B',53,91.8,250],['C',212,0,200],['D',106,183.6,10],['E',106,289.6,100]];
 const localLinks=[['m','G','A'],['m','G','B'],['b','A','B'],['m','A','C'],['m','B','D'],['m','D','E']];
 const points=[],links=[];

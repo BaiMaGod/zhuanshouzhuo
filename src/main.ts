@@ -16,6 +16,7 @@ const RENDER_SCALE=RENDER_W/W;
 const ASSETS=[...JADE_ASSETS,'assets/shadow.png',...['garden','tray','clasp'].map(n=>'assets/art-v3/'+n+'.png')];
 class Game {
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
+ garden:Laya.Sprite|null=null;
  save=new Save();audio=new Audio();model:GameModel|null=null;board:Board|null=null;
  mode:'home'|'levels'|'game'='home';message:Laya.Text|null=null;status:Laya.Text|null=null;
  controls:Button[]=[];undoButton:Button|null=null;
@@ -47,7 +48,7 @@ class Game {
   Laya.timer.frameLoop(1,this,this.tick);this.home();
  }
  background():void{
-  const bg=new Laya.Sprite();bg.graphics.drawImage(Laya.loader.getRes('assets/art-v3/garden.png'),0,0,W,H);bg.mouseEnabled=false;this.scene.addChild(bg);
+  const bg=new Laya.Sprite();bg.name='board-garden';bg.graphics.drawImage(Laya.loader.getRes('assets/art-v3/garden.png'),0,0,W,H);bg.mouseEnabled=false;this.scene.addChild(bg);this.garden=bg;
  }
  clear(mode:Game['mode']):void{
   this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.homeSpark=null;this.board?.destroy();this.board=null;this.model=null;
@@ -55,6 +56,8 @@ class Game {
   this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.message=null;this.status=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
   // Cache the visible game scene at stage resolution; input and child changes repaint it.
   this.scene.size(W,H);this.scene.cacheAs=mode==='game'?'bitmap':'none';
+  // The camera also moves the artwork. Clip its expanded bounds before caching.
+  if(mode==='game')this.scene.scrollRect=new Laya.Rectangle(0,0,W,H);
   this.mode=mode;this.background();
  }
  image(parent:Laya.Sprite,url:string,x:number,y:number,w:number,h:number,rotation=0):Laya.Sprite{
@@ -126,8 +129,9 @@ class Game {
   ornament(this.scene,176,229,368);
   if(this.formal){
    const plateH=H-500;
-   this.image(this.scene,'assets/art-v3/tray.png',360,247+plateH/2,710,plateH);
+   const tray=this.image(this.scene,'assets/art-v3/tray.png',360,247+plateH/2,710,plateH);tray.name='board-tray';
    this.board=new Board(this.scene,{x:42,y:262,w:636,h:H-542});this.board.load(this.model.state);
+   this.board.attachBackdrop([this.garden!,tray]);
    const y=H-252;
    this.scene.addChild(new Button('−',38,y,78,62,()=>this.zoomView(1/1.35)));
    this.scene.addChild(new Button('+',128,y,78,62,()=>this.zoomView(1.35)));
@@ -142,8 +146,9 @@ class Game {
    this.syncView();
   }else{
   const plateH=H-616;
-  this.image(this.scene,'assets/art-v3/tray.png',360,246+plateH/2,710,plateH);
+  const tray=this.image(this.scene,'assets/art-v3/tray.png',360,246+plateH/2,710,plateH);tray.name='board-tray';
   this.board=new Board(this.scene,{x:73,y:288,w:574,h:H-678});this.board.load(this.model.state);
+  this.board.attachBackdrop([this.garden!,tray]);
   panel(this.scene,35,H-387,650,130,24,'rgba(255,250,229,0.97)','#d4bf90');
   this.guideTitle=text(this.scene,'解镯小提示',56,H-380,606,35,20,COLORS.gold,'left');
   const tips=['拖动粉色 B 镯，把缺口转向两镯之间的空心扣。','带 × 的锁杆留在原地，两只手镯各对齐自己的扣。','先解外围 B 镯，再观察留下的完整锁杆。'];

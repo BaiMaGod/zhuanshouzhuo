@@ -6,12 +6,13 @@ export interface Ghost {r:Ring;state:State;start:number}
 interface RingView {root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite}
 export class Board {
  viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();effects=new Laya.Sprite();
+ backdrop:Laya.Sprite|null=null;
  rings=new Map<string,RingView>();
  center:Point={x:0,y:0}; screen:Point;zoom=1;fitZoom=1;bounds={w:1,h:1};turn=0;selected:string|null=null;
  lastState:State|null=null;
  hint:Point|null=null;blocked:Block|null=null;blockUntil=0;
  ghosts:Ghost[]=[];sparks:{x:number;y:number;start:number;seed:number}[]=[];
- constructor(parent:Laya.Sprite,public rect:{x:number;y:number;w:number;h:number}){
+ constructor(private parent:Laya.Sprite,public rect:{x:number;y:number;w:number;h:number}){
   this.screen={x:rect.x+rect.w/2,y:rect.y+rect.h/2};
   this.viewport.pos(rect.x,rect.y);this.viewport.size(rect.w,rect.h);this.viewport.scrollRect=new Laya.Rectangle(0,0,rect.w,rect.h);this.viewport.mouseEnabled=false;
   parent.addChild(this.viewport);this.viewport.addChild(this.root);this.root.addChild(this.space);
@@ -43,7 +44,23 @@ export class Board {
   });
  }
  contains(p:Point):boolean{return p.x>=this.rect.x&&p.x<=this.rect.x+this.rect.w&&p.y>=this.rect.y&&p.y<=this.rect.y+this.rect.h}
- applyView():void{this.root.pos(this.screen.x-this.rect.x,this.screen.y-this.rect.y);this.root.scale(this.zoom,this.zoom);this.root.rotation=this.turn;if(this.lastState)this.draw(this.lastState)}
+ attachBackdrop(images:Laya.Sprite[]):void{
+  this.backdrop?.destroy(true);this.backdrop=new Laya.Sprite();this.backdrop.name='board-backdrop';this.backdrop.zOrder=-1;this.backdrop.mouseEnabled=false;
+  this.parent.addChild(this.backdrop);
+  // Register the original artwork in board coordinates once. Both roots use the
+  // same camera matrix; only the ring layer has the smaller gameplay clip.
+  for(const image of images){
+   const p=this.toWorld({x:image.x,y:image.y});
+   this.backdrop.addChild(image);image.pos(p.x-this.center.x,p.y-this.center.y);
+   image.scale(1/this.fitZoom,1/this.fitZoom);image.rotation=-this.turn;
+  }
+  this.applyView();
+ }
+ applyView():void{
+  this.root.pos(this.screen.x-this.rect.x,this.screen.y-this.rect.y);this.root.scale(this.zoom,this.zoom);this.root.rotation=this.turn;
+  if(this.backdrop){this.backdrop.pos(this.screen.x,this.screen.y);this.backdrop.scale(this.zoom,this.zoom);this.backdrop.rotation=this.turn}
+  if(this.lastState)this.draw(this.lastState);
+ }
  resetView():void{this.zoom=this.fitZoom;this.screen={x:this.rect.x+this.rect.w/2,y:this.rect.y+this.rect.h/2};this.applyView()}
  clampView():void{
   const mid={x:this.rect.x+this.rect.w/2,y:this.rect.y+this.rect.h/2},extra=this.zoom>this.fitZoom*1.01?.2:0;
@@ -155,6 +172,6 @@ export class Board {
   }
   if(this.hint){const pulse=1+Math.sin(now/170)*.09;this.effects.graphics.drawCircle(this.hint.x,this.hint.y,9*pulse,null,'#b18d38',1.1)}
  }
- destroy():void{this.viewport.destroy(true)}
+ destroy():void{this.backdrop?.destroy(true);this.backdrop=null;this.viewport.destroy(true)}
 }
 

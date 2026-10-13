@@ -1,6 +1,10 @@
 import test from 'node:test';import assert from 'node:assert/strict';import C from '../dist/js/core.js';import solutions from '../dist/js/solutions.js';import {Save} from '../dist/js/storage.js';
 test('54镯正式关卡为相连九宫结构，跨宫杆真实阻挡且完整路线通关',()=>{
  const s=C.make(10);assert.equal(s.rings.length,54);assert.equal(s.rods.length,62);assert.deepEqual(C.validate(s),[]);assert.equal(C.settle(C.clone(s)).length,0);
+ // Keep the dense layout without shrinking the physical rings or relaxing collisions.
+ const width=Math.max(...s.rings.map(r=>r.x))-Math.min(...s.rings.map(r=>r.x))+92,height=Math.max(...s.rings.map(r=>r.y))-Math.min(...s.rings.map(r=>r.y))+92;
+ assert.ok(width*height<1_000_000,'54 rings occupy at most half the former sparse board');
+ assert.ok(s.rings.every(r=>s.rings.some(t=>t!==r&&C.dist(r,t)<=107)),'No isolated outlying rings');
  const seen=new Set(['1G']);for(let pass=0;pass<54;pass++)for(const z of s.rods){const ids=z.kind==='m'?[z.owner,...z.targets]:z.targets;if(ids.some(id=>seen.has(id)))ids.forEach(id=>seen.add(id))}assert.equal(seen.size,54);
  const blocked=C.request(C.clone(s),'1C',-10);assert.equal(blocked.blocked?.kind,'captive');assert.equal(C.ring(s,'1C').life,'active');
  assert.equal(s.rods.filter(z=>z.kind==='b').length,9);assert.equal(solutions[10].length,63);

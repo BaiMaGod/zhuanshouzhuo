@@ -83,3 +83,13 @@ test('放大平移后真实拖动、撤销恢复54镯且保留当前视角',()=>
  for(let k=1;k<=43;k++)g.move(event(board.toScreen(C.point(ring,150+k*168.75/43))));g.up(event(first));for(let k=0;k<30;k++)h.tick();assert.equal(C.ring(g.model.state,'9E').life,'removed');
  g.undo();assert.equal(g.model.state.rings.filter(r=>r.life==='active').length,54);assert.equal(g.model.state.steps,0);assert.equal(board.zoom,view.zoom);assert.deepEqual(board.screen,view.screen);
 });
+
+test('花园、玉盘与玉镯共用视角，缩放平移和撤销不会改变背景上的镯位',()=>{
+ g.load(10);const b=g.board,bg=b.backdrop,art=[...bg.children];
+ assert.equal(art.length,2);assert.equal(art[0].name,'board-garden');assert.equal(art[1].name,'board-tray');
+ const registered=art.map(n=>({x:n.x,y:n.y,scale:n.scaleX,rotation:n.rotation}));
+ const check=()=>{assert.equal(bg.x,b.root.x+b.rect.x);assert.equal(bg.y,b.root.y+b.rect.y);assert.equal(bg.scaleX,b.root.scaleX);assert.equal(bg.scaleY,b.root.scaleY);assert.equal(bg.rotation,b.root.rotation);assert.deepEqual(art.map(n=>({x:n.x,y:n.y,scale:n.scaleX,rotation:n.rotation})),registered)};
+ check();b.zoomTo(b.fitZoom*3,{x:200,y:400});check();b.panTo({x:440,y:550});check();
+ g.model.begin();g.perform('9E',5);g.undo();check();b.resetView();check();
+ g.home();assert.equal(bg.parent,null,'Background camera is destroyed when leaving play');
+});
