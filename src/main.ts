@@ -54,9 +54,8 @@ class Game {
   this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.homeSpark=null;this.board?.destroy();this.board=null;this.model=null;
   this.scene.destroy(true);this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
   this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.message=null;this.status=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
-  // Render the clipped world directly. Keep its render-pass topology stable
-  // through zoom, undo and restart; avoid another full-screen MSAA target.
-  this.scene.size(W,H);this.scene.cacheAs='none';
+  // Keep render-pass topology stable through zoom, undo and restart.
+  this.scene.size(W,H);this.scene.cacheAs=mode==='game'?'bitmap':'none';
   // The camera also moves the artwork. Clip its expanded bounds to the screen.
   if(mode==='game')this.scene.scrollRect=new Laya.Rectangle(0,0,W,H);
   this.mode=mode;this.background();
@@ -403,6 +402,9 @@ class Game {
  }
 }
 async function boot():Promise<void>{
+ // The 2D game needs no WebGL2 features. WebGL1 keeps scene caches single-sampled
+ // instead of allocating 4x MSAA targets for the magnified photographic board.
+ Laya.Config.useWebGL2=false;
  await Laya.init(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
  Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor='#e6debf';
  await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load();document.getElementById('boot')?.remove();

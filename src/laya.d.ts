@@ -1,5 +1,6 @@
 /* Minimal declarations for the bundled LayaAir 3.4 API used by this project. */
 declare namespace Laya {
+ const Config:{useWebGL2:boolean};
  const Browser:{width:number;height:number};
  const Event:{CLICK:string;MOUSE_DOWN:string;MOUSE_MOVE:string;MOUSE_UP:string;MOUSE_OUT:string;RESIZE:string};
  function init(width:number,height:number):Promise<void>;
