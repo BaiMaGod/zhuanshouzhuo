@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Audio} from '../dist/js/audio.js';
+import {Audio,frictionLoop} from '../dist/js/audio.js';
 
 function fixture(){
  let now=1000;const sources=[];
@@ -33,4 +33,28 @@ test('mute immediately silences master, stops all voices and prevents playback u
  assert.equal(a.master.gain.value,0);assert.ok(sources.every(s=>s.stops===1));
  const n=sources.length;a.motion(5);a.play('win');assert.equal(sources.length,n);
  a.enabled=true;a.motion(3);assert.equal(sources.length,n+1);a.stopAll();assert.equal(a.rotation,null);
+});
+test('equal physical speed gives equal friction loudness at different touch event rates',()=>{
+ const fast=fixture();fast.a.motion(1);
+ for(let i=0;i<30;i++){fast.advance(16);fast.a.motion(1)}
+ const fastGain=fast.a.rotation.gain.gain.value,fastRate=fast.a.rotation.source.playbackRate.value;
+ const slow=fixture();slow.a.motion(2);
+ for(let i=0;i<15;i++){slow.advance(32);slow.a.motion(2)}
+ assert.ok(Math.abs(fastGain-slow.a.rotation.gain.gain.value)<.00001);
+ assert.ok(Math.abs(fastRate-slow.a.rotation.source.playbackRate.value)<.00001);
+ slow.advance(32);slow.a.motion(10);
+ assert.ok(slow.a.rotation.gain.gain.value>fastGain);
+});
+test('friction loop blends each channel without a discontinuity at the wrap boundary',()=>{
+ const input=[Float32Array.from({length:1000},(_,i)=>i/1000),Float32Array.from({length:1000},(_,i)=>-i/2000)];
+ const buffer={sampleRate:1000,length:1000,numberOfChannels:2,getChannelData:i=>input[i]};
+ const ctx={createBuffer(channels,length,sampleRate){const data=Array.from({length:channels},()=>new Float32Array(length));return{sampleRate,length,numberOfChannels:channels,getChannelData:i=>data[i]}}};
+ const loop=frictionLoop(ctx,buffer);
+ assert.equal(loop.length,905);assert.equal(loop.numberOfChannels,2);
+ for(let channel=0;channel<2;channel++){
+  const output=loop.getChannelData(channel);
+  assert.ok(Math.abs(output[0]-output[output.length-1])<.0011,'wrap retains a normal sample step');
+  assert.ok(Math.abs(output[25]-output[24])<.0011,'blend rejoins the original recording smoothly');
+ }
+ assert.equal(input[0][999],Math.fround(.999),'original recording remains intact');
 });
