@@ -75,3 +75,11 @@ test('正式关独立开放且没有微调、演示，双指缩放不旋转玉�
  for(const r of g.model.state.rings){const q=board.toWorld(board.toScreen(r));assert.ok(Math.abs(q.x-r.x)<1e-7&&Math.abs(q.y-r.y)<1e-7)}
  g.manual(30);assert.deepEqual(g.model.state,before);g.releasePointers();board.resetView();assert.equal(board.zoom,board.fitZoom);g.load(10);assert.equal(g.panMode,false);assert.equal(g.pointers.size,0);
 });
+
+
+test('放大平移后真实拖动、撤销恢复54镯且保留当前视角',()=>{
+ g.load(10);g.panMode=false;const board=g.board,ring=C.ring(g.model.state,'9E');board.zoomTo(board.fitZoom*4,{x:360,y:500});board.panTo({x:360-(ring.x-board.center.x)*board.zoom,y:500-(ring.y-board.center.y)*board.zoom});
+ const view={zoom:board.zoom,screen:{...board.screen}},event=q=>({clientX:q.x/2,clientY:q.y/2,pointerId:88,button:0}),first=board.toScreen(C.point(ring,150));g.down(event(first));
+ for(let k=1;k<=43;k++)g.move(event(board.toScreen(C.point(ring,150+k*168.75/43))));g.up(event(first));for(let k=0;k<30;k++)h.tick();assert.equal(C.ring(g.model.state,'9E').life,'removed');
+ g.undo();assert.equal(g.model.state.rings.filter(r=>r.life==='active').length,54);assert.equal(g.model.state.steps,0);assert.equal(board.zoom,view.zoom);assert.deepEqual(board.screen,view.screen);
+});

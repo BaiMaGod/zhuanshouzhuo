@@ -289,7 +289,7 @@ class Game {
  undo():void{
   if(!this.model?.history.length)return;this.cancel();
   if(this.model.undo()){
-   this.hideModal();this.settled=false;this.board!.load(this.model.state);
+   this.hideModal();this.settled=false;const view={zoom:this.board!.zoom,screen:{...this.board!.screen}};this.board!.load(this.model.state);this.board!.zoom=view.zoom;this.board!.panTo(view.screen);
    this.say('已撤销，玉环和完整锁杆一起恢复。');this.sync();
   }
  }

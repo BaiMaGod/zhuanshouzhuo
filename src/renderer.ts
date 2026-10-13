@@ -8,6 +8,7 @@ export class Board {
  viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();effects=new Laya.Sprite();
  rings=new Map<string,RingView>();
  center:Point={x:0,y:0}; screen:Point;zoom=1;fitZoom=1;bounds={w:1,h:1};turn=0;selected:string|null=null;
+ lastState:State|null=null;
  hint:Point|null=null;blocked:Block|null=null;blockUntil=0;
  ghosts:Ghost[]=[];sparks:{x:number;y:number;start:number;seed:number}[]=[];
  constructor(parent:Laya.Sprite,public rect:{x:number;y:number;w:number;h:number}){
@@ -18,6 +19,7 @@ export class Board {
   this.rods.zOrder=10;this.effects.zOrder=20;this.root.mouseEnabled=false;
  }
  load(s:State):void{
+  this.lastState=null;
   // The game scene owns the display-resolution cache; avoid a second large nested cache.
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
   this.ghosts=[];this.sparks=[];this.hint=null;this.blocked=null;
@@ -41,7 +43,7 @@ export class Board {
   });
  }
  contains(p:Point):boolean{return p.x>=this.rect.x&&p.x<=this.rect.x+this.rect.w&&p.y>=this.rect.y&&p.y<=this.rect.y+this.rect.h}
- applyView():void{this.root.pos(this.screen.x-this.rect.x,this.screen.y-this.rect.y);this.root.scale(this.zoom,this.zoom);this.root.rotation=this.turn}
+ applyView():void{this.root.pos(this.screen.x-this.rect.x,this.screen.y-this.rect.y);this.root.scale(this.zoom,this.zoom);this.root.rotation=this.turn;if(this.lastState)this.draw(this.lastState)}
  resetView():void{this.zoom=this.fitZoom;this.screen={x:this.rect.x+this.rect.w/2,y:this.rect.y+this.rect.h/2};this.applyView()}
  clampView():void{
   const mid={x:this.rect.x+this.rect.w/2,y:this.rect.y+this.rect.h/2},extra=this.zoom>this.fitZoom*1.01?.2:0;
@@ -100,7 +102,9 @@ export class Board {
   const jewels:{p:Point;a:number;fixed:boolean}[]=[];
   for(const z of s.rods){
    if(!C.exists(s,z)||(ownerFilter!==undefined&&z.owner!==ownerFilter))continue;
-   const p=C.pose(s,z),a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
+   const p=C.pose(s,z),sp=this.toScreen(p.p),sq=this.toScreen(p.q),margin=(ownerFilter===undefined?12:30)*this.zoom;
+   if(Math.max(sp.x,sq.x)+margin<this.rect.x||Math.min(sp.x,sq.x)-margin>this.rect.x+this.rect.w||Math.max(sp.y,sq.y)+margin<this.rect.y||Math.min(sp.y,sq.y)-margin>this.rect.y+this.rect.h)continue;
+   const a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
    const shadow=C.rot({x:1.1,y:1.8},-this.turn);
    this.line(g,{x:p.p.x+shadow.x,y:p.p.y+shadow.y},{x:p.q.x+shadow.x,y:p.q.y+shadow.y},'rgba(46,63,51,0.25)',5.3);
    this.line(g,p.p,p.q,hot?'#c27051':'#839f98',4.4);
@@ -119,10 +123,12 @@ export class Board {
   }
  }
  draw(s:State,now=performance.now()):void{
+  this.lastState=s;
   this.ghosts=this.ghosts.filter(g=>now-g.start<340);this.sparks=this.sparks.filter(p=>now-p.start<520);
   for(const r of s.rings){
    const v=this.rings.get(r.id)!;const ghost=this.ghosts.find(g=>g.r.id===r.id);
-   v.root.visible=r.life==='active'||!!ghost;
+   const screen=this.toScreen(r),margin=72*this.zoom;
+   v.root.visible=(r.life==='active'||!!ghost)&&screen.x+margin>=this.rect.x&&screen.x-margin<=this.rect.x+this.rect.w&&screen.y+margin>=this.rect.y&&screen.y-margin<=this.rect.y+this.rect.h;
    v.root.alpha=ghost?1-(now-ghost.start)/340:1;
    const dy=ghost?((now-ghost.start)/340)**2*16:0;
    const offset=C.rot({x:0,y:dy},-this.turn);v.root.pos(r.x+offset.x,r.y+offset.y);
