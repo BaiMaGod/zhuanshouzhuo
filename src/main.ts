@@ -49,20 +49,22 @@ class Game {
  }
  home():void{
   this.clear('home');
+  panel(this.scene,35,98,650,270,30,'rgba(255,251,232,0.96)','#cdb37b');
   text(this.scene,'一盘温润玉色 · 十重巧妙机关',70,115,580,42,22,COLORS.muted);
   text(this.scene,'转手镯消除',35,180,650,90,64,COLORS.ink,'center',true);
   text(this.scene,'玉 环 十 境',100,273,520,48,28,COLORS.gold,'center',true);
   ornament(this.scene,220,345,280);
   const cy=H*.51;
   this.image(this.scene,'assets/art-v3/tray.png',360,cy,600,570);
-  this.image(this.scene,'assets/shadow.png',290,cy-12,320,320,-42).alpha=.16;
+  this.image(this.scene,'assets/shadow.png',294,cy-9,320,320,-42).alpha=.85;
   this.scene.addChild(jadeSprite('amber',290,cy-18,320/110,-42));
-  this.image(this.scene,'assets/shadow.png',447,cy+100,290,290,150).alpha=.16;
+  this.image(this.scene,'assets/shadow.png',450,cy+102,290,290,150).alpha=.85;
   this.scene.addChild(jadeSprite('peach',447,cy+93,290/110,150));
   text(this.scene,'轻转玉环，解开环环相扣',80,H-350,560,46,28,COLORS.ink,'center',true);
   this.scene.addChild(new Button(this.save.data.unlocked?'继续 · 第 '+(this.save.data.unlocked+1)+' 境':'入境解镯',130,H-272,460,86,()=>this.load(this.save.data.unlocked),true));
   this.scene.addChild(new Button('十境图谱',220,H-155,280,64,()=>this.levels()));
-  text(this.scene,'无计时压力 · 从最简单的一扣开始',85,H-70,550,32,18,COLORS.muted);
+  panel(this.scene,60,H-83,600,54,18,'rgba(255,251,232,0.92)','#d4bf90');
+  text(this.scene,'无计时压力 · 从最简单的一扣开始',85,H-70,550,32,18,COLORS.ink);
  }
  levels():void{
   this.clear('levels');
@@ -106,7 +108,8 @@ class Game {
   this.scene.addChild(new Button('重开',197,H-143,145,65,()=>this.load(i)));
   this.scene.addChild(new Button('提示',362,H-143,145,65,()=>void this.hint()));
   this.demoButton=new Button('演示',527,H-143,160,65,()=>{if(this.busy)this.cancel();else void this.automatic(true)});this.scene.addChild(this.demoButton);
-  text(this.scene,'拖动环体旋转 · 松手靠近扣位可轻吸附',55,H-55,610,32,18,COLORS.muted);
+  panel(this.scene,48,H-62,624,44,16,'rgba(255,251,232,0.92)','#d4bf90');
+  text(this.scene,'拖动环体旋转 · 松手靠近扣位可轻吸附',55,H-55,610,32,18,COLORS.ink);
   this.sync();
   if(i===0&&!this.tutorialSeen&&!this.save.data.records[0]){
    this.tutorialSeen=true;

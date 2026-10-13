@@ -1,6 +1,6 @@
 import C0 from './core.js';
 import type {CoreAPI,State,Point,Ring,Block} from './types.js';
-import {JADE_NAMES,drawJade,jadeMesh} from './jade.js';
+import {JADE_NAMES,drawJade} from './jade.js';
 const C=C0 as unknown as CoreAPI;
 export interface Ghost {r:Ring;state:State;start:number}
 interface RingView {root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite}
@@ -29,11 +29,9 @@ export class Board {
   this.space.pos(-this.center.x,-this.center.y);
   s.rings.forEach((r,i)=>{
    const root=new Laya.Sprite();root.pos(r.x,r.y);this.space.addChild(root);
-   const shadow=new Laya.Sprite(),mesh=jadeMesh(JADE_NAMES[i%5]);
-   const tex=Laya.loader.getRes('assets/jade-v2/'+JADE_NAMES[i%5]+'.png');
-   // Existing soft shadow plus a matching rounded silhouette; no live blur/cache.
-   shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-55,-55,110,110);shadow.alpha=.85;
-   shadow.graphics.drawTriangles(tex,0,0,mesh.vertices,mesh.uvs,mesh.indices,null,.32,'#38423a');
+   const shadow=new Laya.Sprite();
+   // Reuse the preblurred silhouette; its soft tips follow the gap without another mesh draw.
+   shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-55,-55,110,110);
    const offset=C.rot({x:1.7,y:2.9},-this.turn);shadow.pos(offset.x,offset.y);root.addChild(shadow);
    const halo=new Laya.Sprite();root.addChild(halo);
    const body=new Laya.Sprite();drawJade(body.graphics,JADE_NAMES[i%5]);root.addChild(body);
@@ -70,14 +68,15 @@ export class Board {
     const t=(start+step*22.5)*C.D,q=C.rot({x:x+3*Math.cos(t),y:y+3*Math.sin(t)},a);
     points.push(q.x+p.x,q.y+p.y);
    }
-  g.drawPoly(1,1.3,points,null,'rgba(45,58,48,0.23)',2.1);
+  const shade=C.rot({x:1,y:1.3},-this.turn);
+  g.drawPoly(shade.x,shade.y,points,null,'rgba(45,58,48,0.23)',2.1);
   g.drawPoly(0,0,points,null,state==='aligned'?'#609f92':'#819b94',1.8);
   g.drawPoly(0,0,points,null,'#dbece5',.95);
   const u=C.rot({x:1,y:0},a),v={x:-u.y,y:u.x};
   for(const sign of[-1,1])this.line(g,{x:p.x-u.x*5.8+v.x*sign*2.8,y:p.y-u.y*5.8+v.y*sign*2.8},{x:p.x+u.x*5.8+v.x*sign*2.8,y:p.y+u.y*5.8+v.y*sign*2.8},sign<0?'#fffef4':'#b3cec5',.75);
  }
  private jewel(g:Laya.Graphics,p:Point,a:number):void{
-  const vertices=new Float32Array([[-7.6,-3.9],[7.6,-3.9],[7.6,3.9],[-7.6,3.9]].flatMap(([x,y])=>{
+  const vertices=new Float32Array([[-11,-4.4],[11,-4.4],[11,4.4],[-11,4.4]].flatMap(([x,y])=>{
    const q=C.rot({x,y},a);return[p.x+q.x,p.y+q.y];
   }));
   g.drawTriangles(Laya.loader.getRes('assets/art-v3/clasp.png'),0,0,vertices,new Float32Array([0,0,1,0,1,1,0,1]),new Uint16Array([0,1,2,0,2,3]));

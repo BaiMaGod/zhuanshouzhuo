@@ -16,10 +16,14 @@ function sample(values:number[],angle:number):number{
 export function jadeMesh(name:JadeName):JadeMesh{
  const cached=meshes.get(name);if(cached)return cached;
  // At the largest board zoom, 64 arc segments deviate by under 0.2 stage pixels.
- const p=profiles[name],segments=64,rows=[0,.15,.5,.85,1],vertices:number[]=[],uvs:number[]=[],indices:number[]=[];
+ const p=profiles[name],segments=64,vertices:number[]=[],uvs:number[]=[],indices:number[]=[];
+ const columns:{start:number;rows:number[]}[]=[];
  const r0=C.R-C.BAND/2,r1=C.R+C.BAND/2,half=Math.asin(C.GAP/(2*r0));
  for(let i=0;i<=segments;i++){
   const base=half+(Math.PI*2-2*half)*i/segments;
+  // Only the two tip sections need extra cross-section rows. Keep the rest light.
+  const rows=Math.min(i,segments-i)<2?[0,.067,.25,.5,.75,.933,1]:[0,.5,1];
+  columns.push({start:vertices.length/2,rows});
   for(const fraction of rows){
    // Round the tips inward, never extending jade into the authoritative gap.
    const cross=fraction*2-1,cap=C.BAND/2*(1-Math.sqrt(Math.max(0,1-cross*cross)))/C.R;
@@ -31,9 +35,13 @@ export function jadeMesh(name:JadeName):JadeMesh{
    uvs.push((p.cx+cos*sourceRadius)/p.width,(p.cy+sin*sourceRadius)/p.height);
   }
  }
- for(let i=0;i<segments;i++)for(let row=0;row<rows.length-1;row++){
-  const a=i*rows.length+row,b=a+rows.length;
-  indices.push(a,b,a+1,a+1,b,b+1);
+ for(let i=0;i<segments;i++){
+  const left=columns[i],right=columns[i+1];let l=0,r=0;
+  while(l<left.rows.length-1||r<right.rows.length-1){
+   const nextL=left.rows[l+1]??Infinity,nextR=right.rows[r+1]??Infinity;
+   if(nextL<=nextR){indices.push(left.start+l,right.start+r,left.start+l+1);l++}
+   else{indices.push(left.start+l,right.start+r,right.start+r+1);r++}
+  }
  }
  const mesh={vertices:new Float32Array(vertices),uvs:new Float32Array(uvs),indices:new Uint16Array(indices)};
  meshes.set(name,mesh);return mesh;
