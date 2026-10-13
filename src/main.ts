@@ -131,7 +131,8 @@ class Game {
    this.scene.addChild(new Button('+',128,y,78,62,()=>this.zoomView(1.35)));
    this.scene.addChild(new Button('全盘',222,y,132,62,()=>{this.releasePointers();this.board!.resetView();this.syncView()}));
    this.panButton=new Button('移动棋盘',370,y,312,62,()=>{this.releasePointers();this.panMode=!this.panMode;this.panButton!.label.text=this.panMode?'旋转手镯':'移动棋盘';this.syncView()});this.scene.addChild(this.panButton);
-   this.viewLabel=text(this.scene,'',60,H-182,600,30,18,COLORS.ink);
+   panel(this.scene,38,H-187,644,82,18,'#fff9e8','#d4bf90');
+   this.viewLabel=text(this.scene,'',60,H-182,600,28,18,COLORS.ink);
    this.message=text(this.scene,C.levels[i].tip,48,H-148,624,42,18,COLORS.ink,'left');
    this.undoButton=new Button('撤销',38,H-94,148,62,()=>this.undo(),false,'undo');this.scene.addChild(this.undoButton);
    this.scene.addChild(new Button('重开',202,H-94,148,62,()=>this.load(i),false,'restart'));
@@ -210,7 +211,7 @@ class Game {
  }
  syncView():void{
   if(!this.board)return;
-  if(this.viewLabel)this.viewLabel.text=Math.round(this.board.zoom/this.board.fitZoom*100)+'% · 双指缩放 · '+(this.panMode?'拖动画面，点「旋转手镯」返回':'拖动空白移动，拖动玉镯旋转');
+  if(this.viewLabel)this.viewLabel.text=Math.round(this.board.zoom/this.board.fitZoom*100)+'% · '+(this.panMode?'移动棋盘中，点「旋转手镯」返回':'双指 / 滚轮缩放 · 拖空白移动 · 拖玉镯旋转');
  }
  zoomView(factor:number):void{
   if(!this.board||this.modalOpen)return;this.releasePointers();const r=this.board.rect;
