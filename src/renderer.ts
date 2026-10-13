@@ -21,7 +21,7 @@ export class Board {
  }
  load(s:State):void{
   this.lastState=null;
-  // The game scene owns the display-resolution cache; avoid a second large nested cache.
+  // Keep the world uncached; culling limits magnified draw calls.
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
   this.ghosts=[];this.sparks=[];this.hint=null;this.blocked=null;
   const xs=s.rings.map(r=>r.x),ys=s.rings.map(r=>r.y);
@@ -60,9 +60,6 @@ export class Board {
   this.root.pos(this.screen.x-this.rect.x,this.screen.y-this.rect.y);this.root.scale(this.zoom,this.zoom);this.root.rotation=this.turn;
   if(this.backdrop){
    this.backdrop.pos(this.screen.x,this.screen.y);this.backdrop.scale(this.zoom,this.zoom);this.backdrop.rotation=this.turn;
-   // Magnification culls most rings. Render those few sprites directly instead
-   // of paying for a second full-screen MSAA pass over the enlarged artwork.
-   this.parent.cacheAs=this.zoom>this.fitZoom*1.5?'none':'bitmap';
   }
   if(this.lastState)this.draw(this.lastState);
  }

@@ -54,9 +54,10 @@ class Game {
   this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.homeSpark=null;this.board?.destroy();this.board=null;this.model=null;
   this.scene.destroy(true);this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
   this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.message=null;this.status=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
-  // Cache the visible game scene at stage resolution; input and child changes repaint it.
-  this.scene.size(W,H);this.scene.cacheAs=mode==='game'?'bitmap':'none';
-  // The camera also moves the artwork. Clip its expanded bounds before caching.
+  // Render the clipped world directly. Keep its render-pass topology stable
+  // through zoom, undo and restart; avoid another full-screen MSAA target.
+  this.scene.size(W,H);this.scene.cacheAs='none';
+  // The camera also moves the artwork. Clip its expanded bounds to the screen.
   if(mode==='game')this.scene.scrollRect=new Laya.Rectangle(0,0,W,H);
   this.mode=mode;this.background();
  }
