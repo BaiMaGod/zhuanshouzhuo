@@ -18,6 +18,9 @@ export class Board {
   this.rods.zOrder=10;this.effects.zOrder=20;this.root.mouseEnabled=false;
  }
  load(s:State):void{
+  // Cache the visible viewport at its display resolution; child/view changes invalidate it.
+  // This keeps zoomed jade sharp while avoiding 54 meshes on idle frames.
+  this.viewport.cacheAs=s.rings.length>20?'bitmap':'none';
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
   this.ghosts=[];this.sparks=[];this.hint=null;this.blocked=null;
   const xs=s.rings.map(r=>r.x),ys=s.rings.map(r=>r.y);
