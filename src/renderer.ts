@@ -82,6 +82,7 @@ export class Board {
   g.drawTriangles(Laya.loader.getRes('assets/art-v3/clasp.png'),0,0,vertices,new Float32Array([0,0,1,0,1,1,0,1]),new Uint16Array([0,1,2,0,2,3]));
  }
  private drawRods(s:State,g:Laya.Graphics,ownerFilter?:string):void{
+  const jewels:{p:Point;a:number;fixed:boolean}[]=[];
   for(const z of s.rods){
    if(!C.exists(s,z)||(ownerFilter!==undefined&&z.owner!==ownerFilter))continue;
    const p=C.pose(s,z),a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
@@ -92,12 +93,14 @@ export class Board {
    const v=C.rot({x:0,y:-.8},a);
    this.line(g,{x:p.p.x+v.x,y:p.p.y+v.y},{x:p.q.x+v.x,y:p.q.y+v.y},'#fff9e5',.65);
    C.endpoints(s,z).forEach((e,i)=>this.sleeve(g,e.p,a,s.states[z.id][i]));
-   this.jewel(g,z.kind==='m'?p.p:{x:(p.p.x+p.q.x)/2,y:(p.p.y+p.q.y)/2},a);
-   if(z.kind==='b'){
-    const mid={x:(p.p.x+p.q.x)/2,y:(p.p.y+p.q.y)/2};
-    this.line(g,{x:mid.x-1.1,y:mid.y-1.1},{x:mid.x+1.1,y:mid.y+1.1},'#fffef2',.7);
-    this.line(g,{x:mid.x+1.1,y:mid.y-1.1},{x:mid.x-1.1,y:mid.y+1.1},'#fffef2',.7);
-   }
+   jewels.push({p:z.kind==='m'?p.p:{x:(p.p.x+p.q.x)/2,y:(p.p.y+p.q.y)/2},a,fixed:z.kind==='b'});
+  }
+  // Keep all gemstone texture commands adjacent, then draw fixed-anchor marks.
+  for(const j of jewels)this.jewel(g,j.p,j.a);
+  for(const j of jewels)if(j.fixed){
+   const mid=j.p;
+   this.line(g,{x:mid.x-1.1,y:mid.y-1.1},{x:mid.x+1.1,y:mid.y+1.1},'#fffef2',.7);
+   this.line(g,{x:mid.x+1.1,y:mid.y-1.1},{x:mid.x-1.1,y:mid.y+1.1},'#fffef2',.7);
   }
  }
  draw(s:State,now=performance.now()):void{

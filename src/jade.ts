@@ -56,13 +56,13 @@ export function drawJade(g:Laya.Graphics,name:JadeName):void{
   ice:['#cceee5','#f7fffb'],ivory:['#fff1ca','#fffef2']
  };
  for(const sign of[-1,1]){
-  let last:{x:number;y:number}|null=null;
+  const path:unknown[]=[];
   for(let i=1;i<12;i++){
    const f=i/12,cross=f*2-1,a=sign*(half+C.BAND/2*(1-Math.sqrt(1-cross*cross))/C.R+.008);
    const p=C.point({x:0,y:0},a/C.D,inner+C.BAND*f);
-   if(last)g.drawLine(last.x,last.y,p.x,p.y,sign<0?colors[name][1]:colors[name][0],.55);
-   last=p;
+   path.push([i===1?'moveTo':'lineTo',p.x,p.y]);
   }
+  g.drawPath(0,0,path,undefined,{strokeStyle:sign<0?colors[name][1]:colors[name][0],lineWidth:.55});
  }
 }
 export function jadeSprite(name:JadeName,x:number,y:number,scale=1,rotation=0):Laya.Sprite{
