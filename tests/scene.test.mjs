@@ -8,7 +8,7 @@ const g=window.jadeDebug.game,C=window.jadeDebug.Core;
 g.audio.enabled=false;
 test('正式场景导航、点击只选中、真实手势路径与逐关解锁',()=>{
  assert.equal(g.mode,'home');g.load(1);assert.equal(g.mode,'home','未解锁不能直接进入');
- g.load(0);assert.equal(g.mode,'game');assert.equal(g.modalOpen,true);g.hideModal();
+ g.load(0);assert.equal(g.mode,'game');assert.equal(g.modalOpen,false);assert.ok(g.guide,'New player gets in-board coach without a blocking modal');
  const ring=C.ring(g.model.state,'B'),startAngle=ring.a,p=g.board.toScreen(C.point(ring,70));
  const event=(q)=>({clientX:q.x/2,clientY:q.y/2,pointerId:8});
  g.down(event(p));g.up(event(p));assert.equal(ring.a,startAngle);assert.equal(g.model.state.steps,0);
@@ -43,4 +43,23 @@ test('全屏板内缩放和输入坐标互逆',()=>{
    assert.ok(p.x>30&&p.x<690&&p.y>235&&p.y<950);
   }
  }
+});
+
+test('新手引导跟随真实选择，可跳过/重学且保存标记不覆盖通关记录',()=>{
+ g.load(0);g.startGuide();assert.equal(g.modalOpen,false);assert.equal(g.guide.phase,'choose');
+ g.guideSelect('A');assert.equal(g.guide.phase,'choose');
+ g.guideSelect('B');assert.equal(g.guide.phase,'turn');
+ g.stopGuide(true);assert.equal(g.guide,null);assert.ok(g.save.data.tutorial>=1);
+ const record=JSON.stringify(g.save.data.records);g.practice();assert.ok(g.guide);assert.equal(g.model.index,0);
+ assert.equal(JSON.stringify(g.save.data.records),record);
+ g.stopGuide(false);g.home();assert.equal(g.mode,'home');assert.equal(g.guide,null);
+ g.settings();assert.equal(g.modalOpen,true);g.hideModal();assert.equal(g.modalOpen,false);
+});
+
+test('按钮按下/移出复原，禁用状态不触发动作',()=>{
+ g.home();const b=g.scene.children.find(n=>n.label?.text==='继续解镯');
+ assert.ok(b);for(const f of b.events.mousedown)f();assert.equal(b.skin.y,4);
+ for(const f of b.events.mouseout)f();assert.equal(b.skin.y,0);
+ b.enabled=false;b.click();assert.equal(g.mode,'home');
+ b.enabled=true;b.click();assert.equal(g.mode,'game');
 });

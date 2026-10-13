@@ -1,6 +1,7 @@
 import {Core as C,GameModel} from './model.js';
 import {Board} from './renderer.js';
-import {text,panel,Button,ornament,COLORS} from './ui.js';
+import {text,panel,Button,ornament,COLORS,icon} from './ui.js';
+import {Guide} from './guide.js';
 import {Audio} from './audio.js';
 import {Save} from './storage.js';
 import {JADE_ASSETS,jadeSprite} from './jade.js';
@@ -20,11 +21,12 @@ class Game {
  drag:{id:string;pointer:number;last:number;started:boolean}|null=null;canvas:HTMLCanvasElement;
  busy=false;epoch=0;worker:Worker|null=null;finishPlan:((path:Action[]|null)=>void)|null=null;
  demoButton:Button|null=null;settled=false;tutorialSeen=false;modalOpen=false;
+ guide:Guide|null=null;guideTitle:Laya.Text|null=null;guideSkip:Button|null=null;homePreview:Board|null=null;homeSpark:Laya.Sprite|null=null;lastHomeFrame=0;
  constructor(){
   this.root.scale(RENDER_SCALE,RENDER_SCALE);
   Laya.stage.addChild(this.root);this.root.addChild(this.scene);this.root.addChild(this.overlay);
   this.canvas=document.querySelector('#layaCanvas')||document.querySelector('canvas')!;
-  this.audio.enabled=this.save.data.sound;
+  this.audio.enabled=this.save.data.sound;Button.feedback=()=>{this.audio.wake();this.audio.play('select')};
   this.canvas.addEventListener('pointerdown',e=>this.down(e));
   this.canvas.addEventListener('pointermove',e=>this.move(e));
   this.canvas.addEventListener('pointerup',e=>this.up(e));
@@ -43,7 +45,7 @@ class Game {
   const bg=new Laya.Sprite();bg.graphics.drawImage(Laya.loader.getRes('assets/art-v3/garden.png'),0,0,W,H);bg.mouseEnabled=false;this.scene.addChild(bg);
  }
  clear(mode:Game['mode']):void{
-  this.cancel();this.board?.destroy();this.board=null;this.model=null;
+  this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.homeSpark=null;this.board?.destroy();this.board=null;this.model=null;
   this.scene.destroy(true);this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
   this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.message=null;this.status=null;this.demoButton=null;
   this.mode=mode;this.background();
@@ -53,72 +55,107 @@ class Game {
  }
  home():void{
   this.clear('home');
-  panel(this.scene,35,98,650,270,30,'rgba(255,251,232,0.96)','#cdb37b');
-  text(this.scene,'一盘温润玉色 · 十重巧妙机关',70,115,580,42,22,COLORS.muted);
-  text(this.scene,'转手镯消除',35,180,650,90,64,COLORS.ink,'center',true);
-  text(this.scene,'玉 环 十 境',100,273,520,48,28,COLORS.gold,'center',true);
-  ornament(this.scene,220,345,280);
-  const cy=H*.51;
-  this.image(this.scene,'assets/art-v3/tray.png',360,cy,600,570);
-  this.image(this.scene,'assets/shadow.png',294,cy-9,320,320,-42).alpha=.85;
-  this.scene.addChild(jadeSprite('amber',290,cy-18,320/110,-42));
-  this.image(this.scene,'assets/shadow.png',450,cy+102,290,290,150).alpha=.85;
-  this.scene.addChild(jadeSprite('peach',447,cy+93,290/110,150));
-  text(this.scene,'轻转玉环，解开环环相扣',80,H-350,560,46,28,COLORS.ink,'center',true);
-  this.scene.addChild(new Button(this.save.data.unlocked?'继续 · 第 '+(this.save.data.unlocked+1)+' 境':'入境解镯',130,H-272,460,86,()=>this.load(this.save.data.unlocked),true));
-  this.scene.addChild(new Button('十境图谱',220,H-155,280,64,()=>this.levels()));
-  panel(this.scene,60,H-83,600,54,18,'rgba(255,251,232,0.92)','#d4bf90');
-  text(this.scene,'无计时压力 · 从最简单的一扣开始',85,H-70,550,32,18,COLORS.ink);
+  const completed=Object.keys(this.save.data.records).length,stars=Object.values(this.save.data.records).reduce((n,r)=>n+r.stars,0);
+  const badge=panel(this.scene,34,30,244,58,28,'#fff5d3','#c9a655');icon(badge.graphics,'star',15,15,26,COLORS.gold);
+  text(badge,'已解 '+completed+' / 10 境',47,0,183,58,22);
+  this.scene.addChild(new Button('',608,28,76,66,()=>this.settings(),false,'settings'));
+  text(this.scene,'玉  环  十  境',100,128,520,52,26,COLORS.gold,'center',true);
+  const shadow=text(this.scene,'转手镯消除',37,201,650,108,76,'#bc9e63','center',true);shadow.bold=true;
+  const title=text(this.scene,'转手镯消除',35,195,650,108,76,'#2f5947','center',true);title.bold=true;
+  text(this.scene,'转一转，解开环环相扣',80,311,560,50,26,COLORS.ink,'center',true);ornament(this.scene,235,384,250);
+  const cy=410+(H-870)/2,plateH=H-880;
+  this.image(this.scene,'assets/art-v3/tray.png',360,cy,670,Math.max(410,plateH+110));
+  this.homePreview=new Board(this.scene,{x:112,y:cy-126,w:496,h:265});
+  const state=C.make(0);this.homePreview.load(state);this.homePreview.selected='B';this.homePreview.draw(state);
+  this.homeSpark=new Laya.Sprite();this.homeSpark.mouseEnabled=false;this.scene.addChild(this.homeSpark);
+  const seal=panel(this.scene,230,cy+142,260,52,25,'#fff5d8','#c7a15a');
+  text(seal,'一扣入门 · 十境解谜',12,0,236,52,21,COLORS.ink,'center',true);
+  const entry=H-407;
+  text(this.scene,completed===10?'十境已通 · 再寻巧解':'即将进入  第 '+String(this.save.data.unlocked+1).padStart(2,'0')+' 境',80,entry,560,42,22,COLORS.gold);
+  text(this.scene,C.levels[this.save.data.unlocked].name,80,entry+43,560,45,29,COLORS.ink,'center',true);
+  this.scene.addChild(new Button(completed?'继续解镯':'开始解镯',112,H-296,496,100,()=>this.load(this.save.data.unlocked),true,'play'));
+  this.scene.addChild(new Button('关卡图谱',116,H-164,234,70,()=>this.levels(),false,'map'));
+  this.scene.addChild(new Button('新手练习',370,H-164,234,70,()=>this.practice(),false,'help'));
+  text(this.scene,'★ '+stars+' / 30    ·    不限时，慢慢解',100,H-67,520,34,20,COLORS.ink);
  }
+ practice():void{this.load(0);this.startGuide()}
+ settings():void{
+  this.modal('玉盘小憩',['跟随自己的节奏，静静解开每一扣。'],[
+   {label:this.audio.enabled?'音效 开':'音效 关',action:()=>{this.toggleSound();this.settings()},primary:false},
+   {label:'新手练习',action:()=>this.practice(),primary:false},
+   {label:'回到玉盘',action:()=>this.hideModal(),primary:true}
+  ]);
+ }
+ toggleSound():void{this.audio.enabled=!this.audio.enabled;this.save.data.sound=this.audio.enabled;this.save.persist()}
  levels():void{
   this.clear('levels');
-  this.scene.addChild(new Button('‹ 返回',32,34,130,62,()=>this.home()));
-  text(this.scene,'十境图谱',190,45,340,65,42,COLORS.ink,'center',true);
+  this.scene.addChild(new Button('',30,28,76,66,()=>this.home(),false,'back'));
+  text(this.scene,'玉环十境',160,41,400,70,44,COLORS.ink,'center',true);
   const count=Object.keys(this.save.data.records).length;
-  text(this.scene,'已解 '+count+' / 10 境 · 依次入境，渐识机关',75,142,570,40,23,COLORS.muted);
-  ornament(this.scene,185,204,350);
-  const names=C.levels.map(l=>l.name),sy=245,cell=Math.min(172,(H-340)/5);
+  text(this.scene,'已解 '+count+' / 10 境 · 一境一重小机关',80,133,560,43,23,COLORS.ink);
+  ornament(this.scene,185,202,350);
+  const sy=237,cell=Math.min(191,(H-320)/5);
   for(let i=0;i<10;i++){
-   const x=i%2?378:45,y=sy+Math.floor(i/2)*cell,open=i<=this.save.data.unlocked,done=this.save.data.records[i];
-   const b=new Button('',x,y,296,cell-20,()=>this.load(i));
-   b.enabled=open;this.scene.addChild(b);
-   text(b,String(i+1).padStart(2,'0'),18,14,58,53,32,open?COLORS.gold:COLORS.muted,'center',true);
-   text(b,names[i],85,18,190,45,28,open?COLORS.ink:COLORS.muted,'left',true);
-   text(b,done?'✦'.repeat(done.stars):open?'点击入境':'通关前一境解锁',20,cell-88,256,46,22,done?COLORS.gold:COLORS.muted);
+   const x=i%2?378:42,y=sy+Math.floor(i/2)*cell,open=i<=this.save.data.unlocked,done=this.save.data.records[i],current=i===this.save.data.unlocked;
+   const b=new Button('',x,y,300,cell-20,()=>this.load(i),current);b.enabled=open;this.scene.addChild(b);
+   const ink=current?'#fff8d7':COLORS.ink,gold=current?'#f5dfa0':COLORS.gold;
+   text(b,String(i+1).padStart(2,'0'),14,12,67,48,35,open?gold:COLORS.muted,'center',true);
+   text(b,C.levels[i].name,86,14,202,48,27,open?ink:COLORS.muted,'left',true);
+   text(b,done?'★'.repeat(done.stars)+'☆'.repeat(3-done.stars):open?'从这一境开始':'解开上一境',26,cell-80,247,44,23,done?gold:ink);
+   if(!open)icon(b.graphics,'lock',20,cell-69,23,COLORS.muted);
   }
-  text(this.scene,'玉色各异，机关循序渐进',90,H-65,540,32,18,COLORS.muted);
+  text(this.scene,'每解一境，点亮下一枚玉印',90,H-66,540,32,20,COLORS.ink);
  }
  load(i:number):void{
   if(i<0||i>this.save.data.unlocked)return;
   this.clear('game');this.settled=false;this.model=new GameModel(i);
   panel(this.scene,105,105,510,113,26,'rgba(255,251,232,0.94)','#cdb37b');
-  this.scene.addChild(new Button('‹ 图谱',28,26,136,60,()=>this.levels()));
+  this.scene.addChild(new Button('图谱',28,26,136,64,()=>this.levels(),false,'map'));
   const sound=new Button(this.audio.enabled?'音效 开':'音效 关',456,26,116,60,()=>{
-   this.audio.enabled=!this.audio.enabled;this.save.data.sound=this.audio.enabled;this.save.persist();sound.label.text=this.audio.enabled?'音效 开':'音效 关';this.audio.play('select');
+   this.toggleSound();sound.label.text=this.audio.enabled?'音效 开':'音效 关';
   });this.scene.addChild(sound);
-  this.scene.addChild(new Button('玩法',586,26,106,60,()=>this.help()));
+  this.scene.addChild(new Button('玩法',586,26,106,64,()=>this.help(),false,'help'));
   text(this.scene,'第 '+String(i+1).padStart(2,'0')+' 境 · '+C.levels[i].name,50,110,620,64,39,COLORS.ink,'center',true);
   this.status=text(this.scene,'',70,179,580,38,21,COLORS.muted);
   ornament(this.scene,176,229,368);
   const plateH=H-616;
   this.image(this.scene,'assets/art-v3/tray.png',360,246+plateH/2,710,plateH);
   this.board=new Board(this.scene,{x:73,y:288,w:574,h:H-678});this.board.load(this.model.state);
-  panel(this.scene,35,H-366,650,109,22,'rgba(255,250,229,0.94)','#d4bf90');
-  this.message=text(this.scene,C.levels[i].tip,52,H-354,616,94,22,COLORS.ink);
+  panel(this.scene,35,H-387,650,130,24,'rgba(255,250,229,0.97)','#d4bf90');
+  this.guideTitle=text(this.scene,'解镯小提示',56,H-380,606,35,20,COLORS.gold,'left');
+  const tips=['拖动粉色 B 镯，把缺口转向两镯之间的空心扣。','带 × 的锁杆留在原地，两只手镯各对齐自己的扣。','先解外围 B 镯，再观察留下的完整锁杆。'];
+  this.message=text(this.scene,tips[i]||C.levels[i].tip,56,H-340,606,72,23,COLORS.ink,'left');
   const y=H-240;
   const specs:[string,number,number,boolean][]=[['↶ 30°',32,-30,false],['↶ 微调',197,-1,true],['微调 ↷',362,1,true],['30° ↷',527,30,false]];
   for(const [title,x,d,primary] of specs){const b=new Button(title,x,y,160,68,()=>this.manual(d),primary);this.controls.push(b);this.scene.addChild(b)}
-  this.undoButton=new Button('撤销',32,H-143,145,65,()=>this.undo());this.scene.addChild(this.undoButton);
-  this.scene.addChild(new Button('重开',197,H-143,145,65,()=>this.load(i)));
-  this.scene.addChild(new Button('提示',362,H-143,145,65,()=>void this.hint()));
-  this.demoButton=new Button('演示',527,H-143,160,65,()=>{if(this.busy)this.cancel();else void this.automatic(true)});this.scene.addChild(this.demoButton);
+  this.undoButton=new Button('撤销',32,H-143,145,68,()=>this.undo(),false,'undo');this.scene.addChild(this.undoButton);
+  this.scene.addChild(new Button('重开',197,H-143,145,68,()=>this.load(i),false,'restart'));
+  this.scene.addChild(new Button('提示',362,H-143,145,68,()=>void this.hint(),false,'hint'));
+  this.demoButton=new Button('演示',527,H-143,160,68,()=>{if(this.busy)this.cancel();else void this.automatic(true)},false,'demo');this.scene.addChild(this.demoButton);
   panel(this.scene,48,H-62,624,44,16,'rgba(255,251,232,0.92)','#d4bf90');
   text(this.scene,'拖动环体旋转 · 松手靠近扣位可轻吸附',55,H-55,610,32,18,COLORS.ink);
   this.sync();
-  if(i===0&&!this.tutorialSeen&&!this.save.data.records[0]){
-   this.tutorialSeen=true;
-   this.modal('先解这一扣',['拖动 B 的玉环，让细缺口转向空心扣。','A 上的实心座固定在 A 上，不能用 A 的缺口解开。','对齐后手镯会自动消除。'],[{label:'开始转动 B',action:()=>this.hideModal(),primary:true}]);
-  }
+  if(i<3&&this.save.data.tutorial<=i&&!this.save.data.records[i])this.startGuide();
+ }
+ startGuide():void{
+  if(!this.model||!this.board)return;this.stopGuide(false);
+  const first=solutions[this.model.index][0];this.guide=new Guide(this.scene,this.board,first.id);
+  this.guideTitle!.text=this.model.index===0?'新手 · 1 / 2  找到粉色 B 镯':this.model.index===1?'新机关 · 背景固定扣':'新机关 · 保留的锁杆';
+  this.guideTitle!.width=490;this.message!.width=514;
+  this.guideSkip=new Button('跳过',582,H-371,84,62,()=>this.stopGuide(true));this.scene.addChild(this.guideSkip);
+  this.guide.draw(this.model.state,performance.now(),false);
+ }
+ stopGuide(remember=false):void{
+  if(remember&&this.model){this.save.data.tutorial=Math.max(this.save.data.tutorial,this.model.index+1);this.save.persist()}
+  this.guide?.destroy();this.guide=null;this.guideSkip?.destroy();this.guideSkip=null;
+  if(this.guideTitle){this.guideTitle.text='解镯小提示';this.guideTitle.width=606}
+  if(this.message)this.message.width=606;
+ }
+ guideSelect(id:string):void{
+  if(!this.guide||!this.model)return;
+  if(id!==this.guide.id){this.say('先试试 '+this.guide.id+' 镯。金色光圈标出了它要对齐的扣。');return}
+  this.guide.phase='turn';
+  if(this.model.index===0){this.guideTitle!.text='新手 · 2 / 2  拖动，让缺口对准扣';this.say('手指沿粉色 B 镯转一转，缺口对准金色光圈里的空心扣。')}
  }
  say(content:string):void{if(this.message)this.message.text=content}
  sync():void{
@@ -150,7 +187,7 @@ class Game {
   this.audio.wake();
   if(this.mode!=='game'||!this.model||!this.board||this.busy||this.board.animating||this.modalOpen)return;
   const p=this.point(e),ring=this.board.pick(p,this.model.state);if(!ring)return;
-  this.model.selected=ring.id;this.board.hint=null;
+  this.model.selected=ring.id;this.board.hint=null;this.guideSelect(ring.id);
   this.drag={id:ring.id,pointer:e.pointerId,last:C.angle(ring,this.board.toWorld(p)),started:false};
   this.canvas.setPointerCapture(e.pointerId);this.audio.play('select');this.sync();
  }
@@ -179,7 +216,7 @@ class Game {
  }
  manual(delta:number):void{
   if(!this.model||!this.model.selected||this.busy||this.board?.animating||this.modalOpen)return;
-  this.audio.resetContact();this.model.begin();this.board!.hint=null;this.perform(this.model.selected,delta);
+  this.guideSelect(this.model.selected);this.audio.resetContact();this.model.begin();this.board!.hint=null;this.perform(this.model.selected,delta);
  }
  perform(id:string,d:number):Result{
   const model=this.model!,before=C.clone(model.state),res=model.turn(id,d);
@@ -187,6 +224,7 @@ class Game {
   if(res.removed.length){
    this.releaseDrag();this.board!.release(before,model.state,res.removed);this.audio.play('clear');
    this.say(res.removed.join('、')+' 已解开。观察下一只手镯的扣位。');
+   if(this.guide&&res.removed.includes(this.guide.id))this.stopGuide(true);
   }else if(res.blocked){
    this.board!.blocked=res.blocked;this.board!.blockUntil=performance.now()+550;
    this.audio.collision(id+':'+res.blocked.rod+':'+res.blocked.target,Math.min(1,Math.abs(d)/8));
@@ -238,7 +276,7 @@ class Game {
  }
  async automatic(all:boolean):Promise<void>{
   if(this.busy||this.modalOpen||this.board?.animating||!this.model)return;
-  this.busy=true;const token=++this.epoch;this.say('正在寻找合法旋转路线…');this.sync();
+  this.stopGuide(false);this.busy=true;const token=++this.epoch;this.say('正在寻找合法旋转路线…');this.sync();
   const full=await this.plan();if(token!==this.epoch)return;
   if(!full?.length){this.busy=false;this.say('当前没有找到路线。可撤销或重开。');this.sync();return}
   const path=all?full:full.slice(0,1);
@@ -260,36 +298,44 @@ class Game {
  }
  tick():void{
   this.audio.tick(performance.now());
+  const now=performance.now();
+  if(this.mode==='home'&&this.homeSpark&&now-this.lastHomeFrame>80){
+   this.lastHomeFrame=now;const g=this.homeSpark.graphics;g.clear();const cy=410+(H-870)/2;
+   for(let i=0;i<7;i++){const a=now/6000+i*Math.PI*2/7;const x=360+Math.cos(a)*210,y=cy+Math.sin(a)*130;g.drawCircle(x,y,1.2+Math.sin(a*3)*.5,'rgba(168,130,51,0.48)')}
+  }
   if(!this.model||!this.board||this.mode!=='game')return;
+  if(this.guide&&!this.modalOpen)this.guide.draw(this.model.state,now,!!this.drag);
   if(this.board.animating||this.board.sparks.length||this.board.hint||performance.now()<this.board.blockUntil)this.board.draw(this.model.state);
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.model.cleared&&!this.board.animating&&!this.busy&&!this.settled){this.settled=true;this.win()}
  }
  win():void{
   if(!this.model)return;const i=this.model.index,steps=this.model.state.steps;
-  const stars=this.save.win(i,steps,solutions[i].length);this.audio.play('win');
-  this.modal(i===9?'十境皆通':'这一境，解开了',['✦'.repeat(stars),C.levels[i].name+' · '+steps+' 次转动',i===9?'玉环十境全部完成，随时回来再解。':'下一境已开启，机关会再多一点变化。'],[
+  const stars=this.save.win(i,steps,solutions[i].length);if(i<3){this.save.data.tutorial=Math.max(this.save.data.tutorial,i+1);this.save.persist()}this.stopGuide(false);this.audio.play('win');
+  this.modal(i===9?'十境皆通':'这一境，解开了',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].name+' · '+steps+' 次转动',i===9?'玉环十境全部完成，随时回来再解。':'下一境已开启，机关会再多一点变化。'],[
    {label:i===9?'回到十境图谱':'进入第 '+(i+2)+' 境',action:()=>i===9?this.levels():this.load(i+1),primary:true},
    {label:'再解一次',action:()=>this.load(i),primary:false}
   ]);
  }
  help():void{
-  this.cancel();this.modal('转动之前，先看两端',[
-   '实心座固定在所属玉环上，完整锁杆随所属镯合法旋转和消除。',
-   '空心扣用被扣住的玉环缺口对齐。带 × 锚点的杆固定在背景，两端分别判断。',
-   '对齐后转离会重新扣合。多条连接要保持对齐，零有效扣合才消除。',
-   '旁边的玉环消除后，尚存所属镯的完整杆仍在；遇到阻挡就停住。'
-  ],[{label:'继续拆解',action:()=>this.hideModal(),primary:true}]);
+  this.cancel();this.guide?.clear();this.modal('记住三件小事',[
+   '① 拖动环体，让细缺口对准空心扣。点击只选中，不会转动。',
+   '② 实心座随所属镯转动；带 × 的背景锁杆留在原地。被卡住，先解旁边的镯。',
+   '③ 对齐后要保持，转离会重新扣合。剩下的完整锁杆仍会挡住转动。'
+  ],[
+   {label:'继续拆解',action:()=>this.hideModal(),primary:true},
+   {label:'重看这一步',action:()=>{this.hideModal();if(this.model&&this.model.index<3)this.startGuide();else void this.hint()},primary:false}
+  ]);
  }
  modal(title:string,lines:string[],actions:{label:string;action:()=>void;primary:boolean}[]):void{
   this.hideModal();this.modalOpen=true;this.releaseDrag();
-  const shade=new Laya.Sprite();shade.size(W,H);shade.graphics.drawRect(0,0,W,H,'rgba(47,63,41,0.36)');shade.mouseEnabled=true;
+  this.guide?.clear();const shade=new Laya.Sprite();shade.size(W,H);shade.graphics.drawRect(0,0,W,H,'rgba(47,63,41,0.36)');shade.mouseEnabled=true;
   shade.on(Laya.Event.CLICK,this,()=>{});this.overlay.addChild(shade);
   const height=Math.min(H-150,250+lines.length*85+actions.length*84),card=panel(this.overlay,50,(H-height)/2,620,height,32,'#fff9e8','#c5aa71');
   card.mouseEnabled=true;card.on(Laya.Event.CLICK,this,()=>{});
   text(card,title,30,28,560,68,37,COLORS.ink,'center',true);ornament(card,160,117,300);
   let y=139;
-  for(const line of lines){text(card,line,40,y,540,78,line.startsWith('✦')?40:23,line.startsWith('✦')?COLORS.gold:COLORS.ink);y+=85}
+  for(const line of lines){text(card,line,40,y,540,78,line.startsWith('★')?52:23,line.startsWith('★')?COLORS.gold:COLORS.ink);y+=85}
   for(const a of actions){card.addChild(new Button(a.label,60,y,500,64,a.action,a.primary));y+=84}
   this.sync();
  }

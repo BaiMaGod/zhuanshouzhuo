@@ -1,15 +1,15 @@
 <!doctype html>
-<html lang="zh-CN"><head>
+<html lang="zh-CN"><head><link rel="icon" href="data:,">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f6efd9"><title>转手镯消除 · 玉环十境</title>
 <style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#e6debf;touch-action:none;overscroll-behavior:none}
 #layaContainer{position:absolute;inset:0}
 #boot{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(ellipse at 40% 30%,#fffcec,#e9dfb9);font-family:serif;color:#496854;z-index:100}
-#boot span{font-size:32px;letter-spacing:10px;margin-left:10px}#boot small{margin-top:22px;font-size:14px;letter-spacing:4px;color:#a98c50}
+#boot span{font-size:36px;letter-spacing:10px;margin-left:10px}#boot:before{content:"";width:64px;height:64px;border:7px solid #afc6a2;border-right-color:transparent;border-radius:50%;box-shadow:0 5px 0 #c1aa78;margin-bottom:28px;animation:turn 3s linear infinite}@keyframes turn{to{transform:rotate(360deg)}}#boot small{margin-top:22px;font-size:14px;letter-spacing:4px;color:#a98c50}
 #boot.error{padding:30px;text-align:center;line-height:1.8}
 canvas{outline:none;touch-action:none}
-</style></head><body><div id="boot"><span>玉环十境</span><small>正在布置玉盘…</small></div>
+</style></head><body><div id="boot"><span>玉环十境</span><small>正在布置玉盘，马上就好…</small></div>
 <script src="libs/laya.core.js"></script><script src="libs/laya.webgl_2D.js"></script>
 <script type="module" src="js/main.js"></script>
 </body></html>
