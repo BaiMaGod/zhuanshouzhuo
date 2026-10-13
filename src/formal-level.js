@@ -1,9 +1,9 @@
 // Interleave the middle row into its neighbors; keep ring and rod dimensions physical.
 // Nine chambers form one connected serpentine puzzle, not independent boards.
 // C's outgoing bridge prevents it rotating until the next chamber's G is removed.
-const headings=[0,0,0,180,180,180,0,0,0];
-const bases=[[0,0],[306,0],[612,0],[734,500],[428,500],[122,500],[-90,606],[216,606],[522,606]];
-const shape=[['G',0,0,180],['A',106,0,110],['B',53,91.8,250],['C',212,0,200],['D',106,183.6,10],['E',106,289.6,100]];
+const headings=[90,90,90,270,270,270,90,90,90];
+const bases=[[0,0],[0,304],[0,608],[-490,685],[-490,381],[-490,77],[-584,-135],[-584,169],[-584,473]];
+const shape=[['G',0,0,180],['A',106,0,110],['B',53,91.8,250],['C',212,0,200],['D',106,183.6,10],['E',0,183.6,190]];
 const localLinks=[['m','G','A'],['m','G','B'],['b','A','B'],['m','A','C'],['m','B','D'],['m','D','E']];
 const points=[],links=[];
 const rotate=(x,y,a)=>{const d=a*Math.PI/180;return [x*Math.cos(d)-y*Math.sin(d),x*Math.sin(d)+y*Math.cos(d)]};
