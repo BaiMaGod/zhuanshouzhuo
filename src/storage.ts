@@ -12,7 +12,7 @@ export class Save {
     else if(p.records?.[0])this.data.tutorial=1;
     if(p.records&&typeof p.records==='object')for(const [i,r] of Object.entries(p.records)){
      const v=r as {steps:number;stars:number};
-     if(/^\d$/.test(i)&&Number.isFinite(v.steps)&&v.steps>=0&&Number.isInteger(v.stars)&&v.stars>=1&&v.stars<=3)this.data.records[i]=v;
+     if(/^(?:[0-9]|10)$/.test(i)&&Number.isFinite(v.steps)&&v.steps>=0&&Number.isInteger(v.stars)&&v.stars>=1&&v.stars<=3)this.data.records[i]=v;
     }
    }
   } catch {}
@@ -22,6 +22,7 @@ export class Save {
   const stars=steps<=baseline+2?3:steps<=baseline+6?2:1;
   const old=this.data.records[index];
   this.data.records[index]={steps:old?Math.min(old.steps,steps):steps,stars:old?Math.max(old.stars,stars):stars};
-  this.data.unlocked=Math.max(this.data.unlocked,Math.min(9,index+1));this.persist();return stars;
+  if(index<10)this.data.unlocked=Math.max(this.data.unlocked,Math.min(9,index+1));this.persist();return stars;
  }
 }
+

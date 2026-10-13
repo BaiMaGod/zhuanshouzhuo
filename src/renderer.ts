@@ -5,14 +5,15 @@ const C=C0 as unknown as CoreAPI;
 export interface Ghost {r:Ring;state:State;start:number}
 interface RingView {root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite}
 export class Board {
- root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();effects=new Laya.Sprite();
+ viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();effects=new Laya.Sprite();
  rings=new Map<string,RingView>();
- center:Point={x:0,y:0}; screen:Point;zoom=1;turn=0;selected:string|null=null;
+ center:Point={x:0,y:0}; screen:Point;zoom=1;fitZoom=1;bounds={w:1,h:1};turn=0;selected:string|null=null;
  hint:Point|null=null;blocked:Block|null=null;blockUntil=0;
  ghosts:Ghost[]=[];sparks:{x:number;y:number;start:number;seed:number}[]=[];
  constructor(parent:Laya.Sprite,public rect:{x:number;y:number;w:number;h:number}){
   this.screen={x:rect.x+rect.w/2,y:rect.y+rect.h/2};
-  parent.addChild(this.root);this.root.addChild(this.space);
+  this.viewport.pos(rect.x,rect.y);this.viewport.size(rect.w,rect.h);this.viewport.scrollRect=new Laya.Rectangle(0,0,rect.w,rect.h);this.viewport.mouseEnabled=false;
+  parent.addChild(this.viewport);this.viewport.addChild(this.root);this.root.addChild(this.space);
   this.space.addChild(this.rods);this.space.addChild(this.effects);
   this.rods.zOrder=10;this.effects.zOrder=20;this.root.mouseEnabled=false;
  }
@@ -24,8 +25,7 @@ export class Board {
   this.center={x:(Math.min(...xs)+Math.max(...xs))/2,y:(Math.min(...ys)+Math.max(...ys))/2};
   this.turn=(dx+110)/(dy+110)>1.7&&this.rect.h/this.rect.w>1.3?90:0;
   const w=(this.turn?dy:dx)+116,h=(this.turn?dx:dy)+116;
-  this.zoom=Math.min(this.rect.w/w,this.rect.h/h,3.4);
-  this.root.pos(this.screen.x,this.screen.y);this.root.scale(this.zoom,this.zoom);this.root.rotation=this.turn;
+  this.bounds={w,h};this.fitZoom=Math.min(this.rect.w/w,this.rect.h/h,3.4);this.resetView();
   this.space.pos(-this.center.x,-this.center.y);
   s.rings.forEach((r,i)=>{
    const root=new Laya.Sprite();root.pos(r.x,r.y);this.space.addChild(root);
@@ -39,6 +39,20 @@ export class Board {
    this.rings.set(r.id,{root,body,halo,label,shadow});
   });
  }
+ contains(p:Point):boolean{return p.x>=this.rect.x&&p.x<=this.rect.x+this.rect.w&&p.y>=this.rect.y&&p.y<=this.rect.y+this.rect.h}
+ applyView():void{this.root.pos(this.screen.x-this.rect.x,this.screen.y-this.rect.y);this.root.scale(this.zoom,this.zoom);this.root.rotation=this.turn}
+ resetView():void{this.zoom=this.fitZoom;this.screen={x:this.rect.x+this.rect.w/2,y:this.rect.y+this.rect.h/2};this.applyView()}
+ clampView():void{
+  const mid={x:this.rect.x+this.rect.w/2,y:this.rect.y+this.rect.h/2},extra=this.zoom>this.fitZoom*1.01?.2:0;
+  const dx=Math.max(0,(this.bounds.w*this.zoom-this.rect.w)/2)+this.rect.w*extra,dy=Math.max(0,(this.bounds.h*this.zoom-this.rect.h)/2)+this.rect.h*extra;
+  this.screen={x:Math.max(mid.x-dx,Math.min(mid.x+dx,this.screen.x)),y:Math.max(mid.y-dy,Math.min(mid.y+dy,this.screen.y))};this.applyView();
+ }
+ zoomTo(value:number,anchor:Point,world=this.toWorld(anchor)):void{
+  this.zoom=Math.max(this.fitZoom,Math.min(Math.min(this.fitZoom*8,3.4),value));
+  const delta=C.rot({x:world.x-this.center.x,y:world.y-this.center.y},this.turn);
+  this.screen={x:anchor.x-delta.x*this.zoom,y:anchor.y-delta.y*this.zoom};this.clampView();
+ }
+ panTo(p:Point):void{this.screen={...p};this.clampView()}
  toWorld(p:Point):Point{
   const r=C.rot({x:(p.x-this.screen.x)/this.zoom,y:(p.y-this.screen.y)/this.zoom},-this.turn);
   return{x:r.x+this.center.x,y:r.y+this.center.y};
@@ -48,7 +62,7 @@ export class Board {
   return{x:this.screen.x+r.x*this.zoom,y:this.screen.y+r.y*this.zoom};
  }
  pick(p:Point,s:State):Ring|undefined{
-  const q=this.toWorld(p);
+  if(!this.contains(p))return;const q=this.toWorld(p);
   const hits=s.rings.filter(r=>r.life==='active').map(r=>({r,d:Math.abs(C.dist(r,q)-C.R)})).filter(h=>h.d<15).sort((a,b)=>a.d-b.d);
   return hits[0]?.r||s.rings.find(r=>r.life==='active'&&C.dist(r,q)<23);
  }
@@ -134,5 +148,6 @@ export class Board {
   }
   if(this.hint){const pulse=1+Math.sin(now/170)*.09;this.effects.graphics.drawCircle(this.hint.x,this.hint.y,9*pulse,null,'#b18d38',1.1)}
  }
- destroy():void{this.root.destroy(true)}
+ destroy():void{this.viewport.destroy(true)}
 }
+

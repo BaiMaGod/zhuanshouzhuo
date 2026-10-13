@@ -22,7 +22,7 @@ export function installHarness(){
  class Text extends Sprite{constructor(){super();this.text='';this.fontSize=24;this.align='left';this.valign='top'}}
  class Stage extends Sprite{static SCALE_SHOWALL='showall';static SCREEN_NONE='none'}
  const stage=new Stage,canvas={captured:null,addEventListener(){},getBoundingClientRect(){return{left:0,top:0,width:360,height:640}},setPointerCapture(id){this.captured=id},hasPointerCapture(id){return this.captured===id},releasePointerCapture(){this.captured=null}};
- globalThis.Laya={Sprite,Text,Stage,Graphics,stage,Event:{CLICK:'click',MOUSE_DOWN:'mousedown',MOUSE_UP:'mouseup',MOUSE_OUT:'mouseout'},Ease:{},Browser:{width:360,height:640},
+ globalThis.Laya={Sprite,Text,Stage,Graphics,Rectangle:class {constructor(x,y,width,height){Object.assign(this,{x,y,width,height})}},stage,Event:{CLICK:'click',MOUSE_DOWN:'mousedown',MOUSE_UP:'mouseup',MOUSE_OUT:'mouseout'},Ease:{},Browser:{width:360,height:640},
   init:async()=>{},loader:{load:async()=>{},getRes:url=>({url,width:768,height:768})},
   timer:{frameLoop:(n,caller,fn)=>frames.push(()=>fn.call(caller)),delta:16,clearAll(){}}};
  globalThis.window={addEventListener(){}};globalThis.innerWidth=360;globalThis.innerHeight=640;
@@ -39,3 +39,4 @@ export function installHarness(){
  });
  return{tick,canvas,stage,flatten,get now(){return now}};
 }
+

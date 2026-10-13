@@ -1,3 +1,4 @@
+import formalLevel from './formal-level.js';
 const COLORS=['#49a58a','#70a7c1','#c69563','#b38bb4','#91ac62','#d18d81','#799fac','#b6a259','#82b7a7','#b38f65','#8196b6','#a99aba'];
 function level(name,tip,points,links){return{name,tip,points,links}}
 // Tight nonintersecting rings; all connecting rods start on an actual ring edge.
@@ -13,4 +14,7 @@ level('双核接力','两组保持机关相连。先释放一侧中心，留下�
 level('九镯连环','两组保持机关、三条先行拆解支线和三根背景杆。先拆外围，再保持组合。',[['G',0,0,180],['A',106,0,110],['B',53,91.8,250],['C',212,0,200],['D',106,183.6,10],['H',-106,0,0],['E',-212,0,70],['F',-159,-91.8,20],['I',-318,0,40]],[['m','G','A'],['m','G','B'],['b','A','B'],['m','A','C'],['m','B','D'],['m','H','E'],['m','H','F'],['b','E','F'],['m','E','I'],['b','G','H']]),
 level('十镯合局','两组保持机关经背景杆相连。先释放四只外围镯，再保持两侧扣位，最后拆除剩余背景连接。',[['G',0,0,180],['A',106,0,110],['B',53,91.8,250],['C',212,0,200],['D',106,183.6,10],['H',-106,0,0],['E',-212,0,70],['F',-159,-91.8,20],['I',-318,0,40],['J',-212,-183.6,140]],[['m','G','A'],['m','G','B'],['b','A','B'],['m','A','C'],['m','B','D'],['m','H','E'],['m','H','F'],['b','E','F'],['m','E','I'],['m','F','J'],['b','G','H']])];
 
+levels.push(formalLevel);
+export const TEACHING_COUNT=10, FORMAL_INDEX=10;
 export { levels, COLORS };
+

@@ -6,6 +6,7 @@ import {Audio} from './audio.js';
 import {Save} from './storage.js';
 import {JADE_ASSETS,jadeSprite} from './jade.js';
 import solutions from './solutions.js';
+import {TEACHING_COUNT,FORMAL_INDEX} from './levels.js';
 import type {Action,Point,State,Result} from './types.js';
 
 const W=720,H=Math.round(Math.max(1180,Math.min(1600,innerHeight/Math.min(innerWidth,720)*720)));
@@ -18,6 +19,9 @@ class Game {
  save=new Save();audio=new Audio();model:GameModel|null=null;board:Board|null=null;
  mode:'home'|'levels'|'game'='home';message:Laya.Text|null=null;status:Laya.Text|null=null;
  controls:Button[]=[];undoButton:Button|null=null;
+ pointers=new Map<number,Point>();panMode=false;viewLabel:Laya.Text|null=null;panButton:Button|null=null;
+ viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
+ get formal():boolean{return this.model?.index===FORMAL_INDEX}
  drag:{id:string;pointer:number;last:number;started:boolean}|null=null;canvas:HTMLCanvasElement;
  busy=false;epoch=0;worker:Worker|null=null;finishPlan:((path:Action[]|null)=>void)|null=null;
  demoButton:Button|null=null;settled=false;tutorialSeen=false;modalOpen=false;
@@ -30,13 +34,14 @@ class Game {
   this.canvas.addEventListener('pointerdown',e=>this.down(e));
   this.canvas.addEventListener('pointermove',e=>this.move(e));
   this.canvas.addEventListener('pointerup',e=>this.up(e));
-  this.canvas.addEventListener('pointercancel',()=>this.releaseDrag());
-  this.canvas.addEventListener('lostpointercapture',()=>this.releaseDrag());
+  this.canvas.addEventListener('pointercancel',()=>this.releasePointers());
+  this.canvas.addEventListener('lostpointercapture',e=>{if(this.pointers.has(e.pointerId))this.releasePointers()});
+  this.canvas.addEventListener('wheel',e=>{if(this.mode!=='game'||!this.board||this.modalOpen||this.busy)return;const p=this.point(e);if(!this.board.contains(p))return;e.preventDefault();this.releasePointers();this.board.zoomTo(this.board.zoom*Math.exp(-e.deltaY*.0015),p);this.syncView()},{passive:false});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){this.cancel();this.audio.stopAll()}});
-  window.addEventListener('blur',()=>{this.releaseDrag();this.audio.stopAll()});
+  window.addEventListener('blur',()=>{this.releasePointers();this.audio.stopAll()});
   window.addEventListener('keydown',e=>{
    if(this.mode!=='game'||this.modalOpen)return;
-   if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();this.manual((e.key==='ArrowLeft'?-1:1)*(e.shiftKey?30:1))}
+   if(!this.formal&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){e.preventDefault();this.manual((e.key==='ArrowLeft'?-1:1)*(e.shiftKey?30:1))}
    if(e.key==='Escape'){this.cancel();this.hideModal()}
   });
   Laya.timer.frameLoop(1,this,this.tick);this.home();
@@ -47,7 +52,7 @@ class Game {
  clear(mode:Game['mode']):void{
   this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.homeSpark=null;this.board?.destroy();this.board=null;this.model=null;
   this.scene.destroy(true);this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
-  this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.message=null;this.status=null;this.demoButton=null;
+  this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.message=null;this.status=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
   this.mode=mode;this.background();
  }
  image(parent:Laya.Sprite,url:string,x:number,y:number,w:number,h:number,rotation=0):Laya.Sprite{
@@ -55,24 +60,23 @@ class Game {
  }
  home():void{
   this.clear('home');
-  const completed=Object.keys(this.save.data.records).length,stars=Object.values(this.save.data.records).reduce((n,r)=>n+r.stars,0);
+  const teaching=Object.entries(this.save.data.records).filter(([i])=>Number(i)<TEACHING_COUNT),completed=teaching.length,stars=teaching.reduce((n,[,r])=>n+r.stars,0);
   const badge=panel(this.scene,34,30,244,58,28,'#fff5d3','#c9a655');icon(badge.graphics,'star',15,15,26,COLORS.gold);
-  text(badge,'已解 '+completed+' / 10 境',47,0,183,58,22);
+  text(badge,'教学 '+completed+' / 10 境',47,0,183,58,22);
   this.scene.addChild(new Button('',608,28,76,66,()=>this.settings(),false,'settings'));
   text(this.scene,'玉  环  十  境',100,128,520,52,26,COLORS.gold,'center',true);
   const shadow=text(this.scene,'转手镯消除',37,201,650,108,76,'#bc9e63','center',true);shadow.bold=true;
   const title=text(this.scene,'转手镯消除',35,195,650,108,76,'#2f5947','center',true);title.bold=true;
   text(this.scene,'转一转，解开环环相扣',80,311,560,50,26,COLORS.ink,'center',true);ornament(this.scene,235,384,250);
-  const cy=410+(H-870)/2,plateH=H-880;
+  const cy=370+(H-870)/2,plateH=H-880;
   this.image(this.scene,'assets/art-v3/tray.png',360,cy,670,Math.max(410,plateH+110));
   this.homePreview=new Board(this.scene,{x:112,y:cy-126,w:496,h:265});
   const state=C.make(0);this.homePreview.load(state);this.homePreview.selected='B';this.homePreview.draw(state);
   this.homeSpark=new Laya.Sprite();this.homeSpark.mouseEnabled=false;this.scene.addChild(this.homeSpark);
   const seal=panel(this.scene,230,cy+142,260,52,25,'#fff5d8','#c7a15a');
   text(seal,'一扣入门 · 十境解谜',12,0,236,52,21,COLORS.ink,'center',true);
-  const entry=H-407;
-  text(this.scene,completed===10?'十境已通 · 再寻巧解':'即将进入  第 '+String(this.save.data.unlocked+1).padStart(2,'0')+' 境',80,entry,560,42,22,COLORS.gold);
-  text(this.scene,C.levels[this.save.data.unlocked].name,80,entry+43,560,45,29,COLORS.ink,'center',true);
+  text(this.scene,'正式关卡 · 54 镯 · 超级困难',80,H-463,560,40,23,COLORS.gold);
+  this.scene.addChild(new Button('挑战九宫锁玉阵',112,H-407,496,80,()=>this.load(FORMAL_INDEX),true,'play'));
   this.scene.addChild(new Button(completed?'继续解镯':'开始解镯',112,H-296,496,100,()=>this.load(this.save.data.unlocked),true,'play'));
   this.scene.addChild(new Button('关卡图谱',116,H-164,234,70,()=>this.levels(),false,'map'));
   this.scene.addChild(new Button('新手练习',370,H-164,234,70,()=>this.practice(),false,'help'));
@@ -91,8 +95,8 @@ class Game {
   this.clear('levels');
   this.scene.addChild(new Button('',30,28,76,66,()=>this.home(),false,'back'));
   text(this.scene,'玉环十境',160,41,400,70,44,COLORS.ink,'center',true);
-  const count=Object.keys(this.save.data.records).length;
-  text(this.scene,'已解 '+count+' / 10 境 · 一境一重小机关',80,133,560,43,23,COLORS.ink);
+  const count=Object.keys(this.save.data.records).filter(i=>Number(i)<TEACHING_COUNT).length;
+  text(this.scene,'教学十关 · 已解 '+count+' / 10 境',80,133,560,43,23,COLORS.ink);
   ornament(this.scene,185,202,350);
   const sy=237,cell=Math.min(191,(H-320)/5);
   for(let i=0;i<10;i++){
@@ -104,10 +108,10 @@ class Game {
    text(b,done?'★'.repeat(done.stars)+'☆'.repeat(3-done.stars):open?'从这一境开始':'解开上一境',26,cell-80,247,44,23,done?gold:ink);
    if(!open)icon(b.graphics,'lock',20,cell-69,23,COLORS.muted);
   }
-  text(this.scene,'每解一境，点亮下一枚玉印',90,H-66,540,32,20,COLORS.ink);
+  this.scene.addChild(new Button('正式挑战 · 九宫锁玉阵',120,H-78,480,60,()=>this.load(FORMAL_INDEX),true,'play'));
  }
  load(i:number):void{
-  if(i<0||i>this.save.data.unlocked)return;
+  if(i<0||i>=C.levels.length||(i!==FORMAL_INDEX&&i>this.save.data.unlocked))return;
   this.clear('game');this.settled=false;this.model=new GameModel(i);
   panel(this.scene,105,105,510,113,26,'rgba(255,251,232,0.94)','#cdb37b');
   this.scene.addChild(new Button('图谱',28,26,136,64,()=>this.levels(),false,'map'));
@@ -115,9 +119,25 @@ class Game {
    this.toggleSound();sound.label.text=this.audio.enabled?'音效 开':'音效 关';
   });this.scene.addChild(sound);
   this.scene.addChild(new Button('玩法',586,26,106,64,()=>this.help(),false,'help'));
-  text(this.scene,'第 '+String(i+1).padStart(2,'0')+' 境 · '+C.levels[i].name,50,110,620,64,39,COLORS.ink,'center',true);
+  text(this.scene,i===FORMAL_INDEX?'超级困难 · '+C.levels[i].name:'教学 '+String(i+1).padStart(2,'0')+' 境 · '+C.levels[i].name,50,110,620,64,39,COLORS.ink,'center',true);
   this.status=text(this.scene,'',70,179,580,38,21,COLORS.muted);
   ornament(this.scene,176,229,368);
+  if(this.formal){
+   const plateH=H-500;
+   this.image(this.scene,'assets/art-v3/tray.png',360,247+plateH/2,710,plateH);
+   this.board=new Board(this.scene,{x:42,y:262,w:636,h:H-542});this.board.load(this.model.state);
+   const y=H-252;
+   this.scene.addChild(new Button('−',38,y,78,62,()=>this.zoomView(1/1.35)));
+   this.scene.addChild(new Button('+',128,y,78,62,()=>this.zoomView(1.35)));
+   this.scene.addChild(new Button('全盘',222,y,132,62,()=>{this.releasePointers();this.board!.resetView();this.syncView()}));
+   this.panButton=new Button('移动棋盘',370,y,312,62,()=>{this.releasePointers();this.panMode=!this.panMode;this.panButton!.label.text=this.panMode?'旋转手镯':'移动棋盘';this.syncView()});this.scene.addChild(this.panButton);
+   this.viewLabel=text(this.scene,'',60,H-182,600,30,18,COLORS.ink);
+   this.message=text(this.scene,C.levels[i].tip,48,H-148,624,42,18,COLORS.ink,'left');
+   this.undoButton=new Button('撤销',38,H-94,148,62,()=>this.undo(),false,'undo');this.scene.addChild(this.undoButton);
+   this.scene.addChild(new Button('重开',202,H-94,148,62,()=>this.load(i),false,'restart'));
+   this.scene.addChild(new Button('回到首页',370,H-94,312,62,()=>this.home(),false,'back'));
+   this.syncView();
+  }else{
   const plateH=H-616;
   this.image(this.scene,'assets/art-v3/tray.png',360,246+plateH/2,710,plateH);
   this.board=new Board(this.scene,{x:73,y:288,w:574,h:H-678});this.board.load(this.model.state);
@@ -134,11 +154,12 @@ class Game {
   this.demoButton=new Button('演示',527,H-143,160,68,()=>{if(this.busy)this.cancel();else void this.automatic(true)},false,'demo');this.scene.addChild(this.demoButton);
   panel(this.scene,48,H-62,624,44,16,'rgba(255,251,232,0.92)','#d4bf90');
   text(this.scene,'拖动环体旋转 · 松手靠近扣位可轻吸附',55,H-55,610,32,18,COLORS.ink);
+  }
   this.sync();
   if(i<3&&this.save.data.tutorial<=i&&!this.save.data.records[i])this.startGuide();
  }
  startGuide():void{
-  if(!this.model||!this.board)return;this.stopGuide(false);
+  if(!this.model||!this.board||this.formal)return;this.stopGuide(false);
   const first=solutions[this.model.index][0];this.guide=new Guide(this.scene,this.board,first.id);
   this.guideTitle!.text=this.model.index===0?'新手 · 1 / 2  找到粉色 B 镯':this.model.index===1?'新机关 · 背景固定扣':'新机关 · 保留的锁杆';
   this.guideTitle!.width=490;this.message!.width=514;
@@ -167,44 +188,71 @@ class Game {
   if(this.undoButton)this.undoButton.enabled=this.model.history.length>0&&!this.modalOpen;
   if(this.demoButton)this.demoButton.label.text=this.busy?'停止':'演示';
  }
- releaseDrag():void{
+ releaseDrag(releaseCapture=true):void{
   this.audio.stopMotion();this.audio.resetContact();
   const d=this.drag;this.drag=null;
-  if(d)try{if(this.canvas.hasPointerCapture(d.pointer))this.canvas.releasePointerCapture(d.pointer)}catch{}
+  if(d&&releaseCapture){this.pointers.delete(d.pointer);try{if(this.canvas.hasPointerCapture(d.pointer))this.canvas.releasePointerCapture(d.pointer)}catch{}}
  }
  cancel():void{
   this.audio.stopAll();
-  this.epoch++;this.busy=false;this.releaseDrag();
+  this.epoch++;this.busy=false;this.releasePointers();
   this.worker?.terminate();this.worker=null;
   this.finishPlan?.(null);this.finishPlan=null;
   if(this.demoButton)this.demoButton.label.text='演示';
   this.sync();
  }
- point(e:PointerEvent):Point{
+ point(e:MouseEvent):Point{
   const r=this.canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};
+ }
+ releasePointers():void{
+  this.releaseDrag();const ids=[...this.pointers.keys()];this.pointers.clear();this.viewGesture=null;
+  for(const id of ids)try{if(this.canvas.hasPointerCapture(id))this.canvas.releasePointerCapture(id)}catch{}
+ }
+ syncView():void{
+  if(!this.board)return;
+  if(this.viewLabel)this.viewLabel.text=Math.round(this.board.zoom/this.board.fitZoom*100)+'% · 双指缩放 · '+(this.panMode?'拖动画面，点「旋转手镯」返回':'拖动空白移动，拖动玉镯旋转');
+ }
+ zoomView(factor:number):void{
+  if(!this.board||this.modalOpen)return;this.releasePointers();const r=this.board.rect;
+  this.board.zoomTo(this.board.zoom*factor,{x:r.x+r.w/2,y:r.y+r.h/2});this.syncView();
  }
  down(e:PointerEvent):void{
   this.audio.wake();
-  if(this.mode!=='game'||!this.model||!this.board||this.busy||this.board.animating||this.modalOpen)return;
-  const p=this.point(e),ring=this.board.pick(p,this.model.state);if(!ring)return;
+  if(this.mode!=='game'||!this.model||!this.board||this.busy||this.board.animating||this.modalOpen||(e.button!==undefined&&e.button!==0))return;
+  const p=this.point(e);if(!this.board.contains(p))return;
+  this.pointers.set(e.pointerId,p);this.canvas.setPointerCapture(e.pointerId);
+  if(this.pointers.size>=2){
+   this.releaseDrag(false);const [a,b]=[...this.pointers.values()];const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+   this.viewGesture={kind:'pinch',start:mid,screen:{...this.board.screen},zoom:this.board.zoom,distance:Math.max(1,C.dist(a,b)),anchor:this.board.toWorld(mid)};return;
+  }
+  const ring=this.panMode?undefined:this.board.pick(p,this.model.state);
+  if(!ring){this.viewGesture={kind:'pan',start:p,screen:{...this.board.screen},zoom:this.board.zoom,distance:0,anchor:p};return}
   this.model.selected=ring.id;this.board.hint=null;this.guideSelect(ring.id);
   this.drag={id:ring.id,pointer:e.pointerId,last:C.angle(ring,this.board.toWorld(p)),started:false};
-  this.canvas.setPointerCapture(e.pointerId);this.audio.play('select');this.sync();
+  this.audio.play('select');this.sync();
  }
  move(e:PointerEvent):void{
-  const d=this.drag;if(!d||d.pointer!==e.pointerId||!this.model||!this.board||this.busy||this.board.animating)return;
+  if(!this.pointers.has(e.pointerId)||!this.model||!this.board||this.busy||this.modalOpen)return;
+  const point=this.point(e);this.pointers.set(e.pointerId,point);const gesture=this.viewGesture;
+  if(gesture){
+   if(gesture.kind==='pinch'&&this.pointers.size>=2){const [a,b]=[...this.pointers.values()];const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};this.board.zoomTo(gesture.zoom*C.dist(a,b)/gesture.distance,mid,gesture.anchor)}
+   else if(gesture.kind==='pan')this.board.panTo({x:gesture.screen.x+point.x-gesture.start.x,y:gesture.screen.y+point.y-gesture.start.y});
+   this.syncView();return;
+  }
+  const d=this.drag;if(!d||d.pointer!==e.pointerId||this.board.animating)return;
   const r=C.ring(this.model.state,d.id);if(!r||r.life!=='active'){this.releaseDrag();return}
-  const p=this.board.toWorld(this.point(e));
-  // Ignore dragging through the center, where angle changes become undefined.
-  if(C.dist(p,r)<15)return;
+  const p=this.board.toWorld(point);if(C.dist(p,r)<15)return;
   const a=C.angle(r,p),delta=C.diff(a,d.last);d.last=a;
   if(Math.abs(delta)<.08)return;
   if(!d.started){this.model.begin();d.started=true}
   this.perform(d.id,delta);
  }
  up(e:PointerEvent):void{
-  if(!this.drag||this.drag.pointer!==e.pointerId)return;const d=this.drag;this.releaseDrag();
-  if(d.started&&!this.busy&&!this.board?.animating)this.snap(d.id);
+  const d=this.drag?.pointer===e.pointerId?this.drag:null;
+  this.pointers.delete(e.pointerId);if(d)this.releaseDrag();
+  try{if(this.canvas.hasPointerCapture(e.pointerId))this.canvas.releasePointerCapture(e.pointerId)}catch{}
+  if(!this.pointers.size)this.viewGesture=null;
+  if(d?.started&&!this.busy&&!this.board?.animating)this.snap(d.id);
  }
  snap(id:string):void{
   if(!this.model)return;const s=this.model.state,r=C.ring(s,id);if(!r||r.life!=='active')return;
@@ -215,7 +263,7 @@ class Game {
   if(Math.abs(best)<=4)this.perform(id,best);
  }
  manual(delta:number):void{
-  if(!this.model||!this.model.selected||this.busy||this.board?.animating||this.modalOpen)return;
+  if(this.formal||!this.model||!this.model.selected||this.busy||this.board?.animating||this.modalOpen)return;
   this.guideSelect(this.model.selected);this.audio.resetContact();this.model.begin();this.board!.hint=null;this.perform(this.model.selected,delta);
  }
  perform(id:string,d:number):Result{
@@ -260,7 +308,7 @@ class Game {
   });
  }
  async hint():Promise<void>{
-  if(this.busy||this.modalOpen||this.board?.animating||!this.model)return;
+  if(this.formal||this.busy||this.modalOpen||this.board?.animating||!this.model)return;
   this.busy=true;const token=++this.epoch;this.say('正在观察当前扣位…');this.sync();
   const path=await this.plan();if(token!==this.epoch)return;
   this.busy=false;
@@ -275,7 +323,7 @@ class Game {
   ]);
  }
  async automatic(all:boolean):Promise<void>{
-  if(this.busy||this.modalOpen||this.board?.animating||!this.model)return;
+  if(this.formal||this.busy||this.modalOpen||this.board?.animating||!this.model)return;
   this.stopGuide(false);this.busy=true;const token=++this.epoch;this.say('正在寻找合法旋转路线…');this.sync();
   const full=await this.plan();if(token!==this.epoch)return;
   if(!full?.length){this.busy=false;this.say('当前没有找到路线。可撤销或重开。');this.sync();return}
@@ -300,7 +348,7 @@ class Game {
   this.audio.tick(performance.now());
   const now=performance.now();
   if(this.mode==='home'&&this.homeSpark&&now-this.lastHomeFrame>80){
-   this.lastHomeFrame=now;const g=this.homeSpark.graphics;g.clear();const cy=410+(H-870)/2;
+   this.lastHomeFrame=now;const g=this.homeSpark.graphics;g.clear();const cy=370+(H-870)/2;
    for(let i=0;i<7;i++){const a=now/6000+i*Math.PI*2/7;const x=360+Math.cos(a)*210,y=cy+Math.sin(a)*130;g.drawCircle(x,y,1.2+Math.sin(a*3)*.5,'rgba(168,130,51,0.48)')}
   }
   if(!this.model||!this.board||this.mode!=='game')return;
@@ -311,6 +359,7 @@ class Game {
  }
  win():void{
   if(!this.model)return;const i=this.model.index,steps=this.model.state.steps;
+  if(this.formal){const stars=this.save.win(i,steps,solutions[i].length);this.audio.play('win');this.modal('九宫锁玉阵 · 全部解开',['★'.repeat(stars)+'☆'.repeat(3-stars),'54 只玉镯全部解开 · '+steps+' 次转动','最高难度挑战已记录，可以再来寻找更巧的拆解路线。'],[{label:'回到首页',action:()=>this.home(),primary:true},{label:'再挑战一次',action:()=>this.load(i),primary:false}]);return}
   const stars=this.save.win(i,steps,solutions[i].length);if(i<3){this.save.data.tutorial=Math.max(this.save.data.tutorial,i+1);this.save.persist()}this.stopGuide(false);this.audio.play('win');
   this.modal(i===9?'十境皆通':'这一境，解开了',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].name+' · '+steps+' 次转动',i===9?'玉环十境全部完成，随时回来再解。':'下一境已开启，机关会再多一点变化。'],[
    {label:i===9?'回到十境图谱':'进入第 '+(i+2)+' 境',action:()=>i===9?this.levels():this.load(i+1),primary:true},
@@ -324,11 +373,11 @@ class Game {
    '③ 对齐后要保持，转离会重新扣合。剩下的完整锁杆仍会挡住转动。'
   ],[
    {label:'继续拆解',action:()=>this.hideModal(),primary:true},
-   {label:'重看这一步',action:()=>{this.hideModal();if(this.model&&this.model.index<3)this.startGuide();else void this.hint()},primary:false}
+   {label:this.formal?'观察全盘':'重看这一步',action:()=>{this.hideModal();if(this.formal){this.board?.resetView();this.syncView()}else if(this.model&&this.model.index<3)this.startGuide();else void this.hint()},primary:false}
   ]);
  }
  modal(title:string,lines:string[],actions:{label:string;action:()=>void;primary:boolean}[]):void{
-  this.hideModal();this.modalOpen=true;this.releaseDrag();
+  this.hideModal();this.modalOpen=true;this.releasePointers();
   this.guide?.clear();const shade=new Laya.Sprite();shade.size(W,H);shade.graphics.drawRect(0,0,W,H,'rgba(47,63,41,0.36)');shade.mouseEnabled=true;
   shade.on(Laya.Event.CLICK,this,()=>{});this.overlay.addChild(shade);
   const height=Math.min(H-150,250+lines.length*85+actions.length*84),card=panel(this.overlay,50,(H-height)/2,620,height,32,'#fff9e8','#c5aa71');
@@ -356,3 +405,4 @@ boot().catch(e=>{
  console.error(e);const box=document.getElementById('boot');
  if(box){box.classList.add('error');box.textContent='玉盘暂时没有加载完成，请刷新再试。'}
 });
+

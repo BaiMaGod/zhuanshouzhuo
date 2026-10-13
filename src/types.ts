@@ -7,7 +7,7 @@ export interface Block {kind:string;rod:string;target:string;text:string}
 export interface Result {done:number;removed:string[];blocked:Block|null}
 export interface CoreAPI {
  R:number;BAND:number;GAP:number;END:number;D:number;tolerance:number;
- levels:{name:string;tip:string;points:unknown[];links:unknown[]}[];
+ levels:{name:string;tip:string;kind?:'formal';points:unknown[];links:unknown[]}[];
  norm(a:number):number;diff(a:number,b:number):number;
  clone<T>(x:T):T;dist(a:Point,b:Point):number;angle(a:Point,b:Point):number;
  point(p:Point,a:number,d?:number):Point;rot(p:Point,a:number):Point;
@@ -20,3 +20,4 @@ export interface CoreAPI {
  candidates(s:State):Action[];solve(s:State,budget?:number):{path:Action[]|null;visited:number};
  validate(s:State):string[];blockage(s:State,id:string):Block|null;
 }
+

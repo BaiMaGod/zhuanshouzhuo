@@ -7,7 +7,7 @@ declare namespace Laya {
   x:number;y:number;width:number;height:number;rotation:number;alpha:number;visible:boolean;
   mouseEnabled:boolean;mouseThrough:boolean;cacheAs:string;zOrder:number;name:string;
   scaleX:number;scaleY:number;texture:Texture|null;graphics:Graphics;
-  parent:Sprite|null;
+  parent:Sprite|null;scrollRect:Rectangle|null;
   constructor();
   addChild<T extends Sprite>(s:T):T;removeChildren():void;
   destroy(destroyChild?:boolean):void;removeSelf():this;
@@ -20,6 +20,7 @@ declare namespace Laya {
   text:string;font:string;fontSize:number;color:string;bold:boolean;
   align:string;valign:string;wordWrap:boolean;leading:number;
  }
+ class Rectangle {constructor(x:number,y:number,w:number,h:number)}
  class Point {x:number;y:number;constructor(x?:number,y?:number)}
  class Graphics {
   clear():void;drawRect(x:number,y:number,w:number,h:number,fill:string|null,line?:string|null,lineWidth?:number):void;
@@ -42,3 +43,4 @@ declare namespace Laya {
  const Tween:{to(target:unknown,props:unknown,duration:number,ease?:unknown,complete?:unknown,delay?:number):unknown;clearAll(target:unknown):void};
  const Ease:{backOut:unknown;sineIn:unknown;sineOut:unknown};
 }
+
