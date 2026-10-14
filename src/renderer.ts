@@ -27,7 +27,7 @@ export class Board {
   const xs=s.rings.map(r=>r.x),ys=s.rings.map(r=>r.y);
   const dx=Math.max(...xs)-Math.min(...xs),dy=Math.max(...ys)-Math.min(...ys);
   this.center={x:(Math.min(...xs)+Math.max(...xs))/2,y:(Math.min(...ys)+Math.max(...ys))/2};
-  this.turn=(dx+110)/(dy+110)>1.7&&this.rect.h/this.rect.w>1.3?90:0;
+  this.turn=s.index===10?90:(dx+110)/(dy+110)>1.7&&this.rect.h/this.rect.w>1.3?90:0;
   const w=(this.turn?dy:dx)+116,h=(this.turn?dx:dy)+116;
   this.bounds={w,h};this.fitZoom=Math.min(this.rect.w/w,this.rect.h/h,3.4);this.resetView();
   this.space.pos(-this.center.x,-this.center.y);

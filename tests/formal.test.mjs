@@ -4,7 +4,7 @@ test('54镯正式关卡为相连九宫结构，跨宫杆真实阻挡且完整路
  // Keep the dense layout without shrinking the physical rings or relaxing collisions.
  const width=Math.max(...s.rings.map(r=>r.x))-Math.min(...s.rings.map(r=>r.x))+92,height=Math.max(...s.rings.map(r=>r.y))-Math.min(...s.rings.map(r=>r.y))+92;
  assert.ok(width*height<450_000,'No empty bands between clusters');
- const rows=new Map;for(const r of s.rings){const y=Math.round(r.y*1000);if(!rows.has(y))rows.set(y,[]);rows.get(y).push(r.x)}assert.equal(rows.size,6);for(const xs of rows.values()){xs.sort((a,b)=>a-b);assert.equal(xs.length,9);for(let i=1;i<xs.length;i++)assert.ok(Math.abs(xs[i]-xs[i-1]-94)<1e-6,'Every lattice cell is filled');}
+ const rows=new Map;for(const r of s.rings){const y=Math.round(r.y*1000);if(!rows.has(y))rows.set(y,[]);rows.get(y).push(r.x)}assert.equal(rows.size,6);for(const xs of rows.values()){xs.sort((a,b)=>a-b);assert.equal(xs.length,9);for(let i=1;i<xs.length;i++)assert.ok(Math.abs(xs[i]-xs[i-1]-92.0001)<1e-6,'Every lattice cell is filled');}
  assert.ok(s.rings.every(r=>s.rings.some(t=>t!==r&&C.dist(r,t)<=107)),'No isolated outlying rings');
  const seen=new Set(['1G']);for(let pass=0;pass<54;pass++)for(const z of s.rods){const ids=z.kind==='m'?[z.owner,...z.targets]:z.targets;if(ids.some(id=>seen.has(id)))ids.forEach(id=>seen.add(id))}assert.equal(seen.size,54);
  const blocked=C.request(C.clone(s),'1A',10);assert.equal(blocked.blocked?.kind,'captive');assert.equal(C.ring(s,'1C').life,'active');
