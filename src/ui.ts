@@ -59,9 +59,10 @@ export class Button extends Laya.Sprite {
    flower(g,w-tab,h/2,3,primary?THEME.pink:THEME.line);
   }else round(g,0,0,w,h,r,face,rim,1.2);
   this.iconSprite.mouseEnabled=false;this.skin.addChild(this.iconSprite);
-  if(kind)this.setIcon(kind,primary);
-  this.label=text(this,title,kind&&w>=90?46:0,-1,kind&&w>=90?w-58:w,h,h>=82?32:23,primary?THEME.white:THEME.ink,'center',true);
+  this.label=text(this,title,0,0,w,h,h>=82?32:23,primary?THEME.white:THEME.ink,'center',true);
   if(!title)this.label.visible=false;
+  if(kind)this.setIcon(kind,primary);
+  else {this.label.pos(8,0);this.label.size(w-16,h)}
   // Cache only the sculpted decoration; text and input remain separate and sharp.
   this.skin.cacheAs='bitmap';
   this.on(Laya.Event.MOUSE_DOWN,this,()=>this.press(true));
@@ -69,10 +70,26 @@ export class Button extends Laya.Sprite {
   this.on(Laya.Event.MOUSE_OUT,this,()=>this.press(false));
   this.on(Laya.Event.CLICK,this,()=>{if(this.enabled_){this.press(false);Button.feedback?.();callback()}});
  }
- private press(v:boolean):void{if(!this.enabled_||this.pressed===v)return;this.pressed=v;this.skin.y=v?4:0;this.skin.x=v?this.width*.0075:0;this.skin.scale(v?.985:1);this.skin.alpha=v?.85:1;this.label.y=v?3:-1}
+ private press(v:boolean):void{if(!this.enabled_||this.pressed===v)return;this.pressed=v;this.skin.y=v?4:0;this.skin.x=v?this.width*.0075:0;this.skin.scale(v?.985:1);this.skin.alpha=v?.85:1;this.label.y=v?3:0}
  set enabled(v:boolean){if(v===this.enabled_)return;this.press(false);this.enabled_=v;this.alpha=v?1:.55}
  get enabled():boolean{return this.enabled_}
- setIcon(kind:Icon,primary=false):void{const g=this.iconSprite.graphics;g.clear();icon(g,kind,this.width<90?(this.width-27)/2:25,(this.height-26)/2,26,primary?THEME.white:THEME.ink)}
+ setIcon(kind:Icon,primary=false):void{
+  const g=this.iconSprite.graphics;g.clear();
+  const size=26,gap=8;
+  if(!this.label.visible)this.iconSprite.pos((this.width-size)/2,(this.height-size)/2);
+  else{
+   // Centre the entire icon+label group; avoid the former fixed 46px offset.
+   const font=this.label.fontSize;
+   const measured=[...this.label.text].reduce((sum,ch)=>sum+((/\s/.test(ch))?.35:((/[\u0000-\u007f]/.test(ch))?.56:1))*font,0)+6;
+   const labelW=Math.min(Math.max(34,measured),Math.max(34,this.width-56));
+   const left=Math.max(6,(this.width-size-gap-labelW)/2);
+   this.iconSprite.pos(left,(this.height-size)/2);
+   this.label.pos(left+size+gap,0);
+   this.label.size(Math.max(12,this.width-left-size-gap-6),this.height);
+   this.label.align='left';
+  }
+  icon(g,kind,0,0,size,primary?THEME.white:THEME.ink);
+ }
 }
 export function flower(g:Laya.Graphics,x:number,y:number,r:number,color=THEME.line):void{
  for(let k=0;k<4;k++){const a=k*Math.PI/2;g.drawPoly(x+Math.cos(a)*r*1.65,y+Math.sin(a)*r*1.65,[0,-r,r,0,0,r,-r,0],null,color,1)}
