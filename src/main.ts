@@ -135,10 +135,6 @@ class Game {
    this.scene.addChild(new Button('−',38,y,78,62,()=>this.zoomView(1/1.35)));
    this.scene.addChild(new Button('+',128,y,78,62,()=>this.zoomView(1.35)));
    this.scene.addChild(new Button('全盘',222,y,132,62,()=>{this.releasePointers();this.board!.resetView();this.syncView()}));
-   text(this.scene,'双指缩放 / 移动画面',370,y+12,312,36,20,COLORS.ink);
-   panel(this.scene,38,H-187,644,82,18,'#fff9e8','#d4bf90');
-   this.viewLabel=text(this.scene,'',60,H-182,600,28,18,COLORS.ink);
-   this.message=text(this.scene,C.levels[i].tip,48,H-148,624,42,18,COLORS.ink,'left');
    this.scene.addChild(new Button('重开',38,H-94,312,62,()=>this.load(i),false,'restart'));
    this.scene.addChild(new Button('回到首页',370,H-94,312,62,()=>this.home(),false,'back'));
    this.syncView();
@@ -184,7 +180,7 @@ class Game {
  sync():void{
   if(!this.model||!this.board)return;
   const s=this.model.state,n=s.rings.filter(r=>r.life==='active').length;
-  this.status!.text=n+' 镯待解  ·  '+s.steps+' 次转动'+(this.model.selected?'  ·  选中 '+this.model.selected:'');
+  this.status!.text=n+' 镯待解  ·  '+s.steps+' 次转动'+(!this.formal&&this.model.selected?'  ·  选中 '+this.model.selected:'');
   this.board.selected=this.model.selected;this.board.draw(s);
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.undoButton)this.undoButton.enabled=this.model.history.length>0&&!this.modalOpen;
