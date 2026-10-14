@@ -47,7 +47,9 @@ class Game {
   Laya.timer.frameLoop(1,this,this.tick);this.home();
  }
  background():void{
-  const bg=new Laya.Sprite();bg.name='board-garden';bg.graphics.drawImage(Laya.loader.getRes('assets/art-v3/garden.png'),0,0,W,H);bg.mouseEnabled=false;this.scene.addChild(bg);this.garden=bg;
+  const bg=new Laya.Sprite();bg.name='board-garden';bg.graphics.drawImage(Laya.loader.getRes('assets/art-v3/garden.png'),0,0,W,H);
+  if(this.mode==='game'){bg.graphics.drawRect(0,0,W,H,'rgba(239,239,218,0.40)');bg.graphics.drawRect(0,0,W,H,'rgba(37,66,52,0.10)')}
+  bg.mouseEnabled=false;this.scene.addChild(bg);this.garden=bg;
  }
  clear(mode:Game['mode']):void{
   this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.homeSpark=null;this.board?.destroy();this.board=null;this.model=null;
@@ -117,24 +119,24 @@ class Game {
  load(i:number):void{
   if(i<0||i>=C.levels.length||(i!==FORMAL_INDEX&&i>this.save.data.unlocked))return;
   this.clear('game');this.settled=false;this.model=new GameModel(i);
-  panel(this.scene,105,105,510,113,26,'rgba(255,251,232,0.94)','#cdb37b');
+  panel(this.scene,this.formal?42:105,this.formal?98:105,this.formal?636:510,this.formal?74:113,this.formal?20:26,'rgba(255,251,232,0.97)','#cdb37b');
   this.scene.addChild(new Button('图谱',28,26,136,64,()=>this.levels(),false,'map'));
   const sound=new Button(this.audio.enabled?'音效 开':'音效 关',456,26,116,60,()=>{
    this.toggleSound();sound.label.text=this.audio.enabled?'音效 开':'音效 关';
   });this.scene.addChild(sound);
   this.scene.addChild(new Button('玩法',586,26,106,64,()=>this.help(),false,'help'));
-  text(this.scene,i===FORMAL_INDEX?'超级困难 · '+C.levels[i].name:'教学 '+String(i+1).padStart(2,'0')+' 境 · '+C.levels[i].name,50,110,620,64,39,COLORS.ink,'center',true);
-  this.status=text(this.scene,'',70,179,580,38,21,COLORS.muted);
-  ornament(this.scene,176,229,368);
+  text(this.scene,i===FORMAL_INDEX?'超级困难 · '+C.levels[i].name:'教学 '+String(i+1).padStart(2,'0')+' 境 · '+C.levels[i].name,50,this.formal?99:110,620,this.formal?38:64,this.formal?28:39,COLORS.ink,'center',true);
+  this.status=text(this.scene,'',70,this.formal?137:179,580,this.formal?30:38,21,COLORS.ink);
+  if(!this.formal)ornament(this.scene,176,229,368);
   if(this.formal){
-   const plateH=H-500;
-   const tray=this.image(this.scene,'assets/art-v3/tray.png',360,247+plateH/2,710,plateH);tray.name='board-tray';
-   this.board=new Board(this.scene,{x:42,y:268,w:636,h:H-542});this.board.load(this.model.state,{w:710,h:plateH});
+   const plateH=H-370,plateY=174;
+   const tray=this.image(this.scene,'assets/art-v3/tray.png',360,plateY+plateH/2,710,plateH);tray.name='board-tray';
+   this.board=new Board(this.scene,{x:24,y:plateY+12,w:672,h:plateH-24});this.board.load(this.model.state,{w:710,h:plateH});
    this.board.attachBackdrop([this.garden!,tray]);
-   const y=H-252;
-   this.scene.addChild(new Button('−',38,y,78,62,()=>this.zoomView(1/1.35)));
-   this.scene.addChild(new Button('+',128,y,78,62,()=>this.zoomView(1.35)));
-   this.scene.addChild(new Button('全盘',222,y,132,62,()=>{this.releasePointers();this.board!.resetView();this.syncView()}));
+   const y=H-176;
+   this.scene.addChild(new Button('−',191,y,78,62,()=>this.zoomView(1/1.35)));
+   this.scene.addChild(new Button('全盘',283,y,154,62,()=>{this.releasePointers();this.board!.resetView();this.syncView()}));
+   this.scene.addChild(new Button('+',451,y,78,62,()=>this.zoomView(1.35)));
    this.scene.addChild(new Button('重开',38,H-94,312,62,()=>this.load(i),false,'restart'));
    this.scene.addChild(new Button('回到首页',370,H-94,312,62,()=>this.home(),false,'back'));
    this.syncView();

@@ -7,6 +7,8 @@ test('54镯正式关卡为相连九宫结构，跨宫杆真实阻挡且完整路
  const rows=new Map;for(const r of s.rings){const y=Math.round(r.y*1000);if(!rows.has(y))rows.set(y,[]);rows.get(y).push(r.x)}
  const bands=[...rows].sort((a,b)=>a[0]-b[0]);assert.ok(bands.length>=9,'Oval has tapered ends');const mid=bands.slice(3,-3);assert.ok(Math.max(...mid.map(([,xs])=>xs.length))>Math.max(bands[0][1].length,bands.at(-1)[1].length),'Centre is wider than both ends');
  for(const [,xs]of bands){xs.sort((a,b)=>a-b);for(let i=1;i<xs.length;i++)assert.ok(Math.abs(xs[i]-xs[i-1]-92.0001)<1e-6,'Every interior lattice cell is filled');}
+ assert.deepEqual(bands.map(([,xs])=>xs.length),bands.map(([,xs])=>xs.length).reverse(),'Oval tapers symmetrically at both ends');
+ for(const [,xs] of bands)assert.ok(Math.abs((Math.min(...xs)+Math.max(...xs))/2)<24,'Every row stays centred on the tray');
 
  assert.ok(s.rings.every(r=>s.rings.some(t=>t!==r&&C.dist(r,t)<=107)),'No isolated outlying rings');
  const seen=new Set(['1G']);for(let pass=0;pass<54;pass++)for(const z of s.rods){const ids=z.kind==='m'?[z.owner,...z.targets]:z.targets;if(ids.some(id=>seen.has(id)))ids.forEach(id=>seen.add(id))}assert.equal(seen.size,54);

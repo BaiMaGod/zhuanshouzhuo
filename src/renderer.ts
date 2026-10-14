@@ -44,7 +44,7 @@ export class Board {
    const shadow=new Laya.Sprite();
    // Reuse the preblurred silhouette; its soft tips follow the gap without another mesh draw.
    shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-55,-55,110,110);
-   const offset=C.rot({x:1.7,y:2.9},-this.turn);shadow.pos(offset.x,offset.y);root.addChild(shadow);
+   const offset=C.rot({x:1.7,y:3.6},-this.turn);shadow.pos(offset.x,offset.y);root.addChild(shadow);
    const halo=new Laya.Sprite();root.addChild(halo);
    const body=new Laya.Sprite();drawJade(body.graphics,JADE_NAMES[i%5]);root.addChild(body);
    const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index===10?'':r.id;label.fontSize=12;label.color='#85784f';label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
@@ -114,7 +114,7 @@ export class Board {
    }
   const shade=C.rot({x:1,y:1.3},-this.turn);
   g.drawPoly(shade.x,shade.y,points,null,'rgba(45,58,48,0.23)',2.1);
-  g.drawPoly(0,0,points,null,state==='aligned'?'#609f92':'#819b94',1.8);
+  g.drawPoly(0,0,points,null,state==='aligned'?'#3b8779':'#55766a',2.2);
   g.drawPoly(0,0,points,null,'#dbece5',.95);
   const u=C.rot({x:1,y:0},a),v={x:-u.y,y:u.x};
   for(const sign of[-1,1])this.line(g,{x:p.x-u.x*5.8+v.x*sign*2.8,y:p.y-u.y*5.8+v.y*sign*2.8},{x:p.x+u.x*5.8+v.x*sign*2.8,y:p.y+u.y*5.8+v.y*sign*2.8},sign<0?'#fffef4':'#b3cec5',.75);
@@ -134,7 +134,7 @@ export class Board {
    const a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
    const shadow=C.rot({x:1.1,y:1.8},-this.turn);
    this.line(g,{x:p.p.x+shadow.x,y:p.p.y+shadow.y},{x:p.q.x+shadow.x,y:p.q.y+shadow.y},'rgba(46,63,51,0.25)',5.3);
-   this.line(g,p.p,p.q,hot?'#c27051':'#839f98',4.4);
+   this.line(g,p.p,p.q,hot?'#c27051':'#537b6e',4.8);
    this.line(g,p.p,p.q,hot?'#e4aa7b':'#d5e9e3',2.9);
    const v=C.rot({x:0,y:-.8},a);
    this.line(g,{x:p.p.x+v.x,y:p.p.y+v.y},{x:p.q.x+v.x,y:p.q.y+v.y},'#fff9e5',.65);
@@ -161,7 +161,8 @@ export class Board {
    const offset=C.rot({x:0,y:dy},-this.turn);v.root.pos(r.x+offset.x,r.y+offset.y);
    v.body.rotation=r.a;v.shadow.rotation=r.a;
    v.halo.graphics.clear();v.label.alpha=r.id===this.selected?1:.55;
-   // Selection is conveyed by the existing HUD and label, never a circle overlay.
+   // Lift only the existing jade texture; do not add a circle or alter collision size.
+   v.body.alpha=this.selected&&r.id!==this.selected ? .87 : 1;
   }
   this.rods.graphics.clear();this.drawRods(s,this.rods.graphics);
   // Ghost rods are separate entities so their alpha can animate with their owner.

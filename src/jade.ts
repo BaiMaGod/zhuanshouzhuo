@@ -48,7 +48,8 @@ export function jadeMesh(name:JadeName):JadeMesh{
 }
 export function drawJade(g:Laya.Graphics,name:JadeName):void{
  const mesh=jadeMesh(name);
- g.drawTriangles(Laya.loader.getRes('assets/jade-v2/'+name+'.png'),0,0,mesh.vertices,mesh.uvs,mesh.indices);
+ const tint:Record<JadeName,string>={amber:'#eee2bd',peach:'#fff1eb',celadon:'#e7f1dd',ice:'#e2f4ee',ivory:'#f3e8c9'};
+ g.drawTriangles(Laya.loader.getRes('assets/jade-v2/'+name+'.png'),0,0,mesh.vertices,mesh.uvs,mesh.indices,null,1,tint[name]);
  // A short curved highlight follows each smoothly polished rounded end.
  const inner=C.R-C.BAND/2,half=Math.asin(C.GAP/(2*inner));
  const colors:Record<JadeName,[string,string]>={
