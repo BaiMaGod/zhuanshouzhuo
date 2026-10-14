@@ -132,6 +132,23 @@ class Game {
   }
   text(this.scene,'拖动玉镯，逐关解开相扣的机关',86,H-77,548,43,22,COLORS.muted,'center');
  }
+ teachingLevels():void{
+  this.clear('levels');
+  this.scene.addChild(new Button('',30,28,76,66,()=>this.home(),false,'back'));
+  text(this.scene,'教程关卡',130,37,460,75,43,COLORS.ink,'center',true);
+  text(this.scene,'由浅入深，学习转镯和解扣',80,137,560,45,24,COLORS.muted);
+  ornament(this.scene,185,202,350);
+  const rowH=Math.min(170,Math.floor((H-382)/5)-12);
+  for(let i=0;i<TEACHING_COUNT;i++){
+   const x=i%2?378:42,y=240+Math.floor(i/2)*(rowH+12),locked=i>this.save.data.unlocked;
+   const entry=new Button('',x,y,300,rowH,()=>this.load(i));
+   entry.name='teaching-level:'+String(i+1);entry.enabled=!locked;this.scene.addChild(entry);
+   text(entry,'第'+(i+1)+'关',20,8,260,48,31,COLORS.ink,'left',true);
+   text(entry,C.levels[i].name,20,56,260,38,23,COLORS.ink,'left');
+   text(entry,locked?'尚未解锁':this.save.data.records[i]?'已完成 · 再次练习':'点击开始练习',20,rowH-44,260,34,19,COLORS.muted,'left');
+  }
+  text(this.scene,'完成前一关后，后续教程会逐步开放',64,H-87,592,44,21,COLORS.muted);
+ }
  load(i:number):void{
   if(i<0||i>=C.levels.length||(i<TEACHING_COUNT&&i>this.save.data.unlocked))return;
   this.clear('game');this.settled=false;this.model=new GameModel(i);
@@ -152,11 +169,14 @@ class Game {
   }else{
   panel(this.scene,105,105,510,113,22,THEME.white,THEME.faint);
   const practiceHome=new Button('',28,26,76,64,()=>this.home(),false,'home');practiceHome.name='button:home';this.scene.addChild(practiceHome);
-  this.scene.addChild(new Button('图谱',116,26,112,64,()=>this.levels(),false,'map'));
-  const sound=new Button(this.audio.enabled?'音效 开':'音效 关',456,26,116,60,()=>{
-   this.toggleSound();sound.label.text=this.audio.enabled?'音效 开':'音效 关';
-  });this.scene.addChild(sound);
-  this.scene.addChild(new Button('玩法',586,26,106,64,()=>this.help(),false,'help'));
+  const chapters=new Button('教程关卡',112,26,190,64,()=>this.teachingLevels(),false,'map');
+  chapters.name='button:teaching-levels';this.scene.addChild(chapters);
+  const sound=new Button(this.audio.enabled?'音效开':'音效关',402,26,160,64,()=>{
+   this.toggleSound();sound.label.text=this.audio.enabled?'音效开':'音效关';
+   sound.setIcon(this.audio.enabled?'sound':'mute');
+  },false,this.audio.enabled?'sound':'mute');sound.name='button:sound';this.scene.addChild(sound);
+  const help=new Button('玩法',572,26,120,64,()=>this.help(),false,'help');
+  help.name='button:help';this.scene.addChild(help);
   text(this.scene,'教学 '+String(i+1).padStart(2,'0')+' 境 · '+C.levels[i].name,50,110,620,64,39,COLORS.ink,'center',true);
   this.status=text(this.scene,'',70,179,580,38,21,COLORS.ink);
   ornament(this.scene,176,229,368);
@@ -173,19 +193,24 @@ class Game {
    this.scene.addChild(new Button('+',436,y,76,62,()=>this.zoomView(1.35)));
    this.syncView();
   }else{
-  const plateH=H-616;
-  const tray=this.image(this.scene,TRAY,360,246+plateH/2,710,plateH);tray.name='board-tray';
-  this.board=new Board(this.scene,{x:73,y:288,w:574,h:H-678});this.board.load(this.model.state);
+  // Reuse the former lower-caption space so the whole jade tray is taller.
+  const plateH=H-370;
+  const tray=this.image(this.scene,TRAY,360,236+plateH/2,710,plateH);tray.name='board-tray';
+  this.board=new Board(this.scene,{x:73,y:278,w:574,h:H-470});this.board.load(this.model.state);
   this.board.attachBackdrop([this.garden!,tray]);
-  panel(this.scene,35,H-387,650,130,22,THEME.white,THEME.faint);
-  this.guideTitle=text(this.scene,'解镯小提示',56,H-380,606,35,20,COLORS.gold,'left');
+  // Upper-left speech bubble: tutorial instructions stay close to the action.
+  const bubble=panel(this.scene,63,262,552,86,19,THEME.white,THEME.faint);
+  bubble.name='tutorial-instruction';
+  bubble.graphics.drawPoly(39,84,[0,0,32,0,10,19],THEME.white,THEME.faint,1.1);
+  text(bubble,'手指按住玉镯转动，让玉镯缺口对准锁扣',22,9,512,68,24,COLORS.ink,'left');
+  // Show live messages over the empty lower lip, not outside the tray.
+  panel(this.scene,35,H-257,650,112,20,THEME.white,THEME.faint);
+  this.guideTitle=text(this.scene,'解镯小提示',60,H-248,500,33,20,COLORS.gold,'left');
   const tips=['拖动粉色 B 镯，把缺口转向两镯之间的空心扣。','带 × 的锁杆留在原地，两只手镯各对齐自己的扣。','先解外围 B 镯，再观察留下的完整锁杆。'];
-  this.message=text(this.scene,tips[i]||C.levels[i].tip,56,H-340,606,72,23,COLORS.ink,'left');
-  text(this.scene,'用手指沿玉镯拖动，直接转动缺口',54,H-229,612,48,25,COLORS.ink);
-  this.scene.addChild(new Button('重开',80,H-143,260,68,()=>this.load(i),false,'restart'));
-  this.scene.addChild(new Button('提示',380,H-143,260,68,()=>void this.hint(),false,'hint'));
-  panel(this.scene,48,H-62,624,44,16,THEME.white,THEME.faint);
-  text(this.scene,'拖动环体旋转 · 松手靠近扣位可轻吸附',55,H-55,610,32,18,COLORS.ink);
+  this.message=text(this.scene,tips[i]||C.levels[i].tip,60,H-215,520,60,22,COLORS.ink,'left');
+  this.scene.addChild(new Button('重开',80,H-108,260,68,()=>this.load(i),false,'restart'));
+  this.hintButton=new Button('提示',380,H-108,260,68,()=>void this.hint(),false,'hint');
+  this.scene.addChild(this.hintButton);
   }
   this.sync();
   if(i<3&&this.save.data.tutorial<=i&&!this.save.data.records[i])this.startGuide();
@@ -194,19 +219,20 @@ class Game {
   if(!this.model||!this.board||this.formal)return;this.stopGuide(false);
   const first=solutions[this.model.index][0];this.guide=new Guide(this.scene,this.board,first.id);
   this.guideTitle!.text=this.model.index===0?'新手 · 1 / 2  找到粉色 B 镯':this.model.index===1?'新机关 · 背景固定扣':'新机关 · 保留的锁杆';
-  this.guideTitle!.width=490;this.message!.width=514;
-  this.guideSkip=new Button('跳过',582,H-371,84,62,()=>this.stopGuide(true));this.scene.addChild(this.guideSkip);
+  this.guideTitle!.width=490;this.message!.width=500;
+  this.guideSkip=new Button('跳过',578,H-240,88,52,()=>this.stopGuide(true));this.scene.addChild(this.guideSkip);
   this.guide.draw(this.model.state,performance.now(),false);
  }
  stopGuide(remember=false):void{
   if(remember&&this.model){this.save.data.tutorial=Math.max(this.save.data.tutorial,this.model.index+1);this.save.persist()}
   this.guide?.destroy();this.guide=null;this.guideSkip?.destroy();this.guideSkip=null;
-  if(this.guideTitle){this.guideTitle.text='解镯小提示';this.guideTitle.width=606}
-  if(this.message)this.message.width=606;
+  if(this.guideTitle){this.guideTitle.text='解镯小提示';this.guideTitle.width=500}
+  if(this.message)this.message.width=520;
  }
  guideSelect(id:string):void{
   if(!this.guide||!this.model)return;
   if(this.formal){this.stopGuide(false);return}
+  if(this.guide.action)return; // A directional hint is passive, not forced guidance.
   if(id!==this.guide.id){this.say('先试试 '+this.guide.id+' 镯。藕粉色角标标出了它要对齐的扣。');return}
   this.guide.phase='turn';
   if(this.model.index===0){this.guideTitle!.text='新手 · 2 / 2  拖动，让缺口对准扣';this.say('手指沿粉色 B 镯转一转，缺口对准藕粉色角标里的空心扣。')}
@@ -360,12 +386,12 @@ class Game {
    this.guide=new Guide(this.scene,this.board!,a.id,a);this.guide.phase='turn';
    this.guide.draw(this.model.state,performance.now(),false);this.sync();return;
   }
-  const z=this.model.state.rods.find(z=>z.id===a.rod);
-  this.board!.hint=z?C.endpoints(this.model.state,z).find(e=>e.id===a.id)?.p||null:null;
-  this.say('先转 '+a.id+'，'+(a.delta>0?'顺时针':'逆时针')+'让缺口对准闪光的空心扣。');this.sync();
-  this.modal('看这一只玉环',['已标出 '+a.id+' 的目标扣位。','用手指拖动玉镯，对准标出的扣位。'],[
-   {label:'我来转',action:()=>this.hideModal(),primary:true}
-  ]);
+  // Same unobtrusive guided hand used for hard levels; never block input.
+  this.releasePointers();this.stopGuide(false);this.board!.hint=null;
+  this.guide=new Guide(this.scene,this.board!,a.id,a);this.guide.phase='turn';
+  this.guide.draw(this.model.state,performance.now(),false);
+  this.say('跟着手指，'+(a.delta>0?'顺时针':'逆时针')+'转动 '+a.id+' 镯，让缺口对准锁扣。');
+  this.sync();
  }
  async automatic(all:boolean):Promise<void>{
   if(this.formal||this.busy||this.modalOpen||this.board?.animating||!this.model)return;
