@@ -1,6 +1,6 @@
 import {Core as C,GameModel} from './model.js';
 import {Board} from './renderer.js';
-import {text,panel,Button,ornament,COLORS,icon} from './ui.js';
+import {text,panel,Button,ornament,COLORS,THEME,icon,flower} from './ui.js';
 import {Guide} from './guide.js';
 import {Audio} from './audio.js';
 import {Save} from './storage.js';
@@ -13,7 +13,8 @@ const W=720,H=Math.round(Math.max(1180,Math.min(1600,innerHeight/Math.min(innerW
 // Keep UI and hit coordinates at 720 logical units, but bound mobile pixel fill.
 const RENDER_W=innerWidth<600?Math.min(W,Math.round(innerWidth*1.5)):W;
 const RENDER_SCALE=RENDER_W/W;
-const ASSETS=[...JADE_ASSETS,'assets/shadow.png',...['tray','clasp'].map(n=>'assets/art-v3/'+n+'.png')];
+const TRAY='assets/art-rose/tray.png';
+const ASSETS=[...JADE_ASSETS,'assets/shadow.png',TRAY,'assets/art-rose/home-bg.jpg','assets/art-v3/clasp.png'];
 class Game {
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
  garden:Laya.Sprite|null=null;
@@ -26,7 +27,7 @@ class Game {
  drag:{id:string;pointer:number;last:number;started:boolean}|null=null;canvas:HTMLCanvasElement;
  busy=false;epoch=0;worker:Worker|null=null;finishPlan:((path:Action[]|null)=>void)|null=null;
  demoButton:Button|null=null;settled=false;tutorialSeen=false;modalOpen=false;
- guide:Guide|null=null;guideTitle:Laya.Text|null=null;guideSkip:Button|null=null;homePreview:Board|null=null;homeSpark:Laya.Sprite|null=null;lastHomeFrame=0;
+ guide:Guide|null=null;guideTitle:Laya.Text|null=null;guideSkip:Button|null=null;homePreview:Board|null=null;modalCard:Laya.Sprite|null=null;
  constructor(){
   this.root.scale(RENDER_SCALE,RENDER_SCALE);
   Laya.stage.addChild(this.root);this.root.addChild(this.scene);this.root.addChild(this.overlay);
@@ -51,11 +52,12 @@ class Game {
   const bg=new Laya.Sprite();bg.name='board-garden';
   // Retain the camera registration anchor, but draw the solid matte only via
   // the stage clear: no magnified full-screen background layer or overdraw.
-  Laya.stage.bgColor='#eee3ca';
+  Laya.stage.bgColor=THEME.paper;
   bg.mouseEnabled=false;this.scene.addChild(bg);this.garden=bg;
+  if(this.mode!=='game')this.image(this.scene,'assets/art-rose/home-bg.jpg',W/2,H/2,W,H);
  }
  clear(mode:Game['mode']):void{
-  this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.homeSpark=null;this.board?.destroy();this.board=null;this.model=null;
+  this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.board?.destroy();this.board=null;this.model=null;
   this.scene.destroy(true);this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
   this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.message=null;this.status=null;this.turnStatus=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
   // Keep render-pass topology stable through zoom, undo and restart.
@@ -70,26 +72,26 @@ class Game {
  home():void{
   this.clear('home');
   const teaching=Object.entries(this.save.data.records).filter(([i])=>Number(i)<TEACHING_COUNT),completed=teaching.length,stars=teaching.reduce((n,[,r])=>n+r.stars,0);
-  const badge=panel(this.scene,34,30,244,58,28,'#fff5d3','#c9a655');icon(badge.graphics,'star',15,15,26,COLORS.gold);
-  text(badge,'教学 '+completed+' / 10 境',47,0,183,58,22);
+  const badge=panel(this.scene,34,30,244,58,18,THEME.white,THEME.faint);flower(badge.graphics,25,29,4,THEME.rose);
+  text(badge,'教学 '+completed+' / 10',47,0,183,58,22,COLORS.ink,'center',true);
   this.scene.addChild(new Button('',608,28,76,66,()=>this.settings(),false,'settings'));
-  text(this.scene,'玉  环  十  境',100,128,520,52,26,COLORS.gold,'center',true);
-  const shadow=text(this.scene,'转手镯消除',37,201,650,108,76,'#bc9e63','center',true);shadow.bold=true;
-  const title=text(this.scene,'转手镯消除',35,195,650,108,76,'#2f5947','center',true);title.bold=true;
-  text(this.scene,'转一转，解开环环相扣',80,311,560,50,26,COLORS.ink,'center',true);ornament(this.scene,235,384,250);
-  const cy=370+(H-870)/2,plateH=H-880;
-  this.image(this.scene,'assets/art-v3/tray.png',360,cy,670,Math.max(410,plateH+110));
-  this.homePreview=new Board(this.scene,{x:112,y:cy-126,w:496,h:265});
-  const state=C.make(0);this.homePreview.load(state);this.homePreview.selected='B';this.homePreview.draw(state);
-  this.homeSpark=new Laya.Sprite();this.homeSpark.mouseEnabled=false;this.scene.addChild(this.homeSpark);
-  const seal=panel(this.scene,230,cy+142,260,52,25,'#fff5d8','#c7a15a');
-  text(seal,'一扣入门 · 十境解谜',12,0,236,52,21,COLORS.ink,'center',true);
-  text(this.scene,'正式关卡 · 54 镯 · 超级困难',80,H-463,560,40,23,COLORS.gold);
-  this.scene.addChild(new Button('挑战九宫锁玉阵',112,H-407,496,80,()=>this.load(FORMAL_INDEX),true,'play'));
-  this.scene.addChild(new Button(completed?'继续解镯':'开始解镯',112,H-296,496,100,()=>this.load(this.save.data.unlocked),true,'play'));
-  this.scene.addChild(new Button('关卡图谱',116,H-164,234,70,()=>this.levels(),false,'map'));
-  this.scene.addChild(new Button('新手练习',370,H-164,234,70,()=>this.practice(),false,'help'));
-  text(this.scene,'★ '+stars+' / 30    ·    不限时，慢慢解',100,H-67,520,34,20,COLORS.ink);
+  const titleY=H<1350?122:150;
+  text(this.scene,'玉  环  十  境',140,titleY-44,440,36,21,COLORS.muted,'center',true);
+  text(this.scene,'转手镯消除',44,titleY,592,88,64,COLORS.ink,'center',true);
+  const seal=panel(this.scene,628,titleY+13,38,66,10,THEME.rose,THEME.rose);text(seal,'玉\n环',0,3,38,60,20,THEME.white,'center',true);
+  text(this.scene,'转一转，环环相扣',110,titleY+89,500,45,25,COLORS.ink,'center',true);
+  const top=titleY+146,bottom=H-469,cy=(top+bottom)/2,plateH=Math.min(670,bottom-top);
+  this.image(this.scene,TRAY,360,cy,636,plateH);
+  this.homePreview=new Board(this.scene,{x:118,y:cy-126,w:484,h:252});this.homePreview.showLabels=false;
+  const state=C.make(0);this.homePreview.load(state);this.homePreview.draw(state);
+  text(this.scene,'一扣入门 · 十境解谜',140,cy+plateH/2-105,440,35,21,COLORS.muted,'center',true);
+  ornament(this.scene,164,H-447,392);
+  text(this.scene,'正式关卡 · 54 镯 · 超级困难',120,H-432,480,38,23,COLORS.ink,'center',true);
+  this.scene.addChild(new Button('挑战九宫锁玉阵',112,H-375,496,88,()=>this.load(FORMAL_INDEX),true,'play'));
+  this.scene.addChild(new Button(completed?'继续解镯':'开始解镯',112,H-266,496,82,()=>this.load(this.save.data.unlocked),false,'restart'));
+  this.scene.addChild(new Button('关卡图谱',116,H-153,234,68,()=>this.levels(),false,'map'));
+  this.scene.addChild(new Button('新手练习',370,H-153,234,68,()=>this.practice(),false,'help'));
+  text(this.scene,'★ '+stars+' / 30    ·    不限时，慢慢解',100,H-60,520,34,20,COLORS.muted,'center',true);
  }
  practice():void{this.load(0);this.startGuide()}
  settings():void{
@@ -111,7 +113,7 @@ class Game {
   for(let i=0;i<10;i++){
    const x=i%2?378:42,y=sy+Math.floor(i/2)*cell,open=i<=this.save.data.unlocked,done=this.save.data.records[i],current=i===this.save.data.unlocked;
    const b=new Button('',x,y,300,cell-20,()=>this.load(i),current);b.enabled=open;this.scene.addChild(b);
-   const ink=current?'#fff8d7':COLORS.ink,gold=current?'#f5dfa0':COLORS.gold;
+   const ink=current?THEME.white:COLORS.ink,gold=current?THEME.white:COLORS.gold;
    text(b,String(i+1).padStart(2,'0'),14,12,67,48,35,open?gold:COLORS.muted,'center',true);
    text(b,C.levels[i].name,86,14,202,48,27,open?ink:COLORS.muted,'left',true);
    text(b,done?'★'.repeat(done.stars)+'☆'.repeat(3-done.stars):open?'从这一境开始':'解开上一境',26,cell-80,247,44,23,done?gold:ink);
@@ -125,13 +127,13 @@ class Game {
   if(this.formal){
    const home=new Button('',28,26,76,64,()=>this.home(),false,'home');home.name='button:home';this.scene.addChild(home);
    const restart=new Button('',116,26,76,64,()=>this.load(i),false,'restart');restart.name='button:restart';this.scene.addChild(restart);
-   const title=text(this.scene,'第'+(i-TEACHING_COUNT+1)+'关',216,26,288,64,43,'#765634','center',true);title.bold=true;
+   const title=text(this.scene,'第'+(i-TEACHING_COUNT+1)+'关',216,26,288,64,43,COLORS.ink,'center',true);
    const sound=new Button('',528,26,76,64,()=>{this.toggleSound();sound.setIcon(this.audio.enabled?'sound':'mute')},false,this.audio.enabled?'sound':'mute');sound.name='button:sound';this.scene.addChild(sound);
    const help=new Button('',616,26,76,64,()=>this.help(),false,'help');help.name='button:help';this.scene.addChild(help);
-   this.status=text(this.scene,'',28,101,290,34,23,'#876d48','left');
-   this.turnStatus=text(this.scene,'',402,101,290,34,23,'#876d48','right');
+   this.status=text(this.scene,'',28,101,290,34,23,COLORS.ink,'left');
+   this.turnStatus=text(this.scene,'',402,101,290,34,23,COLORS.ink,'right');
   }else{
-  panel(this.scene,105,105,510,113,26,'rgba(255,251,232,0.97)','#cdb37b');
+  panel(this.scene,105,105,510,113,22,THEME.white,THEME.faint);
   this.scene.addChild(new Button('图谱',28,26,136,64,()=>this.levels(),false,'map'));
   const sound=new Button(this.audio.enabled?'音效 开':'音效 关',456,26,116,60,()=>{
    this.toggleSound();sound.label.text=this.audio.enabled?'音效 开':'音效 关';
@@ -143,7 +145,7 @@ class Game {
   }
   if(this.formal){
    const plateH=H-244,plateY=142;
-   const tray=this.image(this.scene,'assets/art-v3/tray.png',360,plateY+plateH/2,710,plateH);tray.name='board-tray';
+   const tray=this.image(this.scene,TRAY,360,plateY+plateH/2,710,plateH);tray.name='board-tray';
    this.board=new Board(this.scene,{x:24,y:plateY+12,w:672,h:plateH-24});this.board.load(this.model.state,{w:710,h:plateH});
    this.board.attachBackdrop([this.garden!,tray]);
    const y=H-84;
@@ -154,17 +156,17 @@ class Game {
    this.syncView();
   }else{
   const plateH=H-616;
-  const tray=this.image(this.scene,'assets/art-v3/tray.png',360,246+plateH/2,710,plateH);tray.name='board-tray';
+  const tray=this.image(this.scene,TRAY,360,246+plateH/2,710,plateH);tray.name='board-tray';
   this.board=new Board(this.scene,{x:73,y:288,w:574,h:H-678});this.board.load(this.model.state);
   this.board.attachBackdrop([this.garden!,tray]);
-  panel(this.scene,35,H-387,650,130,24,'rgba(255,250,229,0.97)','#d4bf90');
+  panel(this.scene,35,H-387,650,130,22,THEME.white,THEME.faint);
   this.guideTitle=text(this.scene,'解镯小提示',56,H-380,606,35,20,COLORS.gold,'left');
   const tips=['拖动粉色 B 镯，把缺口转向两镯之间的空心扣。','带 × 的锁杆留在原地，两只手镯各对齐自己的扣。','先解外围 B 镯，再观察留下的完整锁杆。'];
   this.message=text(this.scene,tips[i]||C.levels[i].tip,56,H-340,606,72,23,COLORS.ink,'left');
   text(this.scene,'用手指沿玉镯拖动，直接转动缺口',54,H-229,612,48,25,COLORS.ink);
   this.scene.addChild(new Button('重开',80,H-143,260,68,()=>this.load(i),false,'restart'));
   this.scene.addChild(new Button('提示',380,H-143,260,68,()=>void this.hint(),false,'hint'));
-  panel(this.scene,48,H-62,624,44,16,'rgba(255,251,232,0.92)','#d4bf90');
+  panel(this.scene,48,H-62,624,44,16,THEME.white,THEME.faint);
   text(this.scene,'拖动环体旋转 · 松手靠近扣位可轻吸附',55,H-55,610,32,18,COLORS.ink);
   }
   this.sync();
@@ -187,9 +189,9 @@ class Game {
  guideSelect(id:string):void{
   if(!this.guide||!this.model)return;
   if(this.formal){this.stopGuide(false);return}
-  if(id!==this.guide.id){this.say('先试试 '+this.guide.id+' 镯。金色角标标出了它要对齐的扣。');return}
+  if(id!==this.guide.id){this.say('先试试 '+this.guide.id+' 镯。藕粉色角标标出了它要对齐的扣。');return}
   this.guide.phase='turn';
-  if(this.model.index===0){this.guideTitle!.text='新手 · 2 / 2  拖动，让缺口对准扣';this.say('手指沿粉色 B 镯转一转，缺口对准金色角标里的空心扣。')}
+  if(this.model.index===0){this.guideTitle!.text='新手 · 2 / 2  拖动，让缺口对准扣';this.say('手指沿粉色 B 镯转一转，缺口对准藕粉色角标里的空心扣。')}
  }
  say(content:string):void{if(this.message)this.message.text=content}
  sync():void{
@@ -372,10 +374,6 @@ class Game {
  tick():void{
   this.audio.tick(performance.now());
   const now=performance.now();
-  if(this.mode==='home'&&this.homeSpark&&now-this.lastHomeFrame>80){
-   this.lastHomeFrame=now;const g=this.homeSpark.graphics;g.clear();const cy=370+(H-870)/2;
-   for(let i=0;i<7;i++){const a=now/6000+i*Math.PI*2/7;const x=360+Math.cos(a)*210,y=cy+Math.sin(a)*130;g.drawCircle(x,y,1.2+Math.sin(a*3)*.5,'rgba(168,130,51,0.48)')}
-  }
   if(!this.model||!this.board||this.mode!=='game')return;
   if(this.guide&&!this.modalOpen)this.guide.draw(this.model.state,now,!!this.drag);
   if(this.board.animating||this.board.sparks.length||this.board.hint||performance.now()<this.board.blockUntil)this.board.draw(this.model.state);
@@ -404,9 +402,11 @@ class Game {
  }
  modal(title:string,lines:string[],actions:{label:string;action:()=>void;primary:boolean}[]):void{
   this.hideModal();this.modalOpen=true;this.releasePointers();
-  this.guide?.clear();const shade=new Laya.Sprite();shade.size(W,H);shade.graphics.drawRect(0,0,W,H,'rgba(47,63,41,0.36)');shade.mouseEnabled=true;
+  this.guide?.clear();const shade=new Laya.Sprite();shade.size(W,H);shade.graphics.drawRect(0,0,W,H,'rgba(81,57,69,0.28)');shade.mouseEnabled=true;
   shade.on(Laya.Event.CLICK,this,()=>{});this.overlay.addChild(shade);
-  const height=Math.min(H-150,250+lines.length*85+actions.length*84),card=panel(this.overlay,50,(H-height)/2,620,height,32,'#fff9e8','#c5aa71');
+  const height=Math.min(H-150,250+lines.length*85+actions.length*84),card=panel(this.overlay,50,(H-height)/2,620,height,28,THEME.white,THEME.line);
+  this.modalCard=card;
+  if(Laya.Tween&&!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches){card.alpha=0;Laya.Tween.to(card,{alpha:1},140,Laya.Ease.sineOut)}
   card.mouseEnabled=true;card.on(Laya.Event.CLICK,this,()=>{});
   text(card,title,30,28,560,68,37,COLORS.ink,'center',true);ornament(card,160,117,300);
   let y=139;
@@ -415,16 +415,19 @@ class Game {
   this.sync();
  }
  hideModal():void{
+  if(this.modalCard){Laya.Tween?.clearAll(this.modalCard);this.modalCard=null}
   this.overlay.destroy(true);this.overlay=new Laya.Sprite();this.overlay.zOrder=50;this.root.addChild(this.overlay);this.modalOpen=false;
   if(this.model&&this.board)this.sync();
  }
 }
 async function boot():Promise<void>{
+ // Load the compact Chinese fonts before Laya measures or caches any UI text.
+ if(document.fonts)await Promise.all([document.fonts.load('24px JadeSong'),document.fonts.load('24px JadeText')]);
  // The 2D game needs no WebGL2 features. WebGL1 keeps scene caches single-sampled
  // instead of allocating 4x MSAA targets for the magnified photographic board.
  Laya.Config.useWebGL2=false;
  await Laya.init(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
- Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor='#eee3ca';
+ Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor=THEME.paper;
  await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load();document.getElementById('boot')?.remove();
  if(new URLSearchParams(location.search).has('debug')){
   (window as unknown as {jadeDebug:unknown}).jadeDebug={game:g,Core:C,getState:()=>g.model?C.clone(g.model.state):null};

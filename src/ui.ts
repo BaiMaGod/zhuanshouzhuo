@@ -1,15 +1,16 @@
-export const COLORS={ink:'#345448',muted:'#7f866c',gold:'#ae853e',jade:'#477a61',cream:'#fff8df'};
+// One palette for menus, HUD, tutorial and dialogs. Jade artwork keeps its own colours.
+export const THEME={paper:'#fcf7f3',ink:'#684853',muted:'#927881',rose:'#b9788a',pink:'#f0dce1',line:'#c797a3',faint:'#ead4da',white:'#fffaf7',pressed:'#a96478'};
+export const COLORS={ink:THEME.ink,muted:THEME.muted,gold:THEME.rose,jade:THEME.rose,cream:THEME.white};
 export function round(g:Laya.Graphics,x:number,y:number,w:number,h:number,r:number,fill:string,line?:string,width=1):void{
  g.drawPath(x,y,[['moveTo',r,0],['lineTo',w-r,0],['arcTo',w,0,w,r,r],['lineTo',w,h-r],['arcTo',w,h,w-r,h,r],['lineTo',r,h],['arcTo',0,h,0,h-r,r],['lineTo',0,r],['arcTo',0,0,r,0,r],['closePath']],{fillStyle:fill},line?{strokeStyle:line,lineWidth:width}:undefined);
 }
 export function text(parent:Laya.Sprite,content:string,x:number,y:number,w:number,h:number,size=24,color=COLORS.ink,align='center',serif=false):Laya.Text{
- const t=new Laya.Text();t.text=content;t.pos(x,y);t.size(w,h);t.font=serif?'Noto Serif CJK SC, Songti SC, SimSun, serif':'Noto Sans CJK SC, Microsoft YaHei, sans-serif';t.fontSize=size;t.color=color;t.align=align;t.valign='middle';t.wordWrap=true;t.leading=8;t.mouseEnabled=false;parent.addChild(t);return t;
+ const t=new Laya.Text();t.text=content;t.pos(x,y);t.size(w,h);t.font=serif?'JadeSong, Noto Serif CJK SC, Songti SC, SimSun, serif':'JadeText, Noto Sans CJK SC, Microsoft YaHei, sans-serif';t.fontSize=size;t.color=color;t.align=align;t.valign='middle';t.wordWrap=true;t.leading=8;t.mouseEnabled=false;parent.addChild(t);return t;
 }
-export function panel(parent:Laya.Sprite,x:number,y:number,w:number,h:number,r=24,fill=COLORS.cream,line='#d3b97f'):Laya.Sprite{
+export function panel(parent:Laya.Sprite,x:number,y:number,w:number,h:number,r=24,fill=COLORS.cream,line=THEME.faint):Laya.Sprite{
  const s=new Laya.Sprite();s.pos(x,y);s.size(w,h);s.mouseEnabled=false;
- round(s.graphics,0,6,w,h,r,'rgba(61,64,37,0.20)');round(s.graphics,0,0,w,h,r,fill,line,2);
- round(s.graphics,5,5,w-10,h-10,Math.max(4,r-4),'rgba(255,255,255,0)',line,0.7);
- s.graphics.drawLine(r+8,3,w-r-8,3,'#fffef1',2);s.cacheAs='bitmap';parent.addChild(s);return s;
+ round(s.graphics,0,0,w,h,r,fill,line,1.3);
+ s.cacheAs='bitmap';parent.addChild(s);return s;
 }
 // Graphics.drawPath in the bundled 3.4 engine only accepts move/line/arc/close.
 // Flatten quadratic curves locally rather than relying on an unsupported command.
@@ -47,15 +48,19 @@ export class Button extends Laya.Sprite {
  private iconSprite=new Laya.Sprite();
  constructor(title:string,x:number,y:number,w:number,h:number,callback:()=>void,primary=false,kind?:Icon){
   super();this.pos(x,y);this.size(w,h);this.mouseEnabled=true;this.name='button:'+title;
-  const r=Math.min(h*.32,primary?28:20),g=this.skin.graphics;this.skin.mouseEnabled=false;this.addChild(this.skin);
-  // A jade-toned face with one fine rim and a shallow contact shadow.
-  round(g,0,3,w,h,r,primary?'rgba(43,70,50,0.23)':'rgba(101,88,59,0.13)');
-  round(g,0,0,w,h,r,primary?'#507b62':'#edf0df',primary?'#718f6b':'#b6c2a2',1.3);
-  round(g,3,3,w-6,h-7,Math.max(4,r-3),primary?'#60886b':'#f6f6e9');
-  g.drawLine(r,4,w-r,4,primary?'#adc29a':'#fffef5',1.1);
+  const r=Math.min(h*.25,18),g=this.skin.graphics;this.skin.mouseEnabled=false;this.addChild(this.skin);
+  const face=primary?THEME.rose:THEME.pink,rim=primary?THEME.rose:THEME.line;
+  // Flat flower-window ends stay inside the hit rectangle. Small controls stay plain.
+  if(title&&w>=200&&h<=110){
+   const tab=Math.min(16,h*.18);
+   g.drawCircle(tab,h/2,tab,face,rim,1.2);g.drawCircle(w-tab,h/2,tab,face,rim,1.2);
+   round(g,tab,0,w-tab*2,h,r,face,rim,1.2);
+   flower(g,tab,h/2,3,primary?THEME.pink:THEME.line);
+   flower(g,w-tab,h/2,3,primary?THEME.pink:THEME.line);
+  }else round(g,0,0,w,h,r,face,rim,1.2);
   this.iconSprite.mouseEnabled=false;this.skin.addChild(this.iconSprite);
   if(kind)this.setIcon(kind,primary);
-  this.label=text(this,title,kind&&w>=90?41:0,-1,kind&&w>=90?w-49:w,h,h>=82?32:22,primary?'#fff9db':'#6f6449');this.label.bold=primary;
+  this.label=text(this,title,kind&&w>=90?46:0,-1,kind&&w>=90?w-58:w,h,h>=82?32:23,primary?THEME.white:THEME.ink,'center',true);
   if(!title)this.label.visible=false;
   // Cache only the sculpted decoration; text and input remain separate and sharp.
   this.skin.cacheAs='bitmap';
@@ -64,12 +69,16 @@ export class Button extends Laya.Sprite {
   this.on(Laya.Event.MOUSE_OUT,this,()=>this.press(false));
   this.on(Laya.Event.CLICK,this,()=>{if(this.enabled_){this.press(false);Button.feedback?.();callback()}});
  }
- private press(v:boolean):void{if(!this.enabled_||this.pressed===v)return;this.pressed=v;this.skin.y=v?4:0;this.label.y=v?3:-1}
+ private press(v:boolean):void{if(!this.enabled_||this.pressed===v)return;this.pressed=v;this.skin.y=v?4:0;this.skin.x=v?this.width*.0075:0;this.skin.scale(v?.985:1);this.skin.alpha=v?.85:1;this.label.y=v?3:-1}
  set enabled(v:boolean){if(v===this.enabled_)return;this.press(false);this.enabled_=v;this.alpha=v?1:.55}
  get enabled():boolean{return this.enabled_}
- setIcon(kind:Icon,primary=false):void{const g=this.iconSprite.graphics;g.clear();icon(g,kind,this.width<90?(this.width-27)/2:18,(this.height-26)/2,26,primary?'#fff5d0':'#6f6449')}
+ setIcon(kind:Icon,primary=false):void{const g=this.iconSprite.graphics;g.clear();icon(g,kind,this.width<90?(this.width-27)/2:25,(this.height-26)/2,26,primary?THEME.white:THEME.ink)}
+}
+export function flower(g:Laya.Graphics,x:number,y:number,r:number,color=THEME.line):void{
+ for(let k=0;k<4;k++){const a=k*Math.PI/2;g.drawPoly(x+Math.cos(a)*r*1.65,y+Math.sin(a)*r*1.65,[0,-r,r,0,0,r,-r,0],null,color,1)}
 }
 export function ornament(parent:Laya.Sprite,x:number,y:number,w:number):void{
- const g=parent.graphics;g.drawLine(x,y,x+w*.42,y,'#c5a970',1);g.drawLine(x+w*.58,y,x+w,y,'#c5a970',1);
- const cx=x+w/2;g.drawPoly(cx,y,[0,-7,7,0,0,7,-7,0],null,'#b79651',1.4);g.drawCircle(cx,y,2,'#c4a15d');
+ const s=new Laya.Sprite();s.mouseEnabled=false;parent.addChild(s);
+ const g=s.graphics;g.drawLine(x,y,x+w*.42,y,THEME.line,1);g.drawLine(x+w*.58,y,x+w,y,THEME.line,1);
+ flower(g,x+w/2,y,3.8,THEME.rose);
 }
