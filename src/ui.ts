@@ -47,17 +47,15 @@ export class Button extends Laya.Sprite {
  private iconSprite=new Laya.Sprite();
  constructor(title:string,x:number,y:number,w:number,h:number,callback:()=>void,primary=false,kind?:Icon){
   super();this.pos(x,y);this.size(w,h);this.mouseEnabled=true;this.name='button:'+title;
-  const r=Math.min(h/2,primary?28:22),g=this.skin.graphics;this.skin.mouseEnabled=false;this.addChild(this.skin);
-  round(g,0,7,w,h,r,primary?'#284e41':'rgba(70,65,37,0.28)');
-  round(g,0,0,w,h,r,primary?'#39745b':'#ede2bc',primary?'#a8c997':'#ab8b4d',2);
-  round(g,4,4,w-8,h-9,r-3,primary?'#528b6b':'#fff4d4',primary?'#9eb98d':'#e0c690',1.2);
-  round(g,7,6,w-14,Math.max(12,h*.43),Math.min(r-4,h*.21),primary?'#649b78':'#fff9e4');
-  g.drawLine(r,5,w-r,5,primary?'#d0deae':'#fffef4',2);
-  g.drawLine(r,h-7,w-r,h-7,primary?'#356b54':'#d9be82',1);
-  if(w>=240){for(const cx of[17,w-17]){g.drawPoly(cx,h/2,[0,-5,4,0,0,5,-4,0],primary?'#d6d5a4':'#bfa268');g.drawCircle(cx,h/2,1.2,primary?'#fff5c9':'#fff7d3')}}
+  const r=Math.min(h*.32,primary?28:20),g=this.skin.graphics;this.skin.mouseEnabled=false;this.addChild(this.skin);
+  // A jade-toned face with one fine rim and a shallow contact shadow.
+  round(g,0,3,w,h,r,primary?'rgba(43,70,50,0.23)':'rgba(101,88,59,0.13)');
+  round(g,0,0,w,h,r,primary?'#507b62':'#edf0df',primary?'#718f6b':'#b6c2a2',1.3);
+  round(g,3,3,w-6,h-7,Math.max(4,r-3),primary?'#60886b':'#f6f6e9');
+  g.drawLine(r,4,w-r,4,primary?'#adc29a':'#fffef5',1.1);
   this.iconSprite.mouseEnabled=false;this.skin.addChild(this.iconSprite);
   if(kind)this.setIcon(kind,primary);
-  this.label=text(this,title,kind&&w>=90?41:0,-1,kind&&w>=90?w-49:w,h,h>=82?32:22,primary?'#fff9db':COLORS.ink);this.label.bold=primary;
+  this.label=text(this,title,kind&&w>=90?41:0,-1,kind&&w>=90?w-49:w,h,h>=82?32:22,primary?'#fff9db':'#6f6449');this.label.bold=primary;
   if(!title)this.label.visible=false;
   // Cache only the sculpted decoration; text and input remain separate and sharp.
   this.skin.cacheAs='bitmap';
@@ -69,7 +67,7 @@ export class Button extends Laya.Sprite {
  private press(v:boolean):void{if(!this.enabled_||this.pressed===v)return;this.pressed=v;this.skin.y=v?4:0;this.label.y=v?3:-1}
  set enabled(v:boolean){if(v===this.enabled_)return;this.press(false);this.enabled_=v;this.alpha=v?1:.55}
  get enabled():boolean{return this.enabled_}
- setIcon(kind:Icon,primary=false):void{const g=this.iconSprite.graphics;g.clear();icon(g,kind,this.width<90?(this.width-27)/2:18,(this.height-26)/2,26,primary?'#fff5d0':COLORS.ink)}
+ setIcon(kind:Icon,primary=false):void{const g=this.iconSprite.graphics;g.clear();icon(g,kind,this.width<90?(this.width-27)/2:18,(this.height-26)/2,26,primary?'#fff5d0':'#6f6449')}
 }
 export function ornament(parent:Laya.Sprite,x:number,y:number,w:number):void{
  const g=parent.graphics;g.drawLine(x,y,x+w*.42,y,'#c5a970',1);g.drawLine(x+w*.58,y,x+w,y,'#c5a970',1);

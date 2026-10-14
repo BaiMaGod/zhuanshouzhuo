@@ -13,7 +13,7 @@ const W=720,H=Math.round(Math.max(1180,Math.min(1600,innerHeight/Math.min(innerW
 // Keep UI and hit coordinates at 720 logical units, but bound mobile pixel fill.
 const RENDER_W=innerWidth<600?Math.min(W,Math.round(innerWidth*1.5)):W;
 const RENDER_SCALE=RENDER_W/W;
-const ASSETS=[...JADE_ASSETS,'assets/shadow.png',...['garden','tray','clasp'].map(n=>'assets/art-v3/'+n+'.png')];
+const ASSETS=[...JADE_ASSETS,'assets/shadow.png',...['tray','clasp'].map(n=>'assets/art-v3/'+n+'.png')];
 class Game {
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
  garden:Laya.Sprite|null=null;
@@ -47,11 +47,9 @@ class Game {
   Laya.timer.frameLoop(1,this,this.tick);this.home();
  }
  background():void{
-  const bg=new Laya.Sprite();bg.name='board-garden';bg.graphics.drawImage(Laya.loader.getRes('assets/art-v3/garden.png'),0,0,W,H);
-  // Composite the garden once against the stage clear colour, rather than
-  // drawing two screen-sized transparent overlays after every camera zoom.
-  Laya.stage.bgColor=this.mode==='game'?'#c3c9b6':'#e6debf';
-  if(this.mode==='game')bg.alpha=.54;
+  // A quiet solid matte remains the same colour outside the moving camera.
+  const bg=new Laya.Sprite();bg.name='board-garden';bg.graphics.drawRect(0,0,W,H,'#eee3ca');
+  Laya.stage.bgColor='#eee3ca';
   bg.mouseEnabled=false;this.scene.addChild(bg);this.garden=bg;
  }
  clear(mode:Game['mode']):void{
@@ -125,11 +123,11 @@ class Game {
   if(this.formal){
    const home=new Button('',28,26,76,64,()=>this.home(),false,'home');home.name='button:home';this.scene.addChild(home);
    const restart=new Button('',116,26,76,64,()=>this.load(i),false,'restart');restart.name='button:restart';this.scene.addChild(restart);
-   text(this.scene,'第'+(i-TEACHING_COUNT+1)+'关',216,26,288,64,31,COLORS.ink,'center',true);
+   const title=text(this.scene,'第'+(i-TEACHING_COUNT+1)+'关',216,26,288,64,43,'#765634','center',true);title.bold=true;
    const sound=new Button('',528,26,76,64,()=>{this.toggleSound();sound.setIcon(this.audio.enabled?'sound':'mute')},false,this.audio.enabled?'sound':'mute');sound.name='button:sound';this.scene.addChild(sound);
    const help=new Button('',616,26,76,64,()=>this.help(),false,'help');help.name='button:help';this.scene.addChild(help);
-   this.status=text(this.scene,'',28,101,290,34,23,COLORS.ink,'left');
-   this.turnStatus=text(this.scene,'',402,101,290,34,23,COLORS.ink,'right');
+   this.status=text(this.scene,'',28,101,290,34,23,'#876d48','left');
+   this.turnStatus=text(this.scene,'',402,101,290,34,23,'#876d48','right');
   }else{
   panel(this.scene,105,105,510,113,26,'rgba(255,251,232,0.97)','#cdb37b');
   this.scene.addChild(new Button('图谱',28,26,136,64,()=>this.levels(),false,'map'));
@@ -424,7 +422,7 @@ async function boot():Promise<void>{
  // instead of allocating 4x MSAA targets for the magnified photographic board.
  Laya.Config.useWebGL2=false;
  await Laya.init(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
- Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor='#e6debf';
+ Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor='#eee3ca';
  await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load();document.getElementById('boot')?.remove();
  if(new URLSearchParams(location.search).has('debug')){
   (window as unknown as {jadeDebug:unknown}).jadeDebug={game:g,Core:C,getState:()=>g.model?C.clone(g.model.state):null};
