@@ -196,7 +196,7 @@ class Game {
   // Reuse the former lower-caption space so the whole jade tray is taller.
   const plateH=H-370;
   const tray=this.image(this.scene,TRAY,360,236+plateH/2,710,plateH);tray.name='board-tray';
-  this.board=new Board(this.scene,{x:73,y:278,w:574,h:H-470});this.board.load(this.model.state);
+  this.board=new Board(this.scene,{x:73,y:278,w:574,h:H-558});this.board.load(this.model.state);
   this.board.attachBackdrop([this.garden!,tray]);
   // Upper-left speech bubble: tutorial instructions stay close to the action.
   const bubble=panel(this.scene,63,262,552,86,19,THEME.white,THEME.faint);
