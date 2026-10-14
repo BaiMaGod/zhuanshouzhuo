@@ -158,7 +158,7 @@ class Game {
    this.turnStatus=text(this.scene,'',402,101,290,34,23,COLORS.ink,'right');
   }else{
   panel(this.scene,105,105,510,113,22,THEME.white,THEME.faint);
-  this.scene.addChild(new Button('',28,26,76,64,()=>this.home(),false,'home'));
+  const practiceHome=new Button('',28,26,76,64,()=>this.home(),false,'home');practiceHome.name='button:home';this.scene.addChild(practiceHome);
   this.scene.addChild(new Button('图谱',116,26,112,64,()=>this.levels(),false,'map'));
   const sound=new Button(this.audio.enabled?'音效 开':'音效 关',456,26,116,60,()=>{
    this.toggleSound();sound.label.text=this.audio.enabled?'音效 开':'音效 关';
