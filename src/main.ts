@@ -18,7 +18,7 @@ const HOME_BG='assets/art-rose/home-bg.jpg';
 const ASSETS=[...JADE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,'assets/art-v3/clasp.png'];
 class Game {
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
- garden:Laya.Sprite|null=null;
+ garden:Laya.Sprite|null=null;wallpaper:Laya.Sprite|null=null;
  save=new Save();audio=new Audio();model:GameModel|null=null;board:Board|null=null;
  mode:'home'|'levels'|'game'='home';message:Laya.Text|null=null;status:Laya.Text|null=null;turnStatus:Laya.Text|null=null;
  controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;
@@ -59,6 +59,9 @@ class Game {
  }
  clear(mode:Game['mode']):void{
   this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.board?.destroy();this.board=null;this.model=null;
+  // Dispose the fixed decorative wallpaper separately: it lives under the
+  // gameplay scene, never inside the tray/ring rendering pass.
+  this.wallpaper?.destroy(true);this.wallpaper=null;
   this.scene.destroy(true);this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
   this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.message=null;this.status=null;this.turnStatus=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
   // Keep render-pass topology stable through zoom, undo and restart.
@@ -140,10 +143,12 @@ class Game {
   if(i<0||i>=C.levels.length||(i<TEACHING_COUNT&&i>this.save.data.unlocked))return;
   this.clear('game');this.settled=false;this.model=new GameModel(i);
   if(this.formal){
-   // Stationary home illustration under the zoomable tray (zOrder -1).
-   // Keep this decorative backdrop outside the board camera.
-   const wallpaper=this.image(this.scene,HOME_BG,W/2,H/2,W,H);
-   wallpaper.name='formal-wallpaper';wallpaper.zOrder=-2;
+   // The wallpaper must be behind the *entire cached gameplay scene*, not
+   // another child of it: otherwise Laya's bitmap cache can flatten it
+   // against the tray and obscure the original artwork.
+   const wallpaper=this.image(this.root,HOME_BG,W/2,H/2,W,H);
+   wallpaper.name='formal-wallpaper';wallpaper.zOrder=-10;
+   this.wallpaper=wallpaper;
    const home=new Button('',28,26,76,64,()=>this.home(),false,'home');home.name='button:home';this.scene.addChild(home);
    const restart=new Button('',116,26,76,64,()=>this.load(i),false,'restart');restart.name='button:restart';this.scene.addChild(restart);
    const title=text(this.scene,'第'+(i-TEACHING_COUNT+1)+'关',216,26,288,64,43,COLORS.ink,'center',true);

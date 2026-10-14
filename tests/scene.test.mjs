@@ -90,18 +90,29 @@ test('正式关复用首页背景图，但不会随玉盘一起缩放或覆盖�
  g.home();
  assert.ok(g.scene.children.some(n=>n.graphics.ops.some(op=>op[0]==='image'&&op[1]===art)),'首页素材可用');
  g.load(10);
- const wallpaper=g.scene.children.find(n=>n.name==='formal-wallpaper');
+ const wallpaper=g.root.children.find(n=>n.name==='formal-wallpaper');
  assert.ok(wallpaper,'正式关加入首页背景图');
  assert.ok(wallpaper.graphics.ops.some(op=>op[0]==='image'&&op[1]===art));
- assert.ok(wallpaper.zOrder<g.board.backdrop.zOrder,'底图位于可缩放玉盘后面');
+ assert.equal(wallpaper.parent,g.root,'背景位于游戏场景外，绝不参与玉盘场景缓存');
+ assert.equal(g.scene.parent,g.root,'游戏场景与壁纸为同一根节点的独立图层');
+ assert.ok(wallpaper.zOrder<g.scene.zOrder,'固定背景始终绘制在玉盘场景下面');
  assert.ok(!g.board.backdrop.children.includes(wallpaper),'装饰底图不参与玉盘相机缩放');
+ const tray=g.board.backdrop.children.find(n=>n.name==='board-tray');
+ assert.ok(tray,'原有玉盘精灵必须保留');
+ assert.equal(tray.parent,g.board.backdrop,'玉盘留在与手镯同步的相机层');
+ assert.ok(tray.graphics.ops.some(op=>op[0]==='image'&&op[1]==='assets/art-rose/tray.png'),'玉盘依旧渲染原有珍珠白淡粉PNG');
+ assert.equal(g.board.backdrop.parent,g.scene,'玉盘相机仍在墙纸上层');
  const original=[wallpaper.x,wallpaper.y,wallpaper.scaleX,wallpaper.scaleY,wallpaper.rotation];
  g.board.zoomTo(g.board.fitZoom*2,{x:360,y:500});
  g.board.panTo({x:400,y:560});
  assert.deepEqual([wallpaper.x,wallpaper.y,wallpaper.scaleX,wallpaper.scaleY,wallpaper.rotation],original);
- assert.equal(wallpaper.parent,g.scene);
+ assert.equal(wallpaper.parent,g.root);
+ g.load(10);
+ assert.equal(g.root.children.filter(n=>n.name==='formal-wallpaper').length,1,'重开正式关不重复叠放壁纸');
+ assert.equal(g.board.backdrop.children.filter(n=>n.name==='board-tray').length,1,'重开后只有一张玉盘');
  g.load(0);
- assert.ok(!g.scene.children.some(n=>n.name==='formal-wallpaper'),'教学场景沿用纯色背景');
+ assert.equal(wallpaper.parent,null,'退出关卡后销毁旧背景');
+ assert.ok(!g.root.children.some(n=>n.name==='formal-wallpaper'),'教学场景沿用纯色背景');
 });
 
 test('花园、玉盘与玉镯共用视角，缩放平移和撤销不会改变背景上的镯位',()=>{
