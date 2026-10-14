@@ -1,6 +1,7 @@
 import C0 from './core.js';
 import type {CoreAPI,State,Point,Ring,Block} from './types.js';
 import {JADE_NAMES,drawJade} from './jade.js';
+import {trayFit} from './tray-layout.js';
 const C=C0 as unknown as CoreAPI;
 export interface Ghost {r:Ring;state:State;start:number}
 interface RingView {root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite}
@@ -10,6 +11,7 @@ export class Board {
  rings=new Map<string,RingView>();
  center:Point={x:0,y:0}; screen:Point;zoom=1;fitZoom=1;bounds={w:1,h:1};turn=0;selected:string|null=null;
  lastState:State|null=null;
+ private traySize:{w:number;h:number}|undefined;
  hint:Point|null=null;blocked:Block|null=null;blockUntil=0;
  ghosts:Ghost[]=[];sparks:{x:number;y:number;start:number;seed:number}[]=[];
  constructor(private parent:Laya.Sprite,public rect:{x:number;y:number;w:number;h:number}){
@@ -19,7 +21,8 @@ export class Board {
   this.space.addChild(this.rods);this.space.addChild(this.effects);
   this.rods.zOrder=10;this.effects.zOrder=20;this.root.mouseEnabled=false;
  }
- load(s:State):void{
+ load(s:State,traySize?:{w:number;h:number}):void{
+  if(traySize)this.traySize=traySize;
   this.lastState=null;
   // Keep the world uncached; culling limits magnified draw calls.
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
@@ -29,7 +32,12 @@ export class Board {
   this.center={x:(Math.min(...xs)+Math.max(...xs))/2,y:(Math.min(...ys)+Math.max(...ys))/2};
   this.turn=s.index===10?0:(dx+110)/(dy+110)>1.7&&this.rect.h/this.rect.w>1.3?90:0;
   const w=(this.turn?dy:dx)+116,h=(this.turn?dx:dy)+116;
-  this.bounds={w,h};this.fitZoom=Math.min(this.rect.w/w,this.rect.h/h,3.4);this.resetView();
+  this.bounds={w,h};this.fitZoom=Math.min(this.rect.w/w,this.rect.h/h,3.4);
+  if(s.index===10){
+   if(!this.traySize)throw new Error('Formal layout requires the actual tray dimensions');
+   this.fitZoom=Math.min(this.fitZoom,trayFit(s.rings,this.center,this.traySize.w,this.traySize.h));
+  }
+  this.resetView();
   this.space.pos(-this.center.x,-this.center.y);
   s.rings.forEach((r,i)=>{
    const root=new Laya.Sprite();root.pos(r.x,r.y);this.space.addChild(root);

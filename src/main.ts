@@ -129,7 +129,7 @@ class Game {
   if(this.formal){
    const plateH=H-500;
    const tray=this.image(this.scene,'assets/art-v3/tray.png',360,247+plateH/2,710,plateH);tray.name='board-tray';
-   this.board=new Board(this.scene,{x:42,y:262,w:636,h:H-542});this.board.load(this.model.state);
+   this.board=new Board(this.scene,{x:42,y:268,w:636,h:H-542});this.board.load(this.model.state,{w:710,h:plateH});
    this.board.attachBackdrop([this.garden!,tray]);
    const y=H-252;
    this.scene.addChild(new Button('−',38,y,78,62,()=>this.zoomView(1/1.35)));
