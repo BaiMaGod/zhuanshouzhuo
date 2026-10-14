@@ -12,7 +12,7 @@ export class Save {
     else if(p.records?.[0])this.data.tutorial=1;
     if(p.records&&typeof p.records==='object')for(const [i,r] of Object.entries(p.records)){
      const v=r as {steps:number;stars:number};
-     if(/^(?:[0-9]|10)$/.test(i)&&Number.isFinite(v.steps)&&v.steps>=0&&Number.isInteger(v.stars)&&v.stars>=1&&v.stars<=3)this.data.records[i]=v;
+     if(/^(?:0|[1-9]\d*)$/.test(i)&&Number(i)<1000&&Number.isFinite(v.steps)&&v.steps>=0&&Number.isInteger(v.stars)&&v.stars>=1&&v.stars<=3)this.data.records[i]=v;
     }
    }
   } catch {}

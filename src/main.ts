@@ -24,7 +24,7 @@ class Game {
  controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;
  pointers=new Map<number,Point>();panMode=false;viewLabel:Laya.Text|null=null;panButton:Button|null=null;
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
- get formal():boolean{return this.model?.index===FORMAL_INDEX}
+ get formal():boolean{return this.model!==null&&this.model.index>=TEACHING_COUNT}
  drag:{id:string;pointer:number;last:number;started:boolean}|null=null;canvas:HTMLCanvasElement;
  busy=false;epoch=0;worker:Worker|null=null;finishPlan:((path:Action[]|null)=>void)|null=null;
  demoButton:Button|null=null;settled=false;tutorialSeen=false;modalOpen=false;
@@ -88,7 +88,7 @@ class Game {
   text(this.scene,'一扣入门 · 十境解谜',140,cy+plateH/2-105,440,35,21,COLORS.muted,'center',true);
   ornament(this.scene,164,H-447,392);
   text(this.scene,'正式关卡 · 54 镯 · 超级困难',120,H-432,480,38,23,COLORS.ink,'center',true);
-  this.scene.addChild(new Button('挑战九宫锁玉阵',112,H-375,496,88,()=>this.load(FORMAL_INDEX),true,'play'));
+  this.scene.addChild(new Button('第1关',112,H-375,496,88,()=>this.load(FORMAL_INDEX),true,'play'));
   this.scene.addChild(new Button(completed?'继续解镯':'开始解镯',112,H-266,496,82,()=>this.load(this.save.data.unlocked),false,'restart'));
   this.scene.addChild(new Button('关卡图谱',116,H-153,234,68,()=>this.levels(),false,'map'));
   this.scene.addChild(new Button('新手练习',370,H-153,234,68,()=>this.practice(),false,'help'));
@@ -103,27 +103,41 @@ class Game {
   ]);
  }
  toggleSound():void{this.audio.enabled=!this.audio.enabled;this.save.data.sound=this.audio.enabled;this.save.persist()}
- levels():void{
+ levels(page=0):void{
   this.clear('levels');
+  const total=Math.max(0,C.levels.length-TEACHING_COUNT),pageSize=8;
+  const pages=Math.max(1,Math.ceil(total/pageSize)),current=Math.max(0,Math.min(pages-1,page));
+  const passed=Object.keys(this.save.data.records).filter(k=>Number(k)>=TEACHING_COUNT&&Number(k)<C.levels.length).length;
   this.scene.addChild(new Button('',30,28,76,66,()=>this.home(),false,'back'));
-  text(this.scene,'玉环十境',160,41,400,70,44,COLORS.ink,'center',true);
-  const count=Object.keys(this.save.data.records).filter(i=>Number(i)<TEACHING_COUNT).length;
-  text(this.scene,'教学十关 · 已解 '+count+' / 10 境',80,133,560,43,23,COLORS.ink);
+  text(this.scene,'关卡图谱',160,41,400,70,44,COLORS.ink,'center',true);
+  text(this.scene,'正式关卡 · 已通关 '+passed+' / '+total+' 关',80,133,560,43,23,COLORS.ink,'center');
   ornament(this.scene,185,202,350);
-  const sy=237,cell=Math.min(191,(H-320)/5);
-  for(let i=0;i<10;i++){
-   const x=i%2?378:42,y=sy+Math.floor(i/2)*cell,open=i<=this.save.data.unlocked,done=this.save.data.records[i],current=i===this.save.data.unlocked;
-   const b=new Button('',x,y,300,cell-20,()=>this.load(i),current);b.enabled=open;this.scene.addChild(b);
-   const ink=current?THEME.white:COLORS.ink,gold=current?THEME.white:COLORS.gold;
-   text(b,String(i+1).padStart(2,'0'),14,12,67,48,35,open?gold:COLORS.muted,'center',true);
-   text(b,C.levels[i].name,86,14,202,48,27,open?ink:COLORS.muted,'left',true);
-   text(b,done?'★'.repeat(done.stars)+'☆'.repeat(3-done.stars):open?'从这一境开始':'解开上一境',26,cell-80,247,44,23,done?gold:ink);
-   if(!open)icon(b.graphics,'lock',20,cell-69,23,COLORS.muted);
+  const start=current*pageSize,end=Math.min(total,start+pageSize),single=total===1;
+  const cellH=Math.min(190,(H-410)/4);
+  for(let j=start;j<end;j++){
+   const index=TEACHING_COUNT+j,slot=j-start;
+   const x=single?68:slot%2?378:42;
+   const y=single?Math.max(285,Math.round((H-245)/2)-90):247+Math.floor(slot/2)*(cellH+12);
+   const w=single?584:300,h=single?228:cellH;
+   const done=this.save.data.records[index];
+   const b=new Button('',x,y,w,h,()=>this.load(index),j===0);
+   b.name='formal-level:'+String(j+1);this.scene.addChild(b);
+   const ink=j===0?THEME.white:COLORS.ink;
+   const secondary=j===0?THEME.white:COLORS.muted;
+   text(b,'第'+(j+1)+'关',26,single?24:13,w-52,56,single?48:36,ink,'left',true);
+   text(b,C.levels[index].points.length+' 镯 · 正式挑战',28,single?97:70,w-56,42,single?27:23,secondary);
+   text(b,done?'已通关  '+'★'.repeat(done.stars)+'☆'.repeat(3-done.stars):'点击挑战',28,single?165:123,w-56,36,23,secondary);
   }
-  this.scene.addChild(new Button('正式挑战 · 九宫锁玉阵',120,H-78,480,60,()=>this.load(FORMAL_INDEX),true,'play'));
+  if(total===0)text(this.scene,'正式关卡正在制作中',100,Math.round(H/2)-30,520,66,28,COLORS.muted,'center');
+  if(pages>1){
+   if(current>0)this.scene.addChild(new Button('上一页',90,H-162,236,66,()=>this.levels(current-1),false,'back'));
+   if(current<pages-1)this.scene.addChild(new Button('下一页',394,H-162,236,66,()=>this.levels(current+1),false,'play'));
+   text(this.scene,(current+1)+' / '+pages,310,H-151,100,40,22,COLORS.muted,'center');
+  }
+  text(this.scene,'拖动玉镯，逐关解开相扣的机关',86,H-77,548,43,22,COLORS.muted,'center');
  }
  load(i:number):void{
-  if(i<0||i>=C.levels.length||(i!==FORMAL_INDEX&&i>this.save.data.unlocked))return;
+  if(i<0||i>=C.levels.length||(i<TEACHING_COUNT&&i>this.save.data.unlocked))return;
   this.clear('game');this.settled=false;this.model=new GameModel(i);
   if(this.formal){
    // Stationary home illustration under the zoomable tray (zOrder -1).
@@ -139,7 +153,8 @@ class Game {
    this.turnStatus=text(this.scene,'',402,101,290,34,23,COLORS.ink,'right');
   }else{
   panel(this.scene,105,105,510,113,22,THEME.white,THEME.faint);
-  this.scene.addChild(new Button('图谱',28,26,136,64,()=>this.levels(),false,'map'));
+  this.scene.addChild(new Button('',28,26,76,64,()=>this.home(),false,'home'));
+  this.scene.addChild(new Button('图谱',116,26,112,64,()=>this.levels(),false,'map'));
   const sound=new Button(this.audio.enabled?'音效 开':'音效 关',456,26,116,60,()=>{
    this.toggleSound();sound.label.text=this.audio.enabled?'音效 开':'音效 关';
   });this.scene.addChild(sound);
@@ -388,10 +403,10 @@ class Game {
  }
  win():void{
   if(!this.model)return;const i=this.model.index,steps=this.model.state.steps;
-  if(this.formal){const stars=this.save.win(i,steps,solutions[i].length);this.audio.play('win');this.modal('九宫锁玉阵 · 全部解开',['★'.repeat(stars)+'☆'.repeat(3-stars),'54 只玉镯全部解开 · '+steps+' 次转动','最高难度挑战已记录，可以再来寻找更巧的拆解路线。'],[{label:'回到首页',action:()=>this.home(),primary:true},{label:'再挑战一次',action:()=>this.load(i),primary:false}]);return}
+  if(this.formal){const stars=this.save.win(i,steps,solutions[i].length),level='第'+(i-TEACHING_COUNT+1)+'关';this.audio.play('win');this.modal(level+' · 全部解开',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].points.length+' 只玉镯全部解开 · '+steps+' 次转动','通关成绩已记录，可以再试试更巧的拆解路线。'],[{label:'回到首页',action:()=>this.home(),primary:true},{label:'再挑战一次',action:()=>this.load(i),primary:false}]);return}
   const stars=this.save.win(i,steps,solutions[i].length);if(i<3){this.save.data.tutorial=Math.max(this.save.data.tutorial,i+1);this.save.persist()}this.stopGuide(false);this.audio.play('win');
   this.modal(i===9?'十境皆通':'这一境，解开了',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].name+' · '+steps+' 次转动',i===9?'玉环十境全部完成，随时回来再解。':'下一境已开启，机关会再多一点变化。'],[
-   {label:i===9?'回到十境图谱':'进入第 '+(i+2)+' 境',action:()=>i===9?this.levels():this.load(i+1),primary:true},
+   {label:i===9?'进入正式关卡':'进入第 '+(i+2)+' 境',action:()=>i===9?this.levels():this.load(i+1),primary:true},
    {label:'再解一次',action:()=>this.load(i),primary:false}
   ]);
  }

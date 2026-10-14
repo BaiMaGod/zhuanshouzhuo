@@ -128,3 +128,15 @@ test('正式提示只显示方向手指，不改步数或扣位；跟随视角�
  assert.equal(g.guide,null);g.releasePointers();g.load(10);assert.equal(g.guide,null);assert.equal(g.model.state.steps,0);
 });
 
+test('新手练习可返回首页，图谱只列正式关卡并统一编号',()=>{
+ g.home();g.practice();assert.equal(g.model.index,0);
+ const home=g.scene.children.find(n=>n.name==='button:home');assert.ok(home,'教学界面有首页图标');
+ home.click();assert.equal(g.mode,'home');
+ const homeLabels=[];function labels(n,into){if(n.text)into.push(n.text);if(n.label?.text)into.push(n.label.text);for(const c of n.children)labels(c,into)}
+ labels(g.scene,homeLabels);assert.ok(homeLabels.includes('第1关'));assert.ok(!homeLabels.some(x=>x.includes('九宫锁玉阵')));
+ g.levels();assert.equal(g.mode,'levels');const pageLabels=[];labels(g.scene,pageLabels);
+ assert.ok(pageLabels.includes('第1关'));assert.ok(!pageLabels.some(x=>x.includes('初识双镯')||x.includes('教学十关')||x.includes('九宫锁玉阵')));
+ assert.equal(g.scene.children.filter(n=>n.name?.startsWith('formal-level:')).length,1);
+ const formal=g.scene.children.find(n=>n.name==='formal-level:1');assert.ok(formal);formal.click();
+ assert.equal(g.model.index,10);assert.equal(g.formal,true);
+});
