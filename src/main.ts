@@ -48,7 +48,10 @@ class Game {
  }
  background():void{
   const bg=new Laya.Sprite();bg.name='board-garden';bg.graphics.drawImage(Laya.loader.getRes('assets/art-v3/garden.png'),0,0,W,H);
-  if(this.mode==='game'){bg.graphics.drawRect(0,0,W,H,'rgba(239,239,218,0.40)');bg.graphics.drawRect(0,0,W,H,'rgba(37,66,52,0.10)')}
+  // Composite the garden once against the stage clear colour, rather than
+  // drawing two screen-sized transparent overlays after every camera zoom.
+  Laya.stage.bgColor=this.mode==='game'?'#c3c9b6':'#e6debf';
+  if(this.mode==='game')bg.alpha=.54;
   bg.mouseEnabled=false;this.scene.addChild(bg);this.garden=bg;
  }
  clear(mode:Game['mode']):void{
@@ -347,65 +350,3 @@ class Game {
   this.audio.tick(performance.now());
   const now=performance.now();
   if(this.mode==='home'&&this.homeSpark&&now-this.lastHomeFrame>80){
-   this.lastHomeFrame=now;const g=this.homeSpark.graphics;g.clear();const cy=370+(H-870)/2;
-   for(let i=0;i<7;i++){const a=now/6000+i*Math.PI*2/7;const x=360+Math.cos(a)*210,y=cy+Math.sin(a)*130;g.drawCircle(x,y,1.2+Math.sin(a*3)*.5,'rgba(168,130,51,0.48)')}
-  }
-  if(!this.model||!this.board||this.mode!=='game')return;
-  if(this.guide&&!this.modalOpen)this.guide.draw(this.model.state,now,!!this.drag);
-  if(this.board.animating||this.board.sparks.length||this.board.hint||performance.now()<this.board.blockUntil)this.board.draw(this.model.state);
-  this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
-  if(this.model.cleared&&!this.board.animating&&!this.busy&&!this.settled){this.settled=true;this.win()}
- }
- win():void{
-  if(!this.model)return;const i=this.model.index,steps=this.model.state.steps;
-  if(this.formal){const stars=this.save.win(i,steps,solutions[i].length);this.audio.play('win');this.modal('九宫锁玉阵 · 全部解开',['★'.repeat(stars)+'☆'.repeat(3-stars),'54 只玉镯全部解开 · '+steps+' 次转动','最高难度挑战已记录，可以再来寻找更巧的拆解路线。'],[{label:'回到首页',action:()=>this.home(),primary:true},{label:'再挑战一次',action:()=>this.load(i),primary:false}]);return}
-  const stars=this.save.win(i,steps,solutions[i].length);if(i<3){this.save.data.tutorial=Math.max(this.save.data.tutorial,i+1);this.save.persist()}this.stopGuide(false);this.audio.play('win');
-  this.modal(i===9?'十境皆通':'这一境，解开了',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].name+' · '+steps+' 次转动',i===9?'玉环十境全部完成，随时回来再解。':'下一境已开启，机关会再多一点变化。'],[
-   {label:i===9?'回到十境图谱':'进入第 '+(i+2)+' 境',action:()=>i===9?this.levels():this.load(i+1),primary:true},
-   {label:'再解一次',action:()=>this.load(i),primary:false}
-  ]);
- }
- help():void{
-  this.cancel();this.guide?.clear();this.modal('记住三件小事',[
-   '① 拖动环体，让细缺口对准空心扣。点击只选中，不会转动。',
-   '② 实心座随所属镯转动；带 × 的背景锁杆留在原地。被卡住，先解旁边的镯。',
-   '③ 对齐后要保持，转离会重新扣合。剩下的完整锁杆仍会挡住转动。'
-  ],[
-   {label:'继续拆解',action:()=>this.hideModal(),primary:true},
-   {label:this.formal?'观察全盘':'重看这一步',action:()=>{this.hideModal();if(this.formal){this.board?.resetView();this.syncView()}else if(this.model&&this.model.index<3)this.startGuide();else void this.hint()},primary:false}
-  ]);
- }
- modal(title:string,lines:string[],actions:{label:string;action:()=>void;primary:boolean}[]):void{
-  this.hideModal();this.modalOpen=true;this.releasePointers();
-  this.guide?.clear();const shade=new Laya.Sprite();shade.size(W,H);shade.graphics.drawRect(0,0,W,H,'rgba(47,63,41,0.36)');shade.mouseEnabled=true;
-  shade.on(Laya.Event.CLICK,this,()=>{});this.overlay.addChild(shade);
-  const height=Math.min(H-150,250+lines.length*85+actions.length*84),card=panel(this.overlay,50,(H-height)/2,620,height,32,'#fff9e8','#c5aa71');
-  card.mouseEnabled=true;card.on(Laya.Event.CLICK,this,()=>{});
-  text(card,title,30,28,560,68,37,COLORS.ink,'center',true);ornament(card,160,117,300);
-  let y=139;
-  for(const line of lines){text(card,line,40,y,540,78,line.startsWith('★')?52:23,line.startsWith('★')?COLORS.gold:COLORS.ink);y+=85}
-  for(const a of actions){card.addChild(new Button(a.label,60,y,500,64,a.action,a.primary));y+=84}
-  this.sync();
- }
- hideModal():void{
-  this.overlay.destroy(true);this.overlay=new Laya.Sprite();this.overlay.zOrder=50;this.root.addChild(this.overlay);this.modalOpen=false;
-  if(this.model&&this.board)this.sync();
- }
-}
-async function boot():Promise<void>{
- // The 2D game needs no WebGL2 features. WebGL1 keeps scene caches single-sampled
- // instead of allocating 4x MSAA targets for the magnified photographic board.
- Laya.Config.useWebGL2=false;
- await Laya.init(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
- Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor='#e6debf';
- await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load();document.getElementById('boot')?.remove();
- if(new URLSearchParams(location.search).has('debug')){
-  (window as unknown as {jadeDebug:unknown}).jadeDebug={game:g,Core:C,getState:()=>g.model?C.clone(g.model.state):null};
- }
-}
-boot().catch(e=>{
- console.error(e);const box=document.getElementById('boot');
- if(box){box.classList.add('error');box.textContent='玉盘暂时没有加载完成，请刷新再试。'}
-});
-
-
