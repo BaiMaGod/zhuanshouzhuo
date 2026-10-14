@@ -48,7 +48,9 @@ class Game {
  }
  background():void{
   // A quiet solid matte remains the same colour outside the moving camera.
-  const bg=new Laya.Sprite();bg.name='board-garden';bg.graphics.drawRect(0,0,W,H,'#eee3ca');
+  const bg=new Laya.Sprite();bg.name='board-garden';
+  // Retain the camera registration anchor, but draw the solid matte only via
+  // the stage clear: no magnified full-screen background layer or overdraw.
   Laya.stage.bgColor='#eee3ca';
   bg.mouseEnabled=false;this.scene.addChild(bg);this.garden=bg;
  }
