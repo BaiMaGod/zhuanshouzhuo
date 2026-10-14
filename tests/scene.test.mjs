@@ -95,3 +95,17 @@ test('花园、玉盘与玉镯共用视角，缩放平移和撤销不会改变�
  g.home();assert.equal(bg.parent,null,'Background camera is destroyed when leaving play');
 });
 
+test('正式提示只显示方向手指，不改步数或扣位；跟随视角且拖动和重开清理',async()=>{
+ g.load(10);const before=C.clone(g.model.state);
+ await g.hint();assert.ok(g.guide?.action);assert.equal(g.guide.id,'9D');
+ assert.equal(g.modalOpen,false);assert.deepEqual(g.model.state,before);
+ for(let k=0;k<10;k++)h.tick();assert.equal(g.guide.hand.visible,true);
+ const x=g.guide.hand.x;g.board.zoomTo(g.board.fitZoom*2,{x:360,y:600});
+ for(let k=0;k<10;k++)h.tick();assert.notEqual(g.guide.hand.x,x);
+ assert.deepEqual(g.model.state,before);
+ const r=C.ring(g.model.state,g.guide.id),p=g.board.toScreen(C.point(r,r.a+50));
+ g.board.panTo({x:360-(r.x-g.board.center.x)*g.board.zoom,y:600-(r.y-g.board.center.y)*g.board.zoom});
+ const q=g.board.toScreen(C.point(r,r.a+50));g.down({clientX:q.x/2,clientY:q.y/2,pointerId:94,button:0});
+ assert.equal(g.guide,null);g.releasePointers();g.load(10);assert.equal(g.guide,null);assert.equal(g.model.state.steps,0);
+});
+

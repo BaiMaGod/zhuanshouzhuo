@@ -18,8 +18,8 @@ class Game {
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
  garden:Laya.Sprite|null=null;
  save=new Save();audio=new Audio();model:GameModel|null=null;board:Board|null=null;
- mode:'home'|'levels'|'game'='home';message:Laya.Text|null=null;status:Laya.Text|null=null;
- controls:Button[]=[];undoButton:Button|null=null;
+ mode:'home'|'levels'|'game'='home';message:Laya.Text|null=null;status:Laya.Text|null=null;turnStatus:Laya.Text|null=null;
+ controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;
  pointers=new Map<number,Point>();panMode=false;viewLabel:Laya.Text|null=null;panButton:Button|null=null;
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
  get formal():boolean{return this.model?.index===FORMAL_INDEX}
@@ -57,7 +57,7 @@ class Game {
  clear(mode:Game['mode']):void{
   this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.homeSpark=null;this.board?.destroy();this.board=null;this.model=null;
   this.scene.destroy(true);this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
-  this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.message=null;this.status=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
+  this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.message=null;this.status=null;this.turnStatus=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
   // Keep render-pass topology stable through zoom, undo and restart.
   this.scene.size(W,H);this.scene.cacheAs=mode==='game'?'bitmap':'none';
   // The camera also moves the artwork. Clip its expanded bounds to the screen.
@@ -122,26 +122,35 @@ class Game {
  load(i:number):void{
   if(i<0||i>=C.levels.length||(i!==FORMAL_INDEX&&i>this.save.data.unlocked))return;
   this.clear('game');this.settled=false;this.model=new GameModel(i);
-  panel(this.scene,this.formal?42:105,this.formal?98:105,this.formal?636:510,this.formal?74:113,this.formal?20:26,'rgba(255,251,232,0.97)','#cdb37b');
+  if(this.formal){
+   const home=new Button('',28,26,76,64,()=>this.home(),false,'home');home.name='button:home';this.scene.addChild(home);
+   const restart=new Button('',116,26,76,64,()=>this.load(i),false,'restart');restart.name='button:restart';this.scene.addChild(restart);
+   text(this.scene,'第'+(i-TEACHING_COUNT+1)+'关',216,26,288,64,31,COLORS.ink,'center',true);
+   const sound=new Button('',528,26,76,64,()=>{this.toggleSound();sound.setIcon(this.audio.enabled?'sound':'mute')},false,this.audio.enabled?'sound':'mute');sound.name='button:sound';this.scene.addChild(sound);
+   const help=new Button('',616,26,76,64,()=>this.help(),false,'help');help.name='button:help';this.scene.addChild(help);
+   this.status=text(this.scene,'',28,101,290,34,23,COLORS.ink,'left');
+   this.turnStatus=text(this.scene,'',402,101,290,34,23,COLORS.ink,'right');
+  }else{
+  panel(this.scene,105,105,510,113,26,'rgba(255,251,232,0.97)','#cdb37b');
   this.scene.addChild(new Button('图谱',28,26,136,64,()=>this.levels(),false,'map'));
   const sound=new Button(this.audio.enabled?'音效 开':'音效 关',456,26,116,60,()=>{
    this.toggleSound();sound.label.text=this.audio.enabled?'音效 开':'音效 关';
   });this.scene.addChild(sound);
   this.scene.addChild(new Button('玩法',586,26,106,64,()=>this.help(),false,'help'));
-  text(this.scene,i===FORMAL_INDEX?'超级困难 · '+C.levels[i].name:'教学 '+String(i+1).padStart(2,'0')+' 境 · '+C.levels[i].name,50,this.formal?99:110,620,this.formal?38:64,this.formal?28:39,COLORS.ink,'center',true);
-  this.status=text(this.scene,'',70,this.formal?137:179,580,this.formal?30:38,21,COLORS.ink);
-  if(!this.formal)ornament(this.scene,176,229,368);
+  text(this.scene,'教学 '+String(i+1).padStart(2,'0')+' 境 · '+C.levels[i].name,50,110,620,64,39,COLORS.ink,'center',true);
+  this.status=text(this.scene,'',70,179,580,38,21,COLORS.ink);
+  ornament(this.scene,176,229,368);
+  }
   if(this.formal){
-   const plateH=H-370,plateY=174;
+   const plateH=H-244,plateY=142;
    const tray=this.image(this.scene,'assets/art-v3/tray.png',360,plateY+plateH/2,710,plateH);tray.name='board-tray';
    this.board=new Board(this.scene,{x:24,y:plateY+12,w:672,h:plateH-24});this.board.load(this.model.state,{w:710,h:plateH});
    this.board.attachBackdrop([this.garden!,tray]);
-   const y=H-176;
-   this.scene.addChild(new Button('−',191,y,78,62,()=>this.zoomView(1/1.35)));
-   this.scene.addChild(new Button('全盘',283,y,154,62,()=>{this.releasePointers();this.board!.resetView();this.syncView()}));
-   this.scene.addChild(new Button('+',451,y,78,62,()=>this.zoomView(1.35)));
-   this.scene.addChild(new Button('重开',38,H-94,312,62,()=>this.load(i),false,'restart'));
-   this.scene.addChild(new Button('回到首页',370,H-94,312,62,()=>this.home(),false,'back'));
+   const y=H-84;
+   this.hintButton=new Button('提示',28,y,146,62,()=>void this.hint(),false,'hint');this.scene.addChild(this.hintButton);
+   this.scene.addChild(new Button('−',208,y,76,62,()=>this.zoomView(1/1.35)));
+   this.scene.addChild(new Button('全盘',298,y,124,62,()=>{this.releasePointers();this.board!.resetView();this.syncView()}));
+   this.scene.addChild(new Button('+',436,y,76,62,()=>this.zoomView(1.35)));
    this.syncView();
   }else{
   const plateH=H-616;
@@ -177,6 +186,7 @@ class Game {
  }
  guideSelect(id:string):void{
   if(!this.guide||!this.model)return;
+  if(this.formal){this.stopGuide(false);return}
   if(id!==this.guide.id){this.say('先试试 '+this.guide.id+' 镯。金色角标标出了它要对齐的扣。');return}
   this.guide.phase='turn';
   if(this.model.index===0){this.guideTitle!.text='新手 · 2 / 2  拖动，让缺口对准扣';this.say('手指沿粉色 B 镯转一转，缺口对准金色角标里的空心扣。')}
@@ -185,11 +195,13 @@ class Game {
  sync():void{
   if(!this.model||!this.board)return;
   const s=this.model.state,n=s.rings.filter(r=>r.life==='active').length;
-  this.status!.text=n+' 镯待解  ·  '+s.steps+' 次转动'+(!this.formal&&this.model.selected?'  ·  选中 '+this.model.selected:'');
+  this.status!.text=this.formal?n+' 手镯待解':n+' 镯待解  ·  '+s.steps+' 次转动'+(this.model.selected?'  ·  选中 '+this.model.selected:'');
+  if(this.turnStatus)this.turnStatus.text=s.steps+' 次转动';
   this.board.selected=this.model.selected;this.board.draw(s);
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.undoButton)this.undoButton.enabled=this.model.history.length>0&&!this.modalOpen;
   if(this.demoButton)this.demoButton.label.text=this.busy?'停止':'演示';
+  if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.board.animating&&!this.modalOpen;
  }
  releaseDrag(releaseCapture=true):void{
   this.audio.stopMotion();this.audio.resetContact();
@@ -311,14 +323,25 @@ class Game {
   });
  }
  async hint():Promise<void>{
-  if(this.formal||this.busy||this.modalOpen||this.board?.animating||!this.model)return;
-  this.busy=true;const token=++this.epoch;this.say('正在观察当前扣位…');this.sync();
+  if(this.busy||this.modalOpen||this.board?.animating||!this.model)return;
+  this.busy=true;const token=++this.epoch;this.say('正在观察当前扣位…');if(this.hintButton)this.hintButton.label.text='观察…';this.sync();
   const path=await this.plan();if(token!==this.epoch)return;
-  this.busy=false;
-  if(!path?.length){this.say('这一步还没找到路线。可以重开，再观察连接。');this.sync();return}
+  this.busy=false;if(this.hintButton)this.hintButton.label.text='提示';
+  if(!path?.length){this.say('这一步还没找到路线。可以重开，再观察连接。');if(this.hintButton)this.hintButton.label.text='暂无路线';this.sync();return}
   const a=path[0];this.model.selected=a.id;
-  const z=this.model.state.rods.find(z=>z.id===a.rod)!;
-  this.board!.hint=C.endpoints(this.model.state,z).find(e=>e.id===a.id)?.p||null;
+  if(this.formal){
+   this.releasePointers();this.stopGuide(false);
+   const ring=C.ring(this.model.state,a.id)!;
+   const p=this.board!.toScreen(ring),radius=(C.R+C.BAND/2+22)*this.board!.zoom,b=this.board!.rect;
+   if(p.x-radius<b.x||p.x+radius>b.x+b.w||p.y-radius<b.y||p.y+radius>b.y+b.h){
+    const offset=C.rot({x:ring.x-this.board!.center.x,y:ring.y-this.board!.center.y},this.board!.turn);
+    this.board!.panTo({x:b.x+b.w/2-offset.x*this.board!.zoom,y:b.y+b.h/2-offset.y*this.board!.zoom});
+   }
+   this.guide=new Guide(this.scene,this.board!,a.id,a);this.guide.phase='turn';
+   this.guide.draw(this.model.state,performance.now(),false);this.sync();return;
+  }
+  const z=this.model.state.rods.find(z=>z.id===a.rod);
+  this.board!.hint=z?C.endpoints(this.model.state,z).find(e=>e.id===a.id)?.p||null:null;
   this.say('先转 '+a.id+'，'+(a.delta>0?'顺时针':'逆时针')+'让缺口对准闪光的空心扣。');this.sync();
   this.modal('看这一只玉环',['已标出 '+a.id+' 的目标扣位。','用手指拖动玉镯，对准标出的扣位。'],[
    {label:'我来转',action:()=>this.hideModal(),primary:true}
@@ -357,6 +380,7 @@ class Game {
   if(this.guide&&!this.modalOpen)this.guide.draw(this.model.state,now,!!this.drag);
   if(this.board.animating||this.board.sparks.length||this.board.hint||performance.now()<this.board.blockUntil)this.board.draw(this.model.state);
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
+  if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.board.animating&&!this.modalOpen;
   if(this.model.cleared&&!this.board.animating&&!this.busy&&!this.settled){this.settled=true;this.win()}
  }
  win():void{

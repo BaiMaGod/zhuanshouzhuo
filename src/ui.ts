@@ -24,7 +24,7 @@ export function curvedPath(g:Laya.Graphics,x:number,y:number,commands:unknown[][
  }
  g.drawPath(x,y,out,brush,pen);
 }
-export type Icon='play'|'map'|'settings'|'sound'|'mute'|'help'|'back'|'undo'|'restart'|'hint'|'demo'|'left'|'right'|'lock'|'star';
+export type Icon='play'|'map'|'settings'|'sound'|'mute'|'help'|'home'|'back'|'undo'|'restart'|'hint'|'demo'|'left'|'right'|'lock'|'star';
 export function icon(g:Laya.Graphics,kind:Icon,x:number,y:number,size:number,color:string):void{
  const s=size/24;const line=(a:number,b:number,c:number,d:number)=>g.drawLine(x+a*s,y+b*s,x+c*s,y+d*s,color,2*s);
  const poly=(p:number[],fill:string|null=color)=>g.drawPoly(x,y,p.map(v=>v*s),fill,fill?null:color,2*s);
@@ -35,6 +35,7 @@ export function icon(g:Laya.Graphics,kind:Icon,x:number,y:number,size:number,col
  else if(kind==='sound'||kind==='mute'){poly([2,9,7,9,13,4,13,20,7,15,2,15]);if(kind==='mute'){line(17,8,23,16);line(23,8,17,16)}else{curvedPath(g,x,y,[['moveTo',17*s,6*s],['quadraticCurveTo',25*s,12*s,17*s,18*s]],undefined,{strokeStyle:color,lineWidth:2*s})}}
  else if(kind==='help'){g.drawCircle(x+12*s,y+12*s,10*s,null,color,1.7*s);curvedPath(g,x,y,[['moveTo',8*s,8*s],['quadraticCurveTo',12*s,2*s,16*s,8*s],['quadraticCurveTo',17*s,11*s,12*s,12*s],['lineTo',12*s,15*s]],undefined,{strokeStyle:color,lineWidth:2*s});g.drawCircle(x+12*s,y+18*s,s,color)}
  else if(kind==='settings'){g.drawCircle(x+12*s,y+12*s,7*s,null,color,2*s);g.drawCircle(x+12*s,y+12*s,2.6*s,null,color,1.6*s);for(let a=0;a<8;a++){const t=a*Math.PI/4;line(12+8*Math.cos(t),12+8*Math.sin(t),12+11*Math.cos(t),12+11*Math.sin(t))}}
+ else if(kind==='home'){poly([2,11,12,2,22,11],null);poly([5,10,5,22,10,22,10,15,14,15,14,22,19,22,19,10],null)}
  else if(kind==='hint'){g.drawCircle(x+12*s,y+9*s,6*s,null,color,2*s);line(8,14,9,19);line(16,14,15,19);line(9,19,15,19);line(10,22,14,22);for(const a of[-60,0,60]){const t=a*Math.PI/180;line(12+9*Math.sin(t),9-9*Math.cos(t),12+12*Math.sin(t),9-12*Math.cos(t))}}
  else if(kind==='undo'||kind==='restart'){curvedPath(g,x,y,[['moveTo',5*s,7*s],['quadraticCurveTo',17*s,-1*s,21*s,11*s],['quadraticCurveTo',24*s,24*s,7*s,21*s]],undefined,{strokeStyle:color,lineWidth:2*s});poly([2,2,2,11,10,10],null)}
  else if(kind==='lock'){round(g,x+5*s,y+10*s,14*s,12*s,3*s,color);curvedPath(g,x,y,[['moveTo',7*s,10*s],['lineTo',7*s,6*s],['quadraticCurveTo',12*s,-2*s,17*s,6*s],['lineTo',17*s,10*s]],undefined,{strokeStyle:color,lineWidth:2*s})}
@@ -43,6 +44,7 @@ export function icon(g:Laya.Graphics,kind:Icon,x:number,y:number,size:number,col
 export class Button extends Laya.Sprite {
  static feedback:(()=>void)|null=null;
  label:Laya.Text; skin=new Laya.Sprite();private enabled_=true;private pressed=false;
+ private iconSprite=new Laya.Sprite();
  constructor(title:string,x:number,y:number,w:number,h:number,callback:()=>void,primary=false,kind?:Icon){
   super();this.pos(x,y);this.size(w,h);this.mouseEnabled=true;this.name='button:'+title;
   const r=Math.min(h/2,primary?28:22),g=this.skin.graphics;this.skin.mouseEnabled=false;this.addChild(this.skin);
@@ -53,7 +55,8 @@ export class Button extends Laya.Sprite {
   g.drawLine(r,5,w-r,5,primary?'#d0deae':'#fffef4',2);
   g.drawLine(r,h-7,w-r,h-7,primary?'#356b54':'#d9be82',1);
   if(w>=240){for(const cx of[17,w-17]){g.drawPoly(cx,h/2,[0,-5,4,0,0,5,-4,0],primary?'#d6d5a4':'#bfa268');g.drawCircle(cx,h/2,1.2,primary?'#fff5c9':'#fff7d3')}}
-  if(kind)icon(g,kind,w<90?(w-27)/2:18,(h-26)/2,26,primary?'#fff5d0':COLORS.ink);
+  this.iconSprite.mouseEnabled=false;this.skin.addChild(this.iconSprite);
+  if(kind)this.setIcon(kind,primary);
   this.label=text(this,title,kind&&w>=90?41:0,-1,kind&&w>=90?w-49:w,h,h>=82?32:22,primary?'#fff9db':COLORS.ink);this.label.bold=primary;
   if(!title)this.label.visible=false;
   // Cache only the sculpted decoration; text and input remain separate and sharp.
@@ -66,6 +69,7 @@ export class Button extends Laya.Sprite {
  private press(v:boolean):void{if(!this.enabled_||this.pressed===v)return;this.pressed=v;this.skin.y=v?4:0;this.label.y=v?3:-1}
  set enabled(v:boolean){if(v===this.enabled_)return;this.press(false);this.enabled_=v;this.alpha=v?1:.55}
  get enabled():boolean{return this.enabled_}
+ setIcon(kind:Icon,primary=false):void{const g=this.iconSprite.graphics;g.clear();icon(g,kind,this.width<90?(this.width-27)/2:18,(this.height-26)/2,26,primary?'#fff5d0':COLORS.ink)}
 }
 export function ornament(parent:Laya.Sprite,x:number,y:number,w:number):void{
  const g=parent.graphics;g.drawLine(x,y,x+w*.42,y,'#c5a970',1);g.drawLine(x+w*.58,y,x+w,y,'#c5a970',1);
