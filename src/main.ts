@@ -28,7 +28,7 @@ class Game {
  drag:{id:string;pointer:number;last:number;started:boolean}|null=null;canvas:HTMLCanvasElement;
  busy=false;epoch=0;worker:Worker|null=null;finishPlan:((path:Action[]|null)=>void)|null=null;
  demoButton:Button|null=null;settled=false;tutorialSeen=false;modalOpen=false;
- guide:Guide|null=null;guideTitle:Laya.Text|null=null;guideSkip:Button|null=null;homePreview:Board|null=null;modalCard:Laya.Sprite|null=null;
+ guide:Guide|null=null;guideTitle:Laya.Text|null=null;guideSkip:Button|null=null;homePreview:Board|null=null;modalCard:Laya.Sprite|null=null;modalShade:Laya.Sprite|null=null;
  constructor(){
   this.root.scale(RENDER_SCALE,RENDER_SCALE);
   Laya.stage.addChild(this.root);this.root.addChild(this.scene);this.root.addChild(this.overlay);
@@ -75,33 +75,27 @@ class Game {
  }
  home():void{
   this.clear('home');
-  const teaching=Object.entries(this.save.data.records).filter(([i])=>Number(i)<TEACHING_COUNT),completed=teaching.length,stars=teaching.reduce((n,[,r])=>n+r.stars,0);
+  const completed=Object.keys(this.save.data.records).filter(i=>Number(i)<TEACHING_COUNT).length;
   const badge=panel(this.scene,34,30,244,58,18,THEME.white,THEME.faint);flower(badge.graphics,25,29,4,THEME.rose);
   text(badge,'教学 '+completed+' / 10',47,0,183,58,22,COLORS.ink,'center',true);
-  this.scene.addChild(new Button('',608,28,76,66,()=>this.settings(),false,'settings'));
-  const titleY=H<1350?122:150;
-  text(this.scene,'玉  环  十  境',140,titleY-44,440,36,21,COLORS.muted,'center',true);
+  const settingsButton=new Button('',608,28,76,66,()=>this.settings(),false,'settings');
+  settingsButton.name='button:settings';this.scene.addChild(settingsButton);
+  const titleY=H<1350?132:160;
   text(this.scene,'转手镯消除',44,titleY,592,88,64,COLORS.ink,'center',true);
-  const seal=panel(this.scene,628,titleY+13,38,66,10,THEME.rose,THEME.rose);text(seal,'玉\n环',0,3,38,60,20,THEME.white,'center',true);
-  text(this.scene,'转一转，环环相扣',110,titleY+89,500,45,25,COLORS.ink,'center',true);
-  const top=titleY+146,bottom=H-469,cy=(top+bottom)/2,plateH=Math.min(670,bottom-top);
+  const top=titleY+112,bottom=H-438,cy=(top+bottom)/2,plateH=Math.min(670,bottom-top);
   this.image(this.scene,TRAY,360,cy,636,plateH);
   this.homePreview=new Board(this.scene,{x:118,y:cy-126,w:484,h:252});this.homePreview.showLabels=false;
   const state=C.make(0);this.homePreview.load(state);this.homePreview.draw(state);
-  text(this.scene,'一扣入门 · 十境解谜',140,cy+plateH/2-105,440,35,21,COLORS.muted,'center',true);
-  ornament(this.scene,164,H-447,392);
-  text(this.scene,'正式关卡 · 54 镯 · 超级困难',120,H-432,480,38,23,COLORS.ink,'center',true);
   this.scene.addChild(new Button('第1关',112,H-375,496,88,()=>this.load(FORMAL_INDEX),true,'play'));
   this.scene.addChild(new Button('关卡图谱',116,H-251,234,68,()=>this.levels(),false,'map'));
   this.scene.addChild(new Button('新手练习',370,H-251,234,68,()=>this.practice(),false,'help'));
-  text(this.scene,'★ '+stars+' / 30    ·    不限时，慢慢解',100,H-60,520,34,20,COLORS.muted,'center',true);
  }
  practice():void{this.load(0);this.startGuide()}
  settings():void{
-  this.modal('玉盘小憩',['跟随自己的节奏，静静解开每一扣。'],[
+  this.modal('设置',[],[
    {label:this.audio.enabled?'音效 开':'音效 关',action:()=>{this.toggleSound();this.settings()},primary:false},
    {label:'新手练习',action:()=>this.practice(),primary:false},
-   {label:'回到玉盘',action:()=>this.hideModal(),primary:true}
+   {label:'关闭',action:()=>this.hideModal(),primary:true}
   ]);
  }
  toggleSound():void{this.audio.enabled=!this.audio.enabled;this.save.data.sound=this.audio.enabled;this.save.persist()}
@@ -427,7 +421,7 @@ class Game {
  modal(title:string,lines:string[],actions:{label:string;action:()=>void;primary:boolean}[]):void{
   this.hideModal();this.modalOpen=true;this.releasePointers();
   this.guide?.clear();const shade=new Laya.Sprite();shade.size(W,H);shade.graphics.drawRect(0,0,W,H,'rgba(81,57,69,0.28)');shade.mouseEnabled=true;
-  shade.on(Laya.Event.CLICK,this,()=>{});this.overlay.addChild(shade);
+  shade.on(Laya.Event.CLICK,this,()=>{});this.overlay.addChild(shade);this.modalShade=shade;
   const height=Math.min(H-150,250+lines.length*85+actions.length*84),card=panel(this.overlay,50,(H-height)/2,620,height,28,THEME.white,THEME.line);
   this.modalCard=card;
   if(Laya.Tween&&!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches){card.alpha=0;Laya.Tween.to(card,{alpha:1},140,Laya.Ease.sineOut)}
@@ -439,8 +433,11 @@ class Game {
   this.sync();
  }
  hideModal():void{
-  if(this.modalCard){Laya.Tween?.clearAll(this.modalCard);this.modalCard=null}
-  this.overlay.destroy(true);this.overlay=new Laya.Sprite();this.overlay.zOrder=50;this.root.addChild(this.overlay);this.modalOpen=false;
+  // Keep the overlay container alive: destroying/recreating it while handling a
+  // modal button click can disrupt the home scene's input/render ordering.
+  if(this.modalCard){Laya.Tween?.clearAll(this.modalCard);this.modalCard.destroy(true);this.modalCard=null}
+  if(this.modalShade){this.modalShade.destroy(true);this.modalShade=null}
+  this.modalOpen=false;
   if(this.model&&this.board)this.sync();
  }
 }
