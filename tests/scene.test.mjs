@@ -56,12 +56,15 @@ test('新手引导跟随真实选择，可跳过/重学且保存标记不覆盖�
  g.settings();assert.equal(g.modalOpen,true);g.hideModal();assert.equal(g.modalOpen,false);
 });
 
-test('按钮按下/移出复原，禁用状态不触发动作',()=>{
- g.home();const b=g.scene.children.find(n=>n.label?.text==='继续解镯');
+test('首页不显示继续解镯按钮，主按钮点击与禁用状态正常',()=>{
+ g.home();const labels=g.scene.children.map(n=>n.label?.text);
+ assert.ok(!labels.includes('继续解镯'));
+ assert.ok(!labels.includes('开始解镯'));
+ const b=g.scene.children.find(n=>n.label?.text==='第1关');
  assert.ok(b);for(const f of b.events.mousedown)f();assert.equal(b.skin.y,4);
  for(const f of b.events.mouseout)f();assert.equal(b.skin.y,0);
  b.enabled=false;b.click();assert.equal(g.mode,'home');
- b.enabled=true;b.click();assert.equal(g.mode,'game');
+ b.enabled=true;b.click();assert.equal(g.mode,'game');assert.ok(g.formal);
 });
 
 
