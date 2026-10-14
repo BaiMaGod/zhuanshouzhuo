@@ -12,10 +12,13 @@ export class Guide {
   const g=this.root.graphics;g.clear();this.hand.visible=false;const ring=C.ring(state,this.id);
   if(!ring||ring.life!=='active'||this.board.animating)return;
   const center=this.board.toScreen(ring),radius=C.R*this.board.zoom;
-  g.drawCircle(center.x,center.y,radius+20,null,'rgba(166,125,47,0.58)',2);
   const pulse=1+Math.sin(now/350)*.06;
   for(const z of state.rods){if(!C.exists(state,z))continue;for(const e of C.endpoints(state,z))if(e.id===ring.id){
-   const p=this.board.toScreen(e.p);g.drawCircle(p.x,p.y,21*pulse,null,'#b48a37',2.5);g.drawCircle(p.x,p.y,27*pulse,null,'rgba(192,155,72,0.24)',3);
+   const p=this.board.toScreen(e.p),d=15*pulse;
+   for(const sx of [-1,1])for(const sy of [-1,1]){
+    g.drawLine(p.x+sx*d,p.y+sy*d,p.x+sx*(d-6),p.y+sy*d,'#b48a37',2);
+    g.drawLine(p.x+sx*d,p.y+sy*d,p.x+sx*d,p.y+sy*(d-6),'#b48a37',2);
+   }
   }}
   if(dragging)return;
   // A ghost hand traces the arc. It has no input handler and cannot intercept touch.
@@ -25,10 +28,8 @@ export class Guide {
   const direction=Math.sign(delta)||1,a=ring.a+direction*8+Math.max(0,Math.min(1,(t-.1)/.72))*delta;
   const p=this.board.toScreen(C.point(ring,a));
   this.hand.pos(p.x+6,p.y+6);this.hand.visible=true;
-  const path:unknown[]=[];for(let k=0;k<=18;k++){
-   const q=this.board.toScreen(C.point(ring,ring.a+direction*(10+k*5),C.R+7));path.push([k?'lineTo':'moveTo',q.x,q.y]);
-  }g.drawPath(0,0,path,undefined,{strokeStyle:'rgba(152,116,43,0.48)',lineWidth:2.4});
  }
  clear():void{this.root.graphics.clear();this.hand.visible=false}
  destroy():void{this.root.destroy(true)}
 }
+

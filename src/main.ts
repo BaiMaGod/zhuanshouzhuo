@@ -42,7 +42,6 @@ class Game {
   window.addEventListener('blur',()=>{this.releasePointers();this.audio.stopAll()});
   window.addEventListener('keydown',e=>{
    if(this.mode!=='game'||this.modalOpen)return;
-   if(!this.formal&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){e.preventDefault();this.manual((e.key==='ArrowLeft'?-1:1)*(e.shiftKey?30:1))}
    if(e.key==='Escape'){this.cancel();this.hideModal()}
   });
   Laya.timer.frameLoop(1,this,this.tick);this.home();
@@ -136,12 +135,11 @@ class Game {
    this.scene.addChild(new Button('−',38,y,78,62,()=>this.zoomView(1/1.35)));
    this.scene.addChild(new Button('+',128,y,78,62,()=>this.zoomView(1.35)));
    this.scene.addChild(new Button('全盘',222,y,132,62,()=>{this.releasePointers();this.board!.resetView();this.syncView()}));
-   this.panButton=new Button('移动棋盘',370,y,312,62,()=>{this.releasePointers();this.panMode=!this.panMode;this.panButton!.label.text=this.panMode?'旋转手镯':'移动棋盘';this.syncView()});this.scene.addChild(this.panButton);
+   text(this.scene,'双指缩放 / 移动画面',370,y+12,312,36,20,COLORS.ink);
    panel(this.scene,38,H-187,644,82,18,'#fff9e8','#d4bf90');
    this.viewLabel=text(this.scene,'',60,H-182,600,28,18,COLORS.ink);
    this.message=text(this.scene,C.levels[i].tip,48,H-148,624,42,18,COLORS.ink,'left');
-   this.undoButton=new Button('撤销',38,H-94,148,62,()=>this.undo(),false,'undo');this.scene.addChild(this.undoButton);
-   this.scene.addChild(new Button('重开',202,H-94,148,62,()=>this.load(i),false,'restart'));
+   this.scene.addChild(new Button('重开',38,H-94,312,62,()=>this.load(i),false,'restart'));
    this.scene.addChild(new Button('回到首页',370,H-94,312,62,()=>this.home(),false,'back'));
    this.syncView();
   }else{
@@ -153,13 +151,9 @@ class Game {
   this.guideTitle=text(this.scene,'解镯小提示',56,H-380,606,35,20,COLORS.gold,'left');
   const tips=['拖动粉色 B 镯，把缺口转向两镯之间的空心扣。','带 × 的锁杆留在原地，两只手镯各对齐自己的扣。','先解外围 B 镯，再观察留下的完整锁杆。'];
   this.message=text(this.scene,tips[i]||C.levels[i].tip,56,H-340,606,72,23,COLORS.ink,'left');
-  const y=H-240;
-  const specs:[string,number,number,boolean][]=[['↶ 30°',32,-30,false],['↶ 微调',197,-1,true],['微调 ↷',362,1,true],['30° ↷',527,30,false]];
-  for(const [title,x,d,primary] of specs){const b=new Button(title,x,y,160,68,()=>this.manual(d),primary);this.controls.push(b);this.scene.addChild(b)}
-  this.undoButton=new Button('撤销',32,H-143,145,68,()=>this.undo(),false,'undo');this.scene.addChild(this.undoButton);
-  this.scene.addChild(new Button('重开',197,H-143,145,68,()=>this.load(i),false,'restart'));
-  this.scene.addChild(new Button('提示',362,H-143,145,68,()=>void this.hint(),false,'hint'));
-  this.demoButton=new Button('演示',527,H-143,160,68,()=>{if(this.busy)this.cancel();else void this.automatic(true)},false,'demo');this.scene.addChild(this.demoButton);
+  text(this.scene,'用手指沿玉镯拖动，直接转动缺口',54,H-229,612,48,25,COLORS.ink);
+  this.scene.addChild(new Button('重开',80,H-143,260,68,()=>this.load(i),false,'restart'));
+  this.scene.addChild(new Button('提示',380,H-143,260,68,()=>void this.hint(),false,'hint'));
   panel(this.scene,48,H-62,624,44,16,'rgba(255,251,232,0.92)','#d4bf90');
   text(this.scene,'拖动环体旋转 · 松手靠近扣位可轻吸附',55,H-55,610,32,18,COLORS.ink);
   }
@@ -182,9 +176,9 @@ class Game {
  }
  guideSelect(id:string):void{
   if(!this.guide||!this.model)return;
-  if(id!==this.guide.id){this.say('先试试 '+this.guide.id+' 镯。金色光圈标出了它要对齐的扣。');return}
+  if(id!==this.guide.id){this.say('先试试 '+this.guide.id+' 镯。金色角标标出了它要对齐的扣。');return}
   this.guide.phase='turn';
-  if(this.model.index===0){this.guideTitle!.text='新手 · 2 / 2  拖动，让缺口对准扣';this.say('手指沿粉色 B 镯转一转，缺口对准金色光圈里的空心扣。')}
+  if(this.model.index===0){this.guideTitle!.text='新手 · 2 / 2  拖动，让缺口对准扣';this.say('手指沿粉色 B 镯转一转，缺口对准金色角标里的空心扣。')}
  }
  say(content:string):void{if(this.message)this.message.text=content}
  sync():void{
@@ -218,7 +212,7 @@ class Game {
  }
  syncView():void{
   if(!this.board)return;
-  if(this.viewLabel)this.viewLabel.text=Math.round(this.board.zoom/this.board.fitZoom*100)+'% · '+(this.panMode?'移动棋盘中，点「旋转手镯」返回':'双指 / 滚轮缩放 · 拖空白移动 · 拖玉镯旋转');
+  if(this.viewLabel)this.viewLabel.text=Math.round(this.board.zoom/this.board.fitZoom*100)+'% · '+'双指缩放 / 移动 · 拖空白移动 · 拖玉镯旋转';
  }
  zoomView(factor:number):void{
   if(!this.board||this.modalOpen)return;this.releasePointers();const r=this.board.rect;
@@ -320,21 +314,20 @@ class Game {
   this.busy=true;const token=++this.epoch;this.say('正在观察当前扣位…');this.sync();
   const path=await this.plan();if(token!==this.epoch)return;
   this.busy=false;
-  if(!path?.length){this.say('这一步还没找到路线。可以撤销或重开，再观察连接。');this.sync();return}
+  if(!path?.length){this.say('这一步还没找到路线。可以重开，再观察连接。');this.sync();return}
   const a=path[0];this.model.selected=a.id;
   const z=this.model.state.rods.find(z=>z.id===a.rod)!;
   this.board!.hint=C.endpoints(this.model.state,z).find(e=>e.id===a.id)?.p||null;
   this.say('先转 '+a.id+'，'+(a.delta>0?'顺时针':'逆时针')+'让缺口对准闪光的空心扣。');this.sync();
-  this.modal('看这一只玉环',['已标出 '+a.id+' 的目标扣位。','提示只指出路线；自动对准也会沿合法路径转动。'],[
-   {label:'我来转',action:()=>this.hideModal(),primary:true},
-   {label:'对准这一扣',action:()=>{this.hideModal();void this.automatic(false)},primary:false}
+  this.modal('看这一只玉环',['已标出 '+a.id+' 的目标扣位。','用手指拖动玉镯，对准标出的扣位。'],[
+   {label:'我来转',action:()=>this.hideModal(),primary:true}
   ]);
  }
  async automatic(all:boolean):Promise<void>{
   if(this.formal||this.busy||this.modalOpen||this.board?.animating||!this.model)return;
   this.stopGuide(false);this.busy=true;const token=++this.epoch;this.say('正在寻找合法旋转路线…');this.sync();
   const full=await this.plan();if(token!==this.epoch)return;
-  if(!full?.length){this.busy=false;this.say('当前没有找到路线。可撤销或重开。');this.sync();return}
+  if(!full?.length){this.busy=false;this.say('当前没有找到路线。可重开。');this.sync();return}
   const path=all?full:full.slice(0,1);
   for(const a of path){
    if(token!==this.epoch||!this.model||!this.board)return;
@@ -416,4 +409,5 @@ boot().catch(e=>{
  console.error(e);const box=document.getElementById('boot');
  if(box){box.classList.add('error');box.textContent='玉盘暂时没有加载完成，请刷新再试。'}
 });
+
 

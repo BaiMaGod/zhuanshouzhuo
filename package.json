@@ -1,6 +1,6 @@
 {
   "name":"zhuanshouzhuo-laya",
-  "version":"0.5.10",
+  "version":"0.6.0",
   "private":true,
   "type":"module",
   "scripts":{
@@ -11,4 +11,5 @@
   },
   "devDependencies":{"typescript":"5.9.3"}
 }
+
 

@@ -153,10 +153,7 @@ export class Board {
    const offset=C.rot({x:0,y:dy},-this.turn);v.root.pos(r.x+offset.x,r.y+offset.y);
    v.body.rotation=r.a;v.shadow.rotation=r.a;
    v.halo.graphics.clear();v.label.alpha=r.id===this.selected?1:.55;
-   if(r.id===this.selected&&r.life==='active'){
-    v.halo.graphics.drawCircle(0,0,49,null,'#bca163',.9);
-    const p=C.point({x:0,y:0},r.a,51);v.halo.graphics.drawCircle(p.x,p.y,1.5,'#b8994f');
-   }
+   // Selection is conveyed by the existing HUD and label, never a circle overlay.
   }
   this.rods.graphics.clear();this.drawRods(s,this.rods.graphics);
   // Ghost rods are separate entities so their alpha can animate with their owner.
@@ -172,8 +169,9 @@ export class Board {
    const t=(now-p.start)/520,a=p.seed*45;
    const q=C.point(p,a,12*t);this.effects.graphics.drawCircle(q.x,q.y,(1-t)*1.8,'#e3bc64');
   }
-  if(this.hint){const pulse=1+Math.sin(now/170)*.09;this.effects.graphics.drawCircle(this.hint.x,this.hint.y,9*pulse,null,'#b18d38',1.1)}
+  if(this.hint){const d=8*(1+Math.sin(now/170)*.09),p=this.hint;this.effects.graphics.drawPoly(p.x,p.y,[0,-d,d,0,0,d,-d,0],null,'#b18d38',1.1)}
  }
  destroy():void{this.backdrop?.destroy(true);this.backdrop=null;this.viewport.destroy(true)}
 }
+
 
