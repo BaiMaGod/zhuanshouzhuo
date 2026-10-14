@@ -179,3 +179,33 @@ test('新手练习可返回首页，图谱只列正式关卡并统一编号',()=
  const formal=g.scene.children.find(n=>n.name==='formal-level:1');assert.ok(formal);formal.click();
  assert.equal(g.model.index,10);assert.equal(g.formal,true);
 });
+
+test('教学顶部进入独立教程关卡，图文按钮对齐且玉盘上方有操作气泡',()=>{
+ g.load(0);
+ const nav=g.scene.children.find(n=>n.name==='button:teaching-levels');
+ assert.ok(nav);assert.equal(nav.label.text,'教程关卡');
+ for(const b of [nav,g.scene.children.find(n=>n.name==='button:sound'),g.scene.children.find(n=>n.name==='button:help')]){
+  assert.ok(b);
+  assert.ok(Math.abs((b.iconSprite.y+13)-(b.label.y+b.label.height/2))<1,'图标与文字共用垂直中线');
+  assert.ok(b.iconSprite.x+26<b.label.x,'图标在文字左侧且无重叠');
+ }
+ const words=[];const walk=n=>{if(typeof n.text==='string')words.push(n.text);for(const c of n.children)walk(c)};walk(g.scene);
+ assert.ok(words.includes('手指按住玉镯转动，让玉镯缺口对准锁扣'));
+ assert.ok(!words.some(v=>v.includes('拖动环体旋转')||v.includes('用手指沿玉镯拖动')));
+ assert.ok(g.scene.children.some(n=>n.name==='tutorial-instruction'));
+ assert.ok(g.board.rect.h>690,'教程盘面应向下延展');
+ nav.click();assert.equal(g.mode,'levels');assert.equal(g.scene.children.filter(n=>n.name?.startsWith('teaching-level:')).length,10);
+ const first=g.scene.children.find(n=>n.name==='teaching-level:1');
+ assert.ok(first?.enabled);first.click();assert.equal(g.model.index,0);
+});
+test('教程提示在盘面绘制手指和正确转动方向，不弹窗也不修改关卡',async()=>{
+ g.load(0);const before=C.clone(g.model.state);
+ await g.hint();assert.equal(g.modalOpen,false);
+ assert.ok(g.guide?.action,'教程提示使用带合法旋转动作的引导手');
+ assert.equal(g.guide.phase,'turn');assert.equal(g.guide.id,'B');
+ for(let i=0;i<8;i++)h.tick();
+ assert.equal(g.guide.hand.visible,true);
+ assert.deepEqual(g.model.state,before);
+ assert.equal(g.hintButton?.label.text,'提示');
+ g.load(0);assert.equal(g.guide?.action,undefined,'重开后清理手指提示');
+});
