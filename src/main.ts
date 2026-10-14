@@ -92,9 +92,8 @@ class Game {
   ornament(this.scene,164,H-447,392);
   text(this.scene,'正式关卡 · 54 镯 · 超级困难',120,H-432,480,38,23,COLORS.ink,'center',true);
   this.scene.addChild(new Button('第1关',112,H-375,496,88,()=>this.load(FORMAL_INDEX),true,'play'));
-  this.scene.addChild(new Button(completed?'继续解镯':'开始解镯',112,H-266,496,82,()=>this.load(this.save.data.unlocked),false,'restart'));
-  this.scene.addChild(new Button('关卡图谱',116,H-153,234,68,()=>this.levels(),false,'map'));
-  this.scene.addChild(new Button('新手练习',370,H-153,234,68,()=>this.practice(),false,'help'));
+  this.scene.addChild(new Button('关卡图谱',116,H-251,234,68,()=>this.levels(),false,'map'));
+  this.scene.addChild(new Button('新手练习',370,H-251,234,68,()=>this.practice(),false,'help'));
   text(this.scene,'★ '+stars+' / 30    ·    不限时，慢慢解',100,H-60,520,34,20,COLORS.muted,'center',true);
  }
  practice():void{this.load(0);this.startGuide()}
