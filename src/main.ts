@@ -14,7 +14,8 @@ const W=720,H=Math.round(Math.max(1180,Math.min(1600,innerHeight/Math.min(innerW
 const RENDER_W=innerWidth<600?Math.min(W,Math.round(innerWidth*1.5)):W;
 const RENDER_SCALE=RENDER_W/W;
 const TRAY='assets/art-rose/tray.png';
-const ASSETS=[...JADE_ASSETS,'assets/shadow.png',TRAY,'assets/art-rose/home-bg.jpg','assets/art-v3/clasp.png'];
+const HOME_BG='assets/art-rose/home-bg.jpg';
+const ASSETS=[...JADE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,'assets/art-v3/clasp.png'];
 class Game {
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
  garden:Laya.Sprite|null=null;
@@ -54,7 +55,7 @@ class Game {
   // the stage clear: no magnified full-screen background layer or overdraw.
   Laya.stage.bgColor=THEME.paper;
   bg.mouseEnabled=false;this.scene.addChild(bg);this.garden=bg;
-  if(this.mode!=='game')this.image(this.scene,'assets/art-rose/home-bg.jpg',W/2,H/2,W,H);
+  if(this.mode!=='game')this.image(this.scene,HOME_BG,W/2,H/2,W,H);
  }
  clear(mode:Game['mode']):void{
   this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.board?.destroy();this.board=null;this.model=null;
@@ -125,6 +126,10 @@ class Game {
   if(i<0||i>=C.levels.length||(i!==FORMAL_INDEX&&i>this.save.data.unlocked))return;
   this.clear('game');this.settled=false;this.model=new GameModel(i);
   if(this.formal){
+   // Stationary home illustration under the zoomable tray (zOrder -1).
+   // Keep this decorative backdrop outside the board camera.
+   const wallpaper=this.image(this.scene,HOME_BG,W/2,H/2,W,H);
+   wallpaper.name='formal-wallpaper';wallpaper.zOrder=-2;
    const home=new Button('',28,26,76,64,()=>this.home(),false,'home');home.name='button:home';this.scene.addChild(home);
    const restart=new Button('',116,26,76,64,()=>this.load(i),false,'restart');restart.name='button:restart';this.scene.addChild(restart);
    const title=text(this.scene,'第'+(i-TEACHING_COUNT+1)+'关',216,26,288,64,43,COLORS.ink,'center',true);

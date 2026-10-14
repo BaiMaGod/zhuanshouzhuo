@@ -85,6 +85,25 @@ test('所有关卡没有旋转按钮、撤销、选中圆圈，正式关可用�
  assert.ok(g.model.cleared);assert.ok(g.settled);assert.equal(g.model.state.steps,route.length);g.load(10);assert.equal(g.model.state.rings.filter(r=>r.life==='active').length,54);
 });
 
+test('正式关复用首页背景图，但不会随玉盘一起缩放或覆盖手镯',()=>{
+ const art='assets/art-rose/home-bg.jpg';
+ g.home();
+ assert.ok(g.scene.children.some(n=>n.graphics.ops.some(op=>op[0]==='image'&&op[1]===art)),'首页素材可用');
+ g.load(10);
+ const wallpaper=g.scene.children.find(n=>n.name==='formal-wallpaper');
+ assert.ok(wallpaper,'正式关加入首页背景图');
+ assert.ok(wallpaper.graphics.ops.some(op=>op[0]==='image'&&op[1]===art));
+ assert.ok(wallpaper.zOrder<g.board.backdrop.zOrder,'底图位于可缩放玉盘后面');
+ assert.ok(!g.board.backdrop.children.includes(wallpaper),'装饰底图不参与玉盘相机缩放');
+ const original=[wallpaper.x,wallpaper.y,wallpaper.scaleX,wallpaper.scaleY,wallpaper.rotation];
+ g.board.zoomTo(g.board.fitZoom*2,{x:360,y:500});
+ g.board.panTo({x:400,y:560});
+ assert.deepEqual([wallpaper.x,wallpaper.y,wallpaper.scaleX,wallpaper.scaleY,wallpaper.rotation],original);
+ assert.equal(wallpaper.parent,g.scene);
+ g.load(0);
+ assert.ok(!g.scene.children.some(n=>n.name==='formal-wallpaper'),'教学场景沿用纯色背景');
+});
+
 test('花园、玉盘与玉镯共用视角，缩放平移和撤销不会改变背景上的镯位',()=>{
  g.load(10);const b=g.board,bg=b.backdrop,art=[...bg.children];
  assert.equal(art.length,2);assert.equal(art[0].name,'board-garden');assert.equal(art[1].name,'board-tray');
