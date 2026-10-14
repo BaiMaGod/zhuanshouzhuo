@@ -56,6 +56,31 @@ test('新手引导跟随真实选择，可跳过/重学且保存标记不覆盖�
  g.settings();assert.equal(g.modalOpen,true);g.hideModal();assert.equal(g.modalOpen,false);
 });
 
+test('首页只保留主标题和操作入口，设置弹窗关闭后按钮可反复使用',()=>{
+ g.home();
+ const texts=[];function collect(node){if(typeof node.text==='string')texts.push(node.text);if(node.label?.text)texts.push(node.label.text);for(const child of node.children)collect(child)}
+ collect(g.scene);
+ for(const slogan of ['玉  环  十  境','玉环十境','转一转，环环相扣','一扣入门 · 十境解谜','正式关卡 · 54 镯 · 超级困难','不限时，慢慢解','继续解镯'])assert.ok(!texts.some(s=>s.includes(slogan)),slogan+' 应从首页消失');
+ assert.ok(texts.includes('转手镯消除'));
+ const settings=g.scene.children.find(n=>n.name==='button:settings');
+ assert.ok(settings);const overlay=g.overlay;
+ for(let n=0;n<3;n++){
+  settings.click();assert.equal(g.modalOpen,true);
+  assert.ok(g.modalCard?.parent===overlay);
+  const close=g.modalCard.children.find(node=>node.label?.text==='关闭');
+  assert.ok(close);close.click();assert.equal(g.modalOpen,false);
+  assert.equal(g.overlay,overlay,'关闭设置不能销毁或换掉常驻弹窗容器');
+  assert.equal(settings.parent,g.scene,'关闭设置不能移除首页设置按钮');
+  assert.ok(g.scene.children.includes(settings));
+  assert.equal(settings.enabled,true);
+ }
+ settings.click();const sound=g.modalCard.children.find(node=>node.label?.text?.startsWith('音效 '));
+ assert.ok(sound);const before=g.audio.enabled;sound.click();
+ assert.equal(g.audio.enabled,!before);assert.equal(g.modalOpen,true);
+ g.modalCard.children.find(node=>node.label?.text==='关闭').click();
+ assert.equal(settings.parent,g.scene);
+});
+
 test('首页不显示继续解镯按钮，主按钮点击与禁用状态正常',()=>{
  g.home();const labels=g.scene.children.map(n=>n.label?.text);
  assert.ok(!labels.includes('继续解镯'));
