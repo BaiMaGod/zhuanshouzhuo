@@ -23,8 +23,17 @@ test('正式道具只在成功后扣除，取消、刷新、重开与切关余�
  g.load(11,true);assert.equal(g.hintLeft,1);assert.equal(g.eraseLeft,1);
  g.load(10);assert.equal(g.hintLeft,0);g.load(10,true);assert.equal(g.hintLeft,1);assert.equal(g.eraseLeft,1);
 });
-test('失败提示和过期异步结果不扣次数，教学提示不限量',async()=>{
- g.load(10,true);g.plan=async()=>null;await g.hint();assert.equal(g.hintLeft,1);
- let done;g.plan=()=>new Promise(r=>done=r);const pending=g.hint();g.cancel();done([{id:'A',delta:10}]);await pending;assert.equal(g.hintLeft,1);
- g.load(0);g.plan=async()=>[{id:'B',delta:10}];await g.hint();await g.hint();assert.equal(g.hintLeft,1);assert.equal(g.hintButton.label.text,'提示');h.tick();
+test('依赖图无提示不扣次数；教学的过期异步结果无效且不限次数',async()=>{
+ g.load(10,true);
+ const graph=g.model.hints,previous=graph.next;
+ graph.next=()=>null;
+ await g.hint();assert.equal(g.hintLeft,1);
+ graph.next=previous;
+ g.load(0);
+ let done;g.plan=()=>new Promise(r=>done=r);
+ const pending=g.hint();g.cancel();done([{id:'B',delta:10}]);
+ await pending;assert.equal(g.hintLeft,1);
+ g.plan=async()=>[{id:'B',delta:10}];
+ await g.hint();await g.hint();
+ assert.equal(g.hintLeft,1);assert.equal(g.hintButton.label.text,'提示');h.tick();
 });
