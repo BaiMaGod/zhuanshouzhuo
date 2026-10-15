@@ -55,7 +55,7 @@ class Game {
    const p=pointer(e);this.atlasUp(p);this.up(p);
   });
   Laya.stage.on(Laya.Event.MOUSE_WHEEL,this,(e:Laya.Event)=>{
-   const delta=-e.delta*40;
+   const delta=e.delta*40; // LayaAir 3.4 normalizes WheelEvent.deltaY by 0.025; keep native scroll direction.
    if(this.atlas&&this.mode==='levels'){this.scrollAtlas(this.atlasOffset+delta);return}
    if(this.mode!=='game'||!this.board||this.modalOpen||this.busy)return;
    const p=this.point(pointer(e));if(!this.board.contains(p))return;
