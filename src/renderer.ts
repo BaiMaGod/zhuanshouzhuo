@@ -163,8 +163,8 @@ export class Board {
    const offset=C.rot({x:0,y:dy},-this.turn);v.root.pos(r.x+offset.x,r.y+offset.y);
    v.body.rotation=r.a;v.shadow.rotation=r.a;
    v.halo.graphics.clear();v.label.alpha=r.id===this.selected?1:.55;
-   // Lift only the existing jade texture; do not add a circle or alter collision size.
-   v.body.alpha=this.selected&&r.id!==this.selected ? .87 : 1;
+   // Keep every jade opaque when selecting; release fading stays on the root.
+   v.body.alpha=1;
   }
   this.rods.graphics.clear();this.drawRods(s,this.rods.graphics);
   // Ghost rods are separate entities so their alpha can animate with their owner.
