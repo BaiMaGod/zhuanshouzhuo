@@ -469,7 +469,9 @@ class Game {
   if(card||shade)Laya.timer.frameOnce(1,this,()=>{card?.destroy(true);shade?.destroy(true)});
   // Closing settings must never remove or leave the home shortcut invisible.
   const settings=this.homeSettingsButton;
-  if(this.mode==='home'&&settings?.parent===this.scene){
+  if(this.mode==='home'&&settings){
+   // Reattach defensively if the engine detached the button during input.
+   if(settings.parent!==this.scene)this.scene.addChild(settings);
    settings.visible=true;settings.enabled=true;settings.alpha=1;
   }
   if(this.model&&this.board)this.sync();
