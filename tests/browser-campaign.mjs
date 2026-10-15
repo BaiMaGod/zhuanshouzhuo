@@ -90,6 +90,12 @@ try{
   const before=await p.evaluate(()=>window.jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length);
   await drag(p,action);
   assert.ok(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length)<before,'actual level100 gesture removes a ring');
+  // On slower desktop software WebGL, the 260ms release animation can
+  // outlast the fixed drag delay. A disabled button must not be clicked yet.
+  await p.waitForFunction(()=>{
+   const g=window.jadeDebug.game;
+   return !g.board.animating&&!g.busy&&g.hintButton.enabled;
+  });
   // Formal levels allow only one hint per attempt. Extra taps show a notice.
   await button(p,'提示');
   assert.equal(await p.evaluate(()=>window.jadeDebug.game.hintLeft),0);
