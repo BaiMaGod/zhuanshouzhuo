@@ -21,7 +21,7 @@ class Game {
  garden:Laya.Sprite|null=null;wallpaper:Laya.Sprite|null=null;
  save=new Save();audio=new Audio();model:GameModel|null=null;board:Board|null=null;
  mode:'home'|'levels'|'game'='home';message:Laya.Text|null=null;status:Laya.Text|null=null;turnStatus:Laya.Text|null=null;
- controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;eraseButton:Button|null=null;eraseTip:Laya.Text|null=null;eraseMode=false;
+ controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;eraseButton:Button|null=null;eraseTip:Laya.Text|null=null;eraseMode=false;eraseTap:{id:string;pointer:number;start:Point}|null=null;
  pointers=new Map<number,Point>();panMode=false;viewLabel:Laya.Text|null=null;panButton:Button|null=null;
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
  get formal():boolean{return this.model!==null&&this.model.index>=TEACHING_COUNT}
@@ -63,7 +63,7 @@ class Game {
   // gameplay scene, never inside the tray/ring rendering pass.
   this.wallpaper?.destroy(true);this.wallpaper=null;
   this.scene.destroy(true);this.homeSettingsButton=null;this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
-  this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.eraseButton=null;this.eraseTip=null;this.eraseMode=false;this.message=null;this.status=null;this.turnStatus=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
+  this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.eraseButton=null;this.eraseTip=null;this.eraseMode=false;this.eraseTap=null;this.message=null;this.status=null;this.turnStatus=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
   // Keep render-pass topology stable through zoom, undo and restart.
   // A full-scene bitmap cache can lose buttons when their state or icons update.
   // Preserve live HUD and cache only static decorations where appropriate.
@@ -273,7 +273,7 @@ class Game {
   const r=this.canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};
  }
  releasePointers():void{
-  this.releaseDrag();const ids=[...this.pointers.keys()];this.pointers.clear();this.viewGesture=null;
+  this.releaseDrag();this.eraseTap=null;const ids=[...this.pointers.keys()];this.pointers.clear();this.viewGesture=null;
   for(const id of ids)try{if(this.canvas.hasPointerCapture(id))this.canvas.releasePointerCapture(id)}catch{}
  }
  syncView():void{
@@ -288,15 +288,16 @@ class Game {
   this.audio.wake();
   if(this.mode!=='game'||!this.model||!this.board||this.busy||this.board.animating||this.modalOpen||(e.button!==undefined&&e.button!==0))return;
   const p=this.point(e);if(!this.board.contains(p))return;
-  // A target tap in removal mode never rotates the bracelet.
-  if(this.eraseMode){
-   const target=this.board.pick(p,this.model.state);
-   if(target){this.chooseEraseTarget(target.id);return}
-  }
   this.pointers.set(e.pointerId,p);this.canvas.setPointerCapture(e.pointerId);
   if(this.pointers.size>=2){
-   this.releaseDrag(false);const [a,b]=[...this.pointers.values()];const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+   this.eraseTap=null;this.releaseDrag(false);const [a,b]=[...this.pointers.values()];const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
    this.viewGesture={kind:'pinch',start:mid,screen:{...this.board.screen},zoom:this.board.zoom,distance:Math.max(1,C.dist(a,b)),anchor:this.board.toWorld(mid)};return;
+  }
+  if(this.eraseMode){
+   // Select only on pointerup: moving or pinching must not consume the item.
+   const target=this.board.pick(p,this.model.state);
+   if(target){this.eraseTap={id:target.id,pointer:e.pointerId,start:p};return}
+   this.viewGesture={kind:'pan',start:p,screen:{...this.board.screen},zoom:this.board.zoom,distance:0,anchor:p};return;
   }
   const ring=this.panMode?undefined:this.board.pick(p,this.model.state);
   if(!ring){this.viewGesture={kind:'pan',start:p,screen:{...this.board.screen},zoom:this.board.zoom,distance:0,anchor:p};return}
@@ -306,7 +307,13 @@ class Game {
  }
  move(e:PointerEvent):void{
   if(!this.pointers.has(e.pointerId)||!this.model||!this.board||this.busy||this.modalOpen)return;
-  const point=this.point(e);this.pointers.set(e.pointerId,point);const gesture=this.viewGesture;
+  const point=this.point(e);this.pointers.set(e.pointerId,point);
+  if(this.eraseTap?.pointer===e.pointerId){
+   if(C.dist(point,this.eraseTap.start)<=12)return;
+   const start=this.eraseTap.start;this.eraseTap=null;
+   this.viewGesture={kind:'pan',start,screen:{...this.board.screen},zoom:this.board.zoom,distance:0,anchor:start};
+  }
+  const gesture=this.viewGesture;
   if(gesture){
    if(gesture.kind==='pinch'&&this.pointers.size>=2){const [a,b]=[...this.pointers.values()];const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};this.board.zoomTo(gesture.zoom*C.dist(a,b)/gesture.distance,mid,gesture.anchor)}
    else if(gesture.kind==='pan')this.board.panTo({x:gesture.screen.x+point.x-gesture.start.x,y:gesture.screen.y+point.y-gesture.start.y});
@@ -322,10 +329,13 @@ class Game {
  }
  up(e:PointerEvent):void{
   const d=this.drag?.pointer===e.pointerId?this.drag:null;
+  const erase=this.eraseTap?.pointer===e.pointerId?this.eraseTap:null;
+  if(erase)this.eraseTap=null;
   this.pointers.delete(e.pointerId);if(d)this.releaseDrag();
   try{if(this.canvas.hasPointerCapture(e.pointerId))this.canvas.releasePointerCapture(e.pointerId)}catch{}
   if(!this.pointers.size)this.viewGesture=null;
   if(d?.started&&!this.busy&&!this.board?.animating)this.snap(d.id);
+  if(erase&&this.eraseMode)this.chooseEraseTarget(erase.id);
  }
  snap(id:string):void{
   if(!this.model)return;const s=this.model.state,r=C.ring(s,id);if(!r||r.life!=='active')return;
