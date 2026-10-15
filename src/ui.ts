@@ -69,7 +69,7 @@ export class Button extends Laya.Sprite {
   this.on(Laya.Event.MOUSE_DOWN,this,()=>this.press(true));
   this.on(Laya.Event.MOUSE_UP,this,()=>this.press(false));
   this.on(Laya.Event.MOUSE_OUT,this,()=>this.press(false));
-  this.on(Laya.Event.CLICK,this,()=>{if(this.enabled_){this.press(false);Button.feedback?.();callback()}});
+  this.on(Laya.Event.CLICK,this,()=>{if(this.enabled_){this.press(false);callback();Button.feedback?.()}});
  }
  private press(v:boolean):void{if(!this.enabled_||this.pressed===v)return;this.pressed=v;this.skin.y=v?4:0;this.skin.x=v?this.width*.0075:0;this.skin.scale(v?.985:1);this.skin.alpha=v?.85:1;this.label.y=v?3:0}
  set enabled(v:boolean){if(v===this.enabled_)return;this.press(false);this.enabled_=v;this.alpha=v?1:.55}
@@ -100,3 +100,4 @@ export function ornament(parent:Laya.Sprite,x:number,y:number,w:number):void{
  const g=s.graphics;g.drawLine(x,y,x+w*.42,y,THEME.line,1);g.drawLine(x+w*.58,y,x+w,y,THEME.line,1);
  flower(g,x+w/2,y,3.8,THEME.rose);
 }
+

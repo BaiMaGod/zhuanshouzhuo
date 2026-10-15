@@ -351,3 +351,29 @@ test('消除道具选镯时拖动画面不触发消除，双指缩放不会误�
  assert.equal(g.eraseMode,true);
  assert.equal(r.life,'active');
 });
+
+
+test('对齐音只在扣位从未对齐进入对齐时播放',()=>{
+ g.save.data.unlocked=10;g.load(1);
+ const z=g.model.state.rods.find(z=>C.exists(g.model.state,z));
+ const e=C.endpoints(g.model.state,z)[0],id=e.id;
+ const originalTurn=g.model.turn,originalPlay=g.audio.play;
+ const calls=[];g.audio.play=kind=>calls.push(kind);
+ const result={done:.1,removed:[],blocked:null};
+ try{
+  g.model.state.states[z.id][0]='locked';
+  g.model.turn=()=>{g.model.state.states[z.id][0]='aligned';return result};
+  g.perform(id,.1);assert.equal(calls.filter(k=>k==='align').length,1);
+  g.perform(id,.1);assert.equal(calls.filter(k=>k==='align').length,1,'保持对齐时不重复响');
+  g.model.turn=()=>{g.model.state.states[z.id][0]='locked';return result};g.perform(id,.1);
+  g.model.turn=()=>{g.model.state.states[z.id][0]='aligned';return result};g.perform(id,.1);
+  assert.equal(calls.filter(k=>k==='align').length,2,'离开再进入可重新提示');
+ }finally{g.model.turn=originalTurn;g.audio.play=originalPlay;g.audio.enabled=false}
+});
+
+test('导航按钮先切场景再播放点击反馈，声音不会被场景清理截断',()=>{
+ const originalPlay=g.audio.play,originalStop=g.audio.stopAll,events=[];
+ g.audio.play=kind=>events.push(kind);g.audio.stopAll=()=>events.push('stop');
+ try{g.home();events.length=0;g.scene.children.find(n=>n.name==='button:第1关').click();assert.equal(g.mode,'game');assert.equal(events.at(-1),'button');assert.ok(events.indexOf('stop')<events.lastIndexOf('button'))}
+ finally{g.audio.play=originalPlay;g.audio.stopAll=originalStop;g.audio.enabled=false}
+});

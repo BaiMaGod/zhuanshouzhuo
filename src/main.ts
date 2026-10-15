@@ -33,7 +33,7 @@ class Game {
   this.root.scale(RENDER_SCALE,RENDER_SCALE);
   Laya.stage.addChild(this.root);this.root.addChild(this.scene);this.root.addChild(this.overlay);
   this.canvas=document.querySelector('#layaCanvas')||document.querySelector('canvas')!;
-  this.audio.enabled=this.save.data.sound;Button.feedback=()=>{this.audio.wake();this.audio.play('select')};
+  this.audio.enabled=this.save.data.sound;Button.feedback=()=>{this.audio.wake();this.audio.play('button')};
   this.canvas.addEventListener('pointerdown',e=>this.down(e));
   this.canvas.addEventListener('pointermove',e=>this.move(e));
   this.canvas.addEventListener('pointerup',e=>this.up(e));
@@ -362,7 +362,12 @@ class Game {
    this.say(res.blocked.kind==='captive'?id+' 的锁杆还套在 '+res.blocked.target+' 上，先处理 '+res.blocked.target+'。':id+' 的锁杆被挡住了。试试反向转动，或先拆旁边的手镯。');
   }else{
    const aligned=model.state.rods.some(z=>C.exists(model.state,z)&&C.endpoints(model.state,z).some((e,j)=>e.id===id&&model.state.states[z.id][j]==='aligned'));
-   if(aligned){this.say(id+' 已对齐，保持这个位置，再调整其他扣位。');this.audio.play('align')}
+   if(aligned){
+    this.say(id+' 已对齐，保持这个位置，再调整其他扣位。');
+    const entered=model.state.rods.some(z=>C.exists(model.state,z)&&C.endpoints(model.state,z).some((e,j)=>
+     e.id===id&&model.state.states[z.id][j]==='aligned'&&before.states[z.id]?.[j]!=='aligned'));
+    if(entered)this.audio.play('align');
+   }
   }
   this.sync();return res;
  }
@@ -501,7 +506,7 @@ class Game {
   if(!removed.length)return;
   this.releasePointers();this.stopGuide(false);this.board.hint=null;
   this.board.release(before,this.model.state,removed);
-  this.audio.play('clear');
+  this.audio.play('tool');
   this.sync();
  }
  help():void{
@@ -555,7 +560,7 @@ async function boot():Promise<void>{
  Laya.Config.useWebGL2=false;
  await Laya.init(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
  Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor=THEME.paper;
- await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load();document.getElementById('boot')?.remove();
+ await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load().catch(e=>console.warn('Recorded audio unavailable',e));document.getElementById('boot')?.remove();
  if(new URLSearchParams(location.search).has('debug')){
   (window as unknown as {jadeDebug:unknown}).jadeDebug={game:g,Core:C,getState:()=>g.model?C.clone(g.model.state):null};
  }
@@ -564,5 +569,6 @@ boot().catch(e=>{
  console.error(e);const box=document.getElementById('boot');
  if(box){box.classList.add('error');box.textContent='玉盘暂时没有加载完成，请刷新再试。'}
 });
+
 
 

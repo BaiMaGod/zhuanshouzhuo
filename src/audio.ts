@@ -1,5 +1,5 @@
 // CC0 recorded ceramic foley approximates jade. Provenance: docs/音效与素材来源_V0.3.md.
-type Kind='select'|'align'|'clear'|'block'|'win';
+type Kind='button'|'tool'|'select'|'align'|'clear'|'block'|'win';
 // Blend the tail into the head once at decode time, rather than jumping between
 // unrelated samples on every loop. Keep the original recording unchanged.
 export function frictionLoop(ctx:BaseAudioContext,buffer:AudioBuffer):AudioBuffer{
@@ -17,6 +17,23 @@ export function frictionLoop(ctx:BaseAudioContext,buffer:AudioBuffer):AudioBuffe
  }
  return out;
 }
+// Original modal synthesis for UI/reward feedback; no external sample licence.
+// One buffer per cue keeps the voice limit predictable, including the win phrase.
+export function cueBuffer(ctx:BaseAudioContext,kind:'button'|'align'|'clear'|'tool'|'win'):AudioBuffer{
+ const notes=kind==='win'?[523.25,659.25,783.99]:kind==='tool'?[659.25,987.77]:kind==='clear'?[783.99,1046.5]:kind==='align'?[1174.66]:[880];
+ const spacing=kind==='win'?.16:.065,duration=kind==='button'?.065:kind==='align'?.11:.3;
+ const rate=ctx.sampleRate||44100,length=Math.ceil((duration+spacing*(notes.length-1))*rate);
+ const out=ctx.createBuffer(1,length,rate),data=out.getChannelData(0);
+ notes.forEach((frequency,n)=>{
+  const start=Math.round(n*spacing*rate);
+  for(let i=0;i<Math.floor(duration*rate)&&start+i<length;i++){
+   const t=i/rate,envelope=Math.min(1,t/.004)*Math.exp(-t/(duration/5))*Math.min(1,(duration-t)/.012);
+   // Quiet inharmonic partials evoke a small rounded chime rather than a beep.
+   data[start+i]+=(Math.sin(2*Math.PI*frequency*t)+.22*Math.sin(2*Math.PI*frequency*2.71*t)*Math.exp(-t*35))*envelope*.48;
+  }
+ });
+ return out;
+}
 export class Audio {
  context:AudioContext|null=null;
  private enabled_=true;private master:GainNode|null=null;
@@ -24,7 +41,7 @@ export class Audio {
  private decoding:Promise<void>|null=null;
  private rotation:{source:AudioBufferSourceNode;gain:GainNode}|null=null;
  private voices=new Set<AudioBufferSourceNode>();
- private motionAt=0;private velocity=0;private lastAt=0;private contact:string|null=null;
+ private motionAt=0;private velocity=0;private lastAt=-Infinity;private contact:string|null=null;
  get enabled():boolean{return this.enabled_}
  set enabled(v:boolean){this.enabled_=v;if(!v)this.stopAll();if(this.master)this.master.gain.value=v?.65:0}
  async load():Promise<void>{
@@ -33,12 +50,14 @@ export class Audio {
    const r=await fetch('assets/audio/'+name+'.wav');if(!r.ok)throw Error('Audio HTTP '+r.status+' '+name);
    this.bytes[name]=await r.arrayBuffer();
   }));
+  // Decode while the context is suspended; the first gesture only resumes it.
+  this.prepare();await this.decoding;
  }
- wake():void{
-  if(!this.enabled)return;
+ private prepare():void{
+  if(typeof AudioContext==='undefined')return;
   try{
-   if(!this.context){this.context=new AudioContext();this.master=this.context.createGain();this.master.gain.value=.65;this.master.connect(this.context.destination)}
-   if(this.context.state==='suspended')void this.context.resume();
+   if(!this.context){this.context=new AudioContext();this.master=this.context.createGain();this.master.gain.value=this.enabled?.65:0;this.master.connect(this.context.destination)}
+   if(!this.buffers.button)for(const kind of ['button','align','clear','tool','win'] as const)this.buffers[kind]=cueBuffer(this.context,kind);
    if(!this.decoding&&Object.keys(this.bytes).length){
     const ctx=this.context;
     this.decoding=Promise.all(Object.entries(this.bytes).map(async([name,data])=>{
@@ -47,6 +66,10 @@ export class Audio {
     })).then(()=>{}).catch(e=>console.warn('Audio decode failed',e));
    }
   }catch(e){console.warn('Audio unavailable',e)}
+ }
+ wake():void{
+  if(!this.enabled)return;this.prepare();
+  if(this.context?.state==='suspended')void this.context.resume().catch(e=>console.warn('Audio resume failed',e));
  }
  motion(delta:number):void{
   if(!this.enabled||Math.abs(delta)<.001)return;this.wake();
@@ -60,14 +83,14 @@ export class Audio {
   if(!this.rotation){
    const source=ctx.createBufferSource(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
    source.buffer=buffer;source.loop=true;source.loopStart=0;source.loopEnd=buffer.duration;
-   filter.type='lowpass';filter.frequency.value=3900;gain.gain.setValueAtTime(0,ctx.currentTime);
+   filter.type='lowpass';filter.frequency.value=2800;gain.gain.setValueAtTime(0,ctx.currentTime);
    source.connect(filter);filter.connect(gain);gain.connect(this.master);
    source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect()};
    source.start(0,Math.random()*buffer.duration);this.rotation={source,gain};
   }
   const speed=Math.min(1,this.velocity/360);
   this.rotation.source.playbackRate.setTargetAtTime(.72+speed*.36,ctx.currentTime,.025);
-  this.rotation.gain.gain.setTargetAtTime(.035+speed*.195,ctx.currentTime,.025);
+  this.rotation.gain.gain.setTargetAtTime(.025+speed*.145,ctx.currentTime,.025);
  }
  tick(now:number):void{if(this.rotation&&now-this.motionAt>110)this.stopMotion()}
  stopMotion():void{
@@ -77,13 +100,13 @@ export class Audio {
  resetContact():void{this.contact=null}
  collision(key:string,strength=1):void{
   this.stopMotion();if(this.contact===key)return;this.contact=key;
-  this.sample(.35+Math.min(1,strength)*.16,.88+Math.random()*.08);
+  this.sample(.24+Math.max(0,Math.min(1,strength))*.12,.94+Math.random()*.06);
  }
- private sample(gain:number,rate:number,delay=0):void{
-  if(!this.enabled)return;this.wake();const ctx=this.context,buffer=this.buffers.ceramic_place_1;
+ private sample(gain:number,rate:number,delay=0,name='ceramic_place_1'):void{
+  if(!this.enabled)return;this.wake();const ctx=this.context,buffer=this.buffers[name];
   if(!ctx||!buffer||!this.master||this.voices.size>=4)return;
   const source=ctx.createBufferSource(),volume=ctx.createGain(),filter=ctx.createBiquadFilter();
-  source.buffer=buffer;source.playbackRate.value=rate;filter.type='lowpass';filter.frequency.value=5200;
+  source.buffer=buffer;source.playbackRate.value=rate;filter.type='lowpass';filter.frequency.value=name==='ceramic_place_1'?3400:6200;
   volume.gain.value=gain;source.connect(filter);filter.connect(volume);volume.connect(this.master);this.voices.add(source);
   source.onended=()=>{this.voices.delete(source);source.disconnect();volume.disconnect();filter.disconnect()};
   source.start(ctx.currentTime+delay);
@@ -91,9 +114,10 @@ export class Audio {
  play(kind:Kind):void{
   if(kind==='select')return;
   if(kind==='block'){this.collision('legacy');return}
-  const now=performance.now();if(kind==='align'&&now-this.lastAt<250)return;this.lastAt=now;
-  this.sample(kind==='align'?.13:.23,kind==='clear'?1.12:1.04);
-  if(kind==='win')this.sample(.16,1.22,.12);
+  const now=performance.now();if(kind==='align'&&now-this.lastAt<160)return;
+  if(kind==='align')this.lastAt=now;
+  this.sample(kind==='button'?.12:kind==='align'?.10:kind==='win'?.24:.19,1,0,kind);
  }
  stopAll():void{this.stopMotion();for(const source of this.voices)source.stop();this.voices.clear();this.contact=null}
 }
+

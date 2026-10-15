@@ -40,8 +40,9 @@ declare namespace Laya {
  }
  const stage:Stage;
  const loader:{load(url:string|string[]):Promise<unknown>;getRes(url:string):Texture};
- const timer:{frameLoop(delay:number,caller:unknown,fn:Function):void;delta:number;clearAll(caller:unknown):void};
+ const timer:{frameOnce(delay:number,caller:unknown,fn:Function):void;frameLoop(delay:number,caller:unknown,fn:Function):void;delta:number;clearAll(caller:unknown):void};
  const Tween:{to(target:unknown,props:unknown,duration:number,ease?:unknown,complete?:unknown,delay?:number):unknown;clearAll(target:unknown):void};
  const Ease:{backOut:unknown;sineIn:unknown;sineOut:unknown};
 }
+
 
