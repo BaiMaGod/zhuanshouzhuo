@@ -28,7 +28,7 @@ class Game {
  drag:{id:string;pointer:number;last:number;started:boolean}|null=null;canvas:HTMLCanvasElement;
  busy=false;epoch=0;worker:Worker|null=null;finishPlan:((path:Action[]|null)=>void)|null=null;
  demoButton:Button|null=null;settled=false;tutorialSeen=false;modalOpen=false;
- guide:Guide|null=null;guideTitle:Laya.Text|null=null;guideSkip:Button|null=null;homePreview:Board|null=null;modalCard:Laya.Sprite|null=null;modalShade:Laya.Sprite|null=null;
+ guide:Guide|null=null;guideTitle:Laya.Text|null=null;guideSkip:Button|null=null;homePreview:Board|null=null;homeSettingsButton:Button|null=null;modalCard:Laya.Sprite|null=null;modalShade:Laya.Sprite|null=null;
  constructor(){
   this.root.scale(RENDER_SCALE,RENDER_SCALE);
   Laya.stage.addChild(this.root);this.root.addChild(this.scene);this.root.addChild(this.overlay);
@@ -62,7 +62,7 @@ class Game {
   // Dispose the fixed decorative wallpaper separately: it lives under the
   // gameplay scene, never inside the tray/ring rendering pass.
   this.wallpaper?.destroy(true);this.wallpaper=null;
-  this.scene.destroy(true);this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
+  this.scene.destroy(true);this.homeSettingsButton=null;this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
   this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.message=null;this.status=null;this.turnStatus=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
   // Keep render-pass topology stable through zoom, undo and restart.
   this.scene.size(W,H);this.scene.cacheAs=mode==='game'?'bitmap':'none';
@@ -79,7 +79,7 @@ class Game {
   const badge=panel(this.scene,34,30,244,58,18,THEME.white,THEME.faint);flower(badge.graphics,25,29,4,THEME.rose);
   text(badge,'教学 '+completed+' / 10',47,0,183,58,22,COLORS.ink,'center',true);
   const settingsButton=new Button('',608,28,76,66,()=>this.settings(),false,'settings');
-  settingsButton.name='button:settings';this.scene.addChild(settingsButton);
+  settingsButton.name='button:settings';this.scene.addChild(settingsButton);this.homeSettingsButton=settingsButton;
   const titleY=H<1350?132:160;
   text(this.scene,'转手镯消除',44,titleY,592,88,64,COLORS.ink,'center',true);
   const top=titleY+112,bottom=H-438,cy=(top+bottom)/2,plateH=Math.min(670,bottom-top);
@@ -459,11 +459,19 @@ class Game {
   this.sync();
  }
  hideModal():void{
-  // Keep the overlay container alive: destroying/recreating it while handling a
-  // modal button click can disrupt the home scene's input/render ordering.
-  if(this.modalCard){Laya.Tween?.clearAll(this.modalCard);this.modalCard.destroy(true);this.modalCard=null}
-  if(this.modalShade){this.modalShade.destroy(true);this.modalShade=null}
-  this.modalOpen=false;
+  // Modal actions run during Laya's CLICK dispatch. Destroying the clicked
+  // button and its parents synchronously can leave stale render/hit state.
+  // Hide both layers now, then release them after the current input frame.
+  const card=this.modalCard,shade=this.modalShade;
+  this.modalCard=null;this.modalShade=null;this.modalOpen=false;
+  if(card){Laya.Tween?.clearAll(card);card.visible=false;card.mouseEnabled=false}
+  if(shade){shade.visible=false;shade.mouseEnabled=false}
+  if(card||shade)Laya.timer.frameOnce(1,this,()=>{card?.destroy(true);shade?.destroy(true)});
+  // Closing settings must never remove or leave the home shortcut invisible.
+  const settings=this.homeSettingsButton;
+  if(this.mode==='home'&&settings?.parent===this.scene){
+   settings.visible=true;settings.enabled=true;settings.alpha=1;
+  }
   if(this.model&&this.board)this.sync();
  }
 }
