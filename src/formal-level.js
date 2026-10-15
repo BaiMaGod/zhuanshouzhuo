@@ -1,6 +1,6 @@
 // Verified continuous hexagonal packing with balanced, tapered oval ends.
 export default {
- "name": "第1关",
+ "name": "第45关",
  "kind": "formal",
  "tip": "54 镯沿玉盘内侧紧密相扣，中部饱满、上下收窄。先找外围可转的玉镯，再逐步解开保持机关。",
  "points": [

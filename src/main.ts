@@ -111,7 +111,7 @@ class Game {
   text(this.scene,'正式关卡 · 已通关 '+passed+' / '+total+' 关',80,133,560,43,23,COLORS.ink,'center');
   ornament(this.scene,185,202,350);
   const start=current*pageSize,end=Math.min(total,start+pageSize),single=total===1;
-  const cellH=Math.min(190,(H-410)/4);
+  const cellH=Math.min(190,Math.floor((H-483)/4));
   for(let j=start;j<end;j++){
    const index=TEACHING_COUNT+j,slot=j-start;
    const x=single?68:slot%2?378:42;
@@ -128,8 +128,8 @@ class Game {
   }
   if(total===0)text(this.scene,'正式关卡正在制作中',100,Math.round(H/2)-30,520,66,28,COLORS.muted,'center');
   if(pages>1){
-   if(current>0)this.scene.addChild(new Button('上一页',90,H-162,236,66,()=>this.levels(current-1),false,'back'));
-   if(current<pages-1)this.scene.addChild(new Button('下一页',394,H-162,236,66,()=>this.levels(current+1),false,'play'));
+   if(current>0)this.scene.addChild(new Button('上一页',60,H-162,210,66,()=>this.levels(current-1),false,'back'));
+   if(current<pages-1)this.scene.addChild(new Button('下一页',450,H-162,210,66,()=>this.levels(current+1),false,'play'));
    text(this.scene,(current+1)+' / '+pages,310,H-151,100,40,22,COLORS.muted,'center');
   }
   text(this.scene,'拖动玉镯，逐关解开相扣的机关',86,H-77,548,43,22,COLORS.muted,'center');
@@ -455,7 +455,15 @@ class Game {
  }
  win():void{
   if(!this.model)return;const i=this.model.index,steps=this.model.state.steps;
-  if(this.formal){const stars=this.save.win(i,steps,solutions[i].length),level='第'+(i-TEACHING_COUNT+1)+'关';this.audio.play('win');this.modal(level+' · 全部解开',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].points.length+' 只玉镯全部解开 · '+steps+' 次转动','通关成绩已记录，可以再试试更巧的拆解路线。'],[{label:'回到首页',action:()=>this.home(),primary:true},{label:'再挑战一次',action:()=>this.load(i),primary:false}]);return}
+  if(this.formal){
+   const stars=this.save.win(i,steps,solutions[i].length),last=i===C.levels.length-1,level='第'+(i-TEACHING_COUNT+1)+'关';
+   this.audio.play('win');
+   this.modal(level+' · 全部解开',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].points.length+' 只玉镯全部解开 · '+steps+' 次转动',last?'最后一关已解开，随时回来再挑战。':'通关成绩已记录，下一关再多一只玉镯。'],[
+    {label:last?'关卡图谱':'下一关',action:()=>last?this.levels():this.load(i+1),primary:true},
+    {label:'回到首页',action:()=>this.home(),primary:false},
+    {label:'再挑战一次',action:()=>this.load(i),primary:false}
+   ]);return;
+  }
   const stars=this.save.win(i,steps,solutions[i].length);if(i<3){this.save.data.tutorial=Math.max(this.save.data.tutorial,i+1);this.save.persist()}this.stopGuide(false);this.audio.play('win');
   this.modal(i===9?'十境皆通':'这一境，解开了',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].name+' · '+steps+' 次转动',i===9?'玉环十境全部完成，随时回来再解。':'下一境已开启，机关会再多一点变化。'],[
    {label:i===9?'进入正式关卡':'进入第 '+(i+2)+' 境',action:()=>i===9?this.levels():this.load(i+1),primary:true},

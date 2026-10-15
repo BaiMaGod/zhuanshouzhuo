@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import C from '../dist/js/core.js';
+import C from '../dist/js/core.js';import {LEGACY_FORMAL_INDEX} from '../dist/js/levels.js';
 import {trayFit,TRAY_SURFACE,RING_ENVELOPE} from '../dist/js/tray-layout.js';
 test('正式54镯的完整旋转外缘在各屏幕玉盘内，保持原始密铺距离',()=>{
- const rings=C.make(10).rings;
+ const rings=C.make(LEGACY_FORMAL_INDEX).rings;
  const center={x:0,y:0};
  for(const h of [780,1058,1112,1300]){
   const zoom=trayFit(rings,center,710,h);

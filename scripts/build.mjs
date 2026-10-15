@@ -1,4 +1,5 @@
 import {spawnSync} from 'node:child_process';
+import {levels,TEACHING_COUNT} from '../src/levels.js';
 import {rmSync,mkdirSync,cpSync,readFileSync,writeFileSync,readdirSync} from 'node:fs';
 rmSync('dist',{recursive:true,force:true});
 mkdirSync('dist',{recursive:true});
@@ -15,6 +16,6 @@ for(const file of readdirSync('dist/js').filter(f=>f.endsWith('.js'))){
 }
 const html=readFileSync('dist/index.html','utf8').replace('src="js/main.js"','src="js/main.js?v='+p.version+'"');
 writeFileSync('dist/index.html',html);
-writeFileSync('dist/version.json',JSON.stringify({version:p.version,engine:'LayaAir 3.4.0',rules:'V3.2',levels:11,teachingLevels:10,formalLevels:1})+'\n');
+writeFileSync('dist/version.json',JSON.stringify({version:p.version,engine:'LayaAir 3.4.0',rules:'V3.2',levels:levels.length,teachingLevels:TEACHING_COUNT,formalLevels:levels.length-TEACHING_COUNT})+'\n');
 console.log('Built 玉环十境 '+p.version);
 

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {installHarness} from './scene-harness.mjs';
+import {LEGACY_FORMAL_INDEX} from '../dist/js/levels.js';
 const h=installHarness();
 await import('../dist/js/main.js');
 await new Promise(r=>setImmediate(r));
@@ -116,11 +117,11 @@ test('正式关独立开放且没有微调、演示，双指缩放不旋转玉�
 
 
 test('所有关卡没有旋转按钮、撤销、选中圆圈，正式关可用手势完整拆解',async()=>{
- const route=(await import('../dist/js/solutions.js')).default[10];
+ const route=(await import('../dist/js/solutions.js')).default[LEGACY_FORMAL_INDEX];
  for(const i of [0,1,10]){g.load(i);const labels=[];function walk(n){if(n.label)labels.push(n.label.text);for(const c of n.children)walk(c)}walk(g.scene);for(const label of ['旋转手镯','移动棋盘','撤销','↶ 30°','30° ↷','↶ 微调','微调 ↷','演示'])assert.ok(!labels.includes(label));assert.equal(g.undoButton,null);for(const v of g.board.rings.values())assert.equal(v.halo.graphics.ops.length,0);}
- g.load(10);const b=g.board;
+ g.load(LEGACY_FORMAL_INDEX);const b=g.board;
  for(const a of route){const r=C.ring(g.model.state,a.id);b.zoomTo(b.fitZoom*3,{x:360,y:500});const delta=C.rot({x:r.x-b.center.x,y:r.y-b.center.y},b.turn);b.panTo({x:360-delta.x*b.zoom,y:500-delta.y*b.zoom});const start=r.a+50,event=q=>({clientX:q.x/2,clientY:q.y/2,pointerId:88,button:0});const first=b.toScreen(C.point(r,start));g.down(event(first));assert.equal(g.drag?.id,a.id);const n=Math.ceil(Math.abs(a.delta)/4);for(let k=1;k<=n;k++)g.move(event(b.toScreen(C.point(r,start+a.delta*k/n))));g.up(event(first));for(let k=0;k<40;k++)h.tick();assert.ok(!b.animating);for(const v of b.rings.values())assert.equal(v.halo.graphics.ops.length,0);}
- assert.ok(g.model.cleared);assert.ok(g.settled);assert.equal(g.model.state.steps,route.length);g.load(10);assert.equal(g.model.state.rings.filter(r=>r.life==='active').length,54);
+ assert.ok(g.model.cleared);assert.ok(g.settled);assert.equal(g.model.state.steps,route.length);g.load(LEGACY_FORMAL_INDEX);assert.equal(g.model.state.rings.filter(r=>r.life==='active').length,54);
 });
 
 test('正式关复用首页背景图，但不会随玉盘一起缩放或覆盖手镯',()=>{
@@ -154,7 +155,7 @@ test('正式关复用首页背景图，但不会随玉盘一起缩放或覆盖�
 });
 
 test('花园、玉盘与玉镯共用视角，缩放平移和撤销不会改变背景上的镯位',()=>{
- g.load(10);const b=g.board,bg=b.backdrop,art=[...bg.children];
+ g.load(LEGACY_FORMAL_INDEX);const b=g.board,bg=b.backdrop,art=[...bg.children];
  assert.equal(art.length,2);assert.equal(art[0].name,'board-garden');assert.equal(art[1].name,'board-tray');
  const registered=art.map(n=>({x:n.x,y:n.y,scale:n.scaleX,rotation:n.rotation}));
  const check=()=>{assert.equal(bg.x,b.root.x+b.rect.x);assert.equal(bg.y,b.root.y+b.rect.y);assert.equal(bg.scaleX,b.root.scaleX);assert.equal(bg.scaleY,b.root.scaleY);assert.equal(bg.rotation,b.root.rotation);assert.deepEqual(art.map(n=>({x:n.x,y:n.y,scale:n.scaleX,rotation:n.rotation})),registered)};
@@ -164,7 +165,7 @@ test('花园、玉盘与玉镯共用视角，缩放平移和撤销不会改变�
 });
 
 test('正式提示只显示方向手指，不改步数或扣位；跟随视角且拖动和重开清理',async()=>{
- g.load(10);const before=C.clone(g.model.state);
+ g.load(LEGACY_FORMAL_INDEX);const before=C.clone(g.model.state);
  await g.hint();assert.ok(g.guide?.action);assert.equal(g.guide.id,'9D');
  assert.equal(g.modalOpen,false);assert.deepEqual(g.model.state,before);
  for(let k=0;k<10;k++)h.tick();assert.equal(g.guide.hand.visible,true);
@@ -185,7 +186,7 @@ test('新手练习可返回首页，图谱只列正式关卡并统一编号',()=
  labels(g.scene,homeLabels);assert.ok(homeLabels.includes('第1关'));assert.ok(!homeLabels.some(x=>x.includes('九宫锁玉阵')));
  g.levels();assert.equal(g.mode,'levels');const pageLabels=[];labels(g.scene,pageLabels);
  assert.ok(pageLabels.includes('第1关'));assert.ok(!pageLabels.some(x=>x.includes('初识双镯')||x.includes('教学十关')||x.includes('九宫锁玉阵')));
- assert.equal(g.scene.children.filter(n=>n.name?.startsWith('formal-level:')).length,1);
+ assert.equal(g.scene.children.filter(n=>n.name?.startsWith('formal-level:')).length,8);
  const formal=g.scene.children.find(n=>n.name==='formal-level:1');assert.ok(formal);formal.click();
  assert.equal(g.model.index,10);assert.equal(g.formal,true);
 });
@@ -377,4 +378,36 @@ test('导航按钮先切场景再播放点击反馈，声音不会被场景清�
  g.audio.play=kind=>events.push(kind);g.audio.stopAll=()=>events.push('stop');
  try{g.home();events.length=0;g.scene.children.find(n=>n.name==='button:第1关').click();assert.equal(g.mode,'game');assert.equal(events.at(-1),'button');assert.ok(events.indexOf('stop')<events.lastIndexOf('button'))}
  finally{g.audio.play=originalPlay;g.audio.stopAll=originalStop;g.audio.enabled=false}
+});
+
+test('正式图谱13页覆盖100关，末页可进入第100关且隐藏编号',()=>{
+ const ids=[];
+ for(let page=0;page<13;page++){
+  g.levels(page);const entries=g.scene.children.filter(n=>n.name?.startsWith('formal-level:'));
+  assert.equal(entries.length,page===12?4:8);ids.push(...entries.map(n=>n.name));
+ }
+ assert.equal(new Set(ids).size,100);
+ const last=g.scene.children.find(n=>n.name==='formal-level:100');assert.ok(last);last.click();
+ assert.equal(g.model.index,109);assert.equal(g.model.state.rings.length,109);assert.equal(g.formal,true);
+ assert.ok(g.scene.children.some(n=>n.text==='第100关'));
+ assert.ok([...g.board.rings.values()].every(v=>v.label.text===''));
+ assert.ok(g.board.fitZoom>0);g.load(110);assert.equal(g.model.index,109);
+});
+
+test('正式关结算能进入下一关，第100关结算返回图谱',()=>{
+ g.load(10);g.win();assert.ok(g.modalCard.children.some(n=>n.text==='第1关 · 全部解开'));
+ g.modalCard.children.find(n=>n.label?.text==='下一关').click();
+ assert.equal(g.model.index,11);assert.equal(g.model.state.rings.length,11);assert.equal(g.modalOpen,false);
+ g.load(109);g.win();assert.ok(!g.modalCard.children.some(n=>n.label?.text==='下一关'));
+ g.modalCard.children.find(n=>n.label?.text==='关卡图谱').click();assert.equal(g.mode,'levels');
+});
+
+
+test('正式图谱翻页按钮、页码与最后一行卡片互不遮挡',()=>{
+ g.levels(6);
+ const previous=g.scene.children.find(n=>n.label?.text==='上一页'),next=g.scene.children.find(n=>n.label?.text==='下一页');
+ const counter=g.scene.children.find(n=>n.text==='7 / 13');
+ assert.ok(previous.x+previous.width<counter.x);assert.ok(counter.x+counter.width<next.x);
+ const cards=g.scene.children.filter(n=>n.name?.startsWith('formal-level:'));
+ assert.ok(Math.max(...cards.map(n=>n.y+n.height))<previous.y);
 });

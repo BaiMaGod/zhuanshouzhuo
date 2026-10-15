@@ -2,6 +2,7 @@ import C0 from './core.js';
 import type {CoreAPI,State,Point,Ring,Block} from './types.js';
 import {JADE_NAMES,drawJade} from './jade.js';
 import {trayFit} from './tray-layout.js';
+import {TEACHING_COUNT} from './levels.js';
 import {THEME} from './ui.js';
 const C=C0 as unknown as CoreAPI;
 export interface Ghost {r:Ring;state:State;start:number}
@@ -32,10 +33,10 @@ export class Board {
   const xs=s.rings.map(r=>r.x),ys=s.rings.map(r=>r.y);
   const dx=Math.max(...xs)-Math.min(...xs),dy=Math.max(...ys)-Math.min(...ys);
   this.center={x:(Math.min(...xs)+Math.max(...xs))/2,y:(Math.min(...ys)+Math.max(...ys))/2};
-  this.turn=s.index===10?0:(dx+110)/(dy+110)>1.7&&this.rect.h/this.rect.w>1.3?90:0;
+  this.turn=s.index>=TEACHING_COUNT?0:(dx+110)/(dy+110)>1.7&&this.rect.h/this.rect.w>1.3?90:0;
   const w=(this.turn?dy:dx)+116,h=(this.turn?dx:dy)+116;
   this.bounds={w,h};this.fitZoom=Math.min(this.rect.w/w,this.rect.h/h,3.4);
-  if(s.index===10){
+  if(s.index>=TEACHING_COUNT){
    if(!this.traySize)throw new Error('Formal layout requires the actual tray dimensions');
    this.fitZoom=Math.min(this.fitZoom,trayFit(s.rings,this.center,this.traySize.w,this.traySize.h));
   }
@@ -49,7 +50,7 @@ export class Board {
    const offset=C.rot({x:1.7,y:3.6},-this.turn);shadow.pos(offset.x,offset.y);root.addChild(shadow);
    const halo=new Laya.Sprite();root.addChild(halo);
    const body=new Laya.Sprite();drawJade(body.graphics,JADE_NAMES[i%5]);root.addChild(body);
-   const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index===10||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
+   const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index>=TEACHING_COUNT||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
    this.rings.set(r.id,{root,body,halo,label,shadow});
   });
  }

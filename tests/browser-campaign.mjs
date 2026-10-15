@@ -1,0 +1,89 @@
+// Real browser coverage for the 100-level campaign. Gameplay uses actual input;
+// the debug bridge is only read to locate controls and observe rule state.
+import assert from 'node:assert/strict';
+import {createServer} from 'node:http';
+import {readFile,mkdir,writeFile} from 'node:fs/promises';
+import {resolve,extname,sep} from 'node:path';
+import {chromium} from 'playwright';
+const root=resolve('dist'),out=resolve('tests/results/campaign');await mkdir(out,{recursive:true});
+const server=createServer(async(req,res)=>{
+ try{
+  const pathname=new URL(req.url,'http://local').pathname;
+  const file=resolve(root,'.'+decodeURIComponent(pathname==='/'?'/index.html':pathname));
+  if(!file.startsWith(root+sep))throw Error('path');
+  res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.woff':'font/woff','.wav':'audio/wav'})[extname(file)]||'application/octet-stream');res.end(await readFile(file));
+ }catch{res.writeHead(404).end()}
+});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}),args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--enable-webgl','--ignore-gpu-blocklist']});
+const report={errors:[],profiles:[]};
+async function button(page,label){
+ const p=await page.evaluate(label=>{
+  const g=window.jadeDebug.game;
+  const walk=(n,x=0,y=0)=>{
+   x+=n.x;y+=n.y;
+   if(n.name===label||n.label?.text===label)return{x:x+n.width/2,y:y+n.height/2};
+   for(let i=0;i<n.numChildren;i++){const q=walk(n.getChildAt(i),x,y);if(q)return q}
+  };
+  const q=walk(g.modalOpen?g.overlay:g.scene);if(!q)throw Error('Missing button: '+label);
+  const r=g.canvas.getBoundingClientRect();return{x:r.left+q.x/g.scene.width*r.width,y:r.top+q.y/g.scene.height*r.height};
+ },label);
+ await page.mouse.click(p.x,p.y);await page.waitForTimeout(80);
+}
+async function drag(page,a){
+ const points=await page.evaluate(a=>{
+  const {game:g,Core:C}=window.jadeDebug,r=C.ring(g.model.state,a.id),start=r.a+50,box=g.canvas.getBoundingClientRect(),n=Math.ceil(Math.abs(a.delta)/3);
+  return Array.from({length:n+1},(_,i)=>{const p=g.board.toScreen(C.point(r,start+a.delta*i/n));return{x:box.left+p.x/g.scene.width*box.width,y:box.top+p.y/g.scene.height*box.height}});
+ },a);
+ await page.mouse.move(points[0].x,points[0].y);await page.mouse.down();
+ for(const p of points.slice(1))await page.mouse.move(p.x,p.y);
+ await page.mouse.up();await page.waitForTimeout(350);
+}
+try{
+ for(const [width,height] of [[360,640],[390,844],[1280,720]]){
+  const p=await browser.newPage({viewport:{width,height},deviceScaleFactor:1});
+  p.on('pageerror',e=>report.errors.push(e.message));p.on('requestfailed',r=>report.errors.push(r.url()));
+  p.on('response',r=>{if(r.status()>=400)report.errors.push(r.status()+' '+r.url())});
+  await p.goto('http://127.0.0.1:'+server.address().port+'/?debug');
+  await p.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot'));
+  await button(p,'第1关');
+  assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.length),10);
+  const route=await p.evaluate(async()=>{const version=await (await fetch('./version.json')).json();return (await import('./js/solutions.js?v='+version.version)).default[10]});
+  for(const a of route)await drag(p,a);
+  assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.cleared),true);
+  await p.waitForFunction(()=>window.jadeDebug.game.modalOpen&&window.jadeDebug.game.settled);
+  await button(p,'下一关');assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.index),11);
+  await button(p,'button:home');await button(p,'确认返回');await button(p,'关卡图谱');
+  await p.screenshot({path:resolve(out,width+'-page1.png')});
+  for(let page=0;page<5;page++)await button(p,'下一页');
+  await button(p,'formal-level:45');
+  assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.length),54);
+  await p.screenshot({path:resolve(out,width+'-level45.png')});
+  await button(p,'button:home');await button(p,'确认返回');await button(p,'关卡图谱');
+  for(let page=0;page<12;page++)await button(p,'下一页');
+  await p.screenshot({path:resolve(out,width+'-page13.png')});
+  await button(p,'formal-level:100');
+  assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.length),109);
+  assert.equal(await p.evaluate(()=>[...window.jadeDebug.game.board.rings.values()].every(v=>v.label.text==='')),true);
+  await p.screenshot({path:resolve(out,width+'-level100.png')});
+  await button(p,'提示');
+  await p.waitForFunction(()=>!!window.jadeDebug.game.guide?.action);
+  const action=await p.evaluate(()=>window.jadeDebug.game.guide.action);
+  const before=await p.evaluate(()=>window.jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length);
+  await drag(p,action);
+  assert.ok(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length)<before,'actual level100 gesture removes a ring');
+  // Partial progress uses the worker's formal hint path at index 109.
+  await button(p,'提示');await p.waitForFunction(()=>!!window.jadeDebug.game.guide?.action,{timeout:25000});
+  assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.steps),1);
+  await button(p,'button:restart');await button(p,'确认重开');
+  assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length),109);
+  await button(p,'+');
+  assert.ok(await p.evaluate(()=>window.jadeDebug.game.board.zoom>window.jadeDebug.game.board.fitZoom));
+  await button(p,'全盘');
+  assert.equal(await p.evaluate(()=>window.jadeDebug.game.board.zoom===window.jadeDebug.game.board.fitZoom),true);
+  report.profiles.push({width,height,firstLevelCleared:true,legacyLevel:45,lastLevel:100,lastCount:109,hintAfterInput:true});
+  console.log('Browser campaign passed:',width,height);await p.close();
+ }
+ assert.deepEqual(report.errors,[]);
+ await writeFile(resolve(out,'report.json'),JSON.stringify(report,null,2));
+}finally{await browser.close();server.close()}
