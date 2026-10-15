@@ -83,3 +83,17 @@ test('closing another scene modal does not revive an obsolete home button',()=>{
  assert.equal(settings.visible,false);
  assert.equal(settings.enabled,false);
 });
+
+test('home settings button is reattached if the input engine detached it',()=>{
+ const {ModalHarness}=harness();
+ const game=new ModalHarness();
+ const scene={children:[],addChild(node){this.children.push(node);node.parent=this}};
+ const settings={parent:null,visible:false,enabled:false,alpha:0};
+ Object.assign(game,{mode:'home',scene,homeSettingsButton:settings,modalCard:null,modalShade:null,modalOpen:true,model:null,board:null});
+ game.hideModal();
+ assert.equal(settings.parent,scene);
+ assert.equal(scene.children[0],settings);
+ assert.equal(settings.visible,true);
+ assert.equal(settings.enabled,true);
+ assert.equal(settings.alpha,1);
+});
