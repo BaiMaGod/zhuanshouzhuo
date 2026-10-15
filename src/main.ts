@@ -105,11 +105,12 @@ class Game {
   this.image(this.scene,TRAY,360,cy,636,plateH);
   this.homePreview=new Board(this.scene,{x:118,y:cy-126,w:484,h:252});this.homePreview.showLabels=false;
   const state=C.make(0);this.homePreview.load(state);this.homePreview.draw(state);
-  this.scene.addChild(new Button('第1关',112,H-375,496,88,()=>this.load(FORMAL_INDEX),true,'play'));
+  const current=this.formalCurrent();
+  this.scene.addChild(new Button('第'+(current-TEACHING_COUNT+1)+'关',112,H-375,496,88,()=>this.load(current),true,'play'));
   this.scene.addChild(new Button('关卡图谱',116,H-251,234,68,()=>this.levels(),false,'map'));
   this.scene.addChild(new Button('新手练习',370,H-251,234,68,()=>this.practice(),false,'help'));
  }
- practice():void{this.load(0);this.startGuide()}
+ practice():void{this.load(this.teachingCurrent())}
  settings():void{
   this.modal('设置',[],[
    {label:this.audio.enabled?'音效 开':'音效 关',action:()=>{this.toggleSound();this.settings()},primary:false},
@@ -118,6 +119,10 @@ class Game {
   ]);
  }
  toggleSound():void{this.audio.enabled=!this.audio.enabled;this.save.data.sound=this.audio.enabled;this.save.persist()}
+ teachingCurrent():number{
+  for(let index=0;index<TEACHING_COUNT;index++)if(!this.save.data.records[index])return Math.min(index,this.save.data.unlocked);
+  return TEACHING_COUNT-1; // All tutorial levels cleared: replay the final one.
+ }
  formalCurrent():number{
   let index=TEACHING_COUNT;
   while(index<C.levels.length-1&&this.save.data.records[index])index++;
