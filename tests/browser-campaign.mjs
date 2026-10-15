@@ -53,15 +53,33 @@ try{
   assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.cleared),true);
   await p.waitForFunction(()=>window.jadeDebug.game.modalOpen&&window.jadeDebug.game.settled);
   await button(p,'下一关');assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.index),11);
+  await button(p,'button:home');await button(p,'确认返回');
+  // Reenter the homepage: its main button must resume the next uncompleted level.
+  await button(p,'第2关');assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.index),11);
   await button(p,'button:home');await button(p,'确认返回');await button(p,'关卡图谱');
   await p.screenshot({path:resolve(out,width+'-page1.png')});
-  for(let page=0;page<5;page++)await button(p,'下一页');
+
+  // Seed previously earned records as a returning player would have them.
+  // The first formal level above was genuinely cleared with real gestures.
+  await p.evaluate(()=>{
+   const key='jade-bracelet-laya-v1',progress=JSON.parse(localStorage.getItem(key));
+   for(let i=10;i<54;i++)progress.records[i]??={steps:i-9,stars:2};
+   localStorage.setItem(key,JSON.stringify(progress));
+  });
+  await p.reload();await p.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot'));
+  await button(p,'关卡图谱');await p.screenshot({path:resolve(out,width+'-level45-page.png')});
   await button(p,'formal-level:45');
   assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.length),54);
   await p.screenshot({path:resolve(out,width+'-level45.png')});
-  await button(p,'button:home');await button(p,'确认返回');await button(p,'关卡图谱');
-  for(let page=0;page<12;page++)await button(p,'下一页');
-  await p.screenshot({path:resolve(out,width+'-page13.png')});
+  await button(p,'button:home');await button(p,'确认返回');
+
+  await p.evaluate(()=>{
+   const key='jade-bracelet-laya-v1',progress=JSON.parse(localStorage.getItem(key));
+   for(let i=10;i<109;i++)progress.records[i]??={steps:i-9,stars:2};
+   localStorage.setItem(key,JSON.stringify(progress));
+  });
+  await p.reload();await p.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot'));
+  await button(p,'关卡图谱');await p.screenshot({path:resolve(out,width+'-page5.png')});
   await button(p,'formal-level:100');
   assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.length),109);
   assert.equal(await p.evaluate(()=>[...window.jadeDebug.game.board.rings.values()].every(v=>v.label.text==='')),true);
