@@ -524,6 +524,9 @@ class Game {
   this.guide?.clear();const shade=new Laya.Sprite();shade.size(W,H);shade.graphics.drawRect(0,0,W,H,'rgba(81,57,69,0.28)');shade.mouseEnabled=true;
   shade.on(Laya.Event.CLICK,this,()=>{});this.overlay.addChild(shade);this.modalShade=shade;
   const height=Math.min(H-150,250+lines.length*85+actions.length*84),card=panel(this.overlay,50,(H-height)/2,620,height,28,THEME.white,THEME.line);
+  // A modal hosts buttons whose state changes during pointer dispatch.
+  // Never bitmap-cache this entire dynamic subtree.
+  card.cacheAs='none';
   this.modalCard=card;
   if(Laya.Tween&&!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches){card.alpha=0;Laya.Tween.to(card,{alpha:1},140,Laya.Ease.sineOut)}
   card.mouseEnabled=true;card.on(Laya.Event.CLICK,this,()=>{});
