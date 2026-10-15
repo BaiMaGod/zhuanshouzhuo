@@ -330,3 +330,24 @@ test('正式关消除道具选定手镯后确认生效，取消不生效，按�
  assert.equal(fresh.length,0,'已消除手镯不会重复消除');
  assert.deepEqual(g.model.state.rings.map(r=>r.life),saved);
 });
+
+test('消除道具选镯时拖动画面不触发消除，双指缩放不会误确认',()=>{
+ g.load(10);g.eraseButton.click();
+ const r=g.model.state.rings[0],b=g.board;
+ const ringPoint=b.toScreen(C.point(r,r.a+55));
+ const p={clientX:ringPoint.x/2,clientY:ringPoint.y/2,pointerId:202,button:0};
+ g.down(p);
+ g.move({...p,clientX:p.clientX+20});
+ g.up({...p,clientX:p.clientX+20});
+ assert.equal(g.modalOpen,false,'拖动不能作为选镯点击');
+ assert.equal(g.eraseMode,true);
+ assert.equal(r.life,'active');
+ g.down(p);
+ const other={clientX:p.clientX+40,clientY:p.clientY,pointerId:203,button:0};
+ g.down(other);
+ g.move({...other,clientX:other.clientX+35});
+ g.up(other);g.up(p);
+ assert.equal(g.modalOpen,false,'双指缩放不能触发消除确认');
+ assert.equal(g.eraseMode,true);
+ assert.equal(r.life,'active');
+});
