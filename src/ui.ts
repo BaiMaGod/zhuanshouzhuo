@@ -35,7 +35,7 @@ export function icon(g:Laya.Graphics,kind:Icon,x:number,y:number,size:number,col
  }else if(kind==='map'){poly([2,4,9,2,16,5,22,3,22,20,16,22,9,19,2,21],null);line(9,2,9,19);line(16,5,16,22)}
  else if(kind==='sound'||kind==='mute'){poly([2,9,7,9,13,4,13,20,7,15,2,15]);if(kind==='mute'){line(17,8,23,16);line(23,8,17,16)}else{curvedPath(g,x,y,[['moveTo',17*s,6*s],['quadraticCurveTo',25*s,12*s,17*s,18*s]],undefined,{strokeStyle:color,lineWidth:2*s})}}
  else if(kind==='help'){g.drawCircle(x+12*s,y+12*s,10*s,null,color,1.7*s);curvedPath(g,x,y,[['moveTo',8*s,8*s],['quadraticCurveTo',12*s,2*s,16*s,8*s],['quadraticCurveTo',17*s,11*s,12*s,12*s],['lineTo',12*s,15*s]],undefined,{strokeStyle:color,lineWidth:2*s});g.drawCircle(x+12*s,y+18*s,s,color)}
- else if(kind==='erase'){g.drawCircle(x+12*s,y+12*s,9*s,null,color,1.7*s);line(7,12,17,12);line(12,7,12,17)}
+ else if(kind==='erase'){poly([3,15,13,4,21,12,12,21,8,21,3,16],null);line(13,21,23,21);line(8,10,15,17)}
  else if(kind==='settings'){g.drawCircle(x+12*s,y+12*s,7*s,null,color,2*s);g.drawCircle(x+12*s,y+12*s,2.6*s,null,color,1.6*s);for(let a=0;a<8;a++){const t=a*Math.PI/4;line(12+8*Math.cos(t),12+8*Math.sin(t),12+11*Math.cos(t),12+11*Math.sin(t))}}
  else if(kind==='home'){poly([2,11,12,2,22,11],null);poly([5,10,5,22,10,22,10,15,14,15,14,22,19,22,19,10],null)}
  else if(kind==='hint'){g.drawCircle(x+12*s,y+9*s,6*s,null,color,2*s);line(8,14,9,19);line(16,14,15,19);line(9,19,15,19);line(10,22,14,22);for(const a of[-60,0,60]){const t=a*Math.PI/180;line(12+9*Math.sin(t),9-9*Math.cos(t),12+12*Math.sin(t),9-12*Math.cos(t))}}
