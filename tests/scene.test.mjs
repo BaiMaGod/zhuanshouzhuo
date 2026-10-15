@@ -218,3 +218,112 @@ test('教程提示在盘面绘制手指和正确转动方向，不弹窗也不�
  assert.equal(g.hintButton?.label.text,'提示');
  g.load(0);assert.equal(g.guide?.action,undefined,'重开后清理手指提示');
 });
+
+test('正式关音效与玩法按钮反复点击不消失，提示按钮保留完整背景',async()=>{
+ g.load(10);
+ const sound=g.scene.children.find(n=>n.name==='button:sound');
+ const help=g.scene.children.find(n=>n.name==='button:help');
+ const hint=g.hintButton;
+ for(const button of [sound,help,hint]){
+  assert.ok(button,'正式关按钮存在');
+  assert.equal(button.skin.cacheAs,'none','按钮皮肤不能使用易丢失的位图缓存');
+  assert.ok(button.skin.graphics.ops.length>0,'按钮拥有背景绘制指令');
+ }
+ assert.equal(g.scene.cacheAs,'none','正式关按钮不应被整个场景缓存');
+ const initial=g.audio.enabled;
+ sound.click();
+ assert.equal(g.audio.enabled,!initial);
+ assert.equal(sound.parent,g.scene);
+ assert.equal(sound.visible,true);
+ assert.ok(sound.skin.graphics.ops.length);
+ help.click();
+ assert.equal(g.modalOpen,true);
+ const close=g.modalCard.children.find(node=>node.label?.text==='继续拆解');
+ assert.ok(close);close.click();
+ h.tick();
+ for(const button of [sound,help]){
+  assert.equal(button.parent,g.scene);
+  assert.equal(button.visible,true);
+  assert.equal(button.alpha,1);
+  assert.ok(button.skin.graphics.ops.length);
+ }
+ await g.hint();
+ assert.equal(hint.parent,g.scene);
+ assert.equal(hint.visible,true);
+ assert.ok(hint.skin.graphics.ops.length,'提示结束后背景不消失');
+ assert.equal(hint.skin.cacheAs,'none');
+ assert.equal(g.modalOpen,false,'提示应出现手指而不是遮挡弹窗');
+});
+
+test('正式关返回和重开都必须二次确认，取消不会损失进度',()=>{
+ g.load(10);
+ const home=g.scene.children.find(n=>n.name==='button:home');
+ const restart=g.scene.children.find(n=>n.name==='button:restart');
+ assert.ok(home&&restart);
+ g.model.begin();const steps=g.model.state.steps;
+ home.click();
+ assert.equal(g.mode,'game');
+ assert.equal(g.modalOpen,true);
+ assert.ok(g.modalCard.children.some(n=>n.label?.text==='确认返回'));
+ g.modalCard.children.find(n=>n.label?.text==='继续解镯').click();
+ assert.equal(g.mode,'game');assert.equal(g.model.state.steps,steps);
+ restart.click();
+ assert.equal(g.mode,'game');
+ assert.equal(g.modalOpen,true);
+ assert.ok(g.modalCard.children.some(n=>n.label?.text==='确认重开'));
+ g.modalCard.children.find(n=>n.label?.text==='继续解镯').click();
+ assert.equal(g.model.state.steps,steps);
+ restart.click();
+ g.modalCard.children.find(n=>n.label?.text==='确认重开').click();
+ assert.equal(g.mode,'game');
+ assert.equal(g.model.state.steps,0);
+ const homeAgain=g.scene.children.find(n=>n.name==='button:home');
+ homeAgain.click();g.modalCard.children.find(n=>n.label?.text==='确认返回').click();
+ assert.equal(g.mode,'home');
+});
+
+test('正式关消除道具选定手镯后确认生效，取消不生效，按钮可恢复',()=>{
+ g.load(10);
+ const button=g.eraseButton;
+ assert.ok(button);
+ assert.equal(button.name,'button:erase');
+ assert.equal(button.visible,true);
+ assert.equal(button.label.text,'消除');
+ const initial=g.model.state.rings.filter(r=>r.life==='active').length;
+ button.click();
+ assert.equal(g.eraseMode,true);
+ assert.equal(button.label.text,'取消');
+ assert.equal(g.eraseTip.visible,true);
+ button.click();
+ assert.equal(g.eraseMode,false,'再次点击道具退出选择模式');
+ button.click();
+ const ring=g.model.state.rings[0];
+ const b=g.board;
+ b.zoomTo(b.fitZoom*3,{x:360,y:500});
+ const offset=C.rot({x:ring.x-b.center.x,y:ring.y-b.center.y},b.turn);
+ b.panTo({x:360-offset.x*b.zoom,y:500-offset.y*b.zoom});
+ const p=b.toScreen(C.point(ring,ring.a+70));
+ g.down({clientX:p.x/2,clientY:p.y/2,pointerId:76,button:0});
+ assert.equal(g.modalOpen,true,'点击玉镯出现确认弹窗');
+ assert.equal(g.drag,null,'道具选择不能开始转动');
+ assert.equal(g.model.state.rings[0].life,'active','确认前不改变目标');
+ g.modalCard.children.find(n=>n.label?.text==='取消').click();
+ assert.equal(g.model.state.rings.filter(r=>r.life==='active').length,initial);
+ assert.equal(g.model.state.steps,0);
+ button.click();
+ g.chooseEraseTarget(ring.id);
+ g.modalCard.children.find(n=>n.label?.text==='确认消除').click();
+ assert.equal(C.ring(g.model.state,ring.id).life,'removed');
+ assert.ok(g.model.state.rings.filter(r=>r.life==='active').length<initial);
+ assert.equal(g.model.state.steps,0,'道具不应计入转动次数');
+ assert.equal(g.eraseMode,false);
+ assert.equal(button.label.text,'消除');
+ assert.ok(button.skin.graphics.ops.length);
+ assert.equal(g.modalOpen,false);
+ assert.ok(g.board.ghosts.length>0,'保留玉镯移除动画');
+ assert.ok(g.model.state.rods.filter(z=>z.owner===ring.id).every(z=>!C.exists(g.model.state,z)),'活动锁扣随消除的手镯消失');
+ const saved=g.model.state.rings.map(r=>r.life);
+ const fresh=g.model.removeWithTool(ring.id);
+ assert.equal(fresh.length,0,'已消除手镯不会重复消除');
+ assert.deepEqual(g.model.state.rings.map(r=>r.life),saved);
+});
