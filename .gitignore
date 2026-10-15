@@ -3,3 +3,12 @@ dist/
 .openai/
 *.zip
 tests/results/
+.release-out/
+laya/src/bracelet/
+laya/assets/assets/
+laya/engine/
+laya/library/
+laya/local/
+laya/temp/
+laya/bin/
+laya/release/

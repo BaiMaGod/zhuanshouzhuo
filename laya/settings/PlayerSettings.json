@@ -1,0 +1,24 @@
+{
+  "modules": {
+    "laya.d3": false,
+    "laya.ui": false
+  },
+  "addons": {
+    "laya.ui": "ui2"
+  },
+  "resolution": {
+    "designWidth": 720,
+    "designHeight": 1280,
+    "scaleMode": "showall",
+    "alignV": "middle",
+    "alignH": "center",
+    "screenMode": "none",
+    "backgroundColor": "#fcf7f3"
+  },
+  "2D": {
+    "useWebGL2": false
+  },
+  "UI": {
+    "alwaysIncludeDefaultSkin": false
+  }
+}

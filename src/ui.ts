@@ -5,7 +5,7 @@ export function round(g:Laya.Graphics,x:number,y:number,w:number,h:number,r:numb
  g.drawPath(x,y,[['moveTo',r,0],['lineTo',w-r,0],['arcTo',w,0,w,r,r],['lineTo',w,h-r],['arcTo',w,h,w-r,h,r],['lineTo',r,h],['arcTo',0,h,0,h-r,r],['lineTo',0,r],['arcTo',0,0,r,0,r],['closePath']],{fillStyle:fill},line?{strokeStyle:line,lineWidth:width}:undefined);
 }
 export function text(parent:Laya.Sprite,content:string,x:number,y:number,w:number,h:number,size=24,color=COLORS.ink,align='center',serif=false):Laya.Text{
- const t=new Laya.Text();t.text=content;t.pos(x,y);t.size(w,h);t.font=serif?'JadeSong, Noto Serif CJK SC, Songti SC, SimSun, serif':'JadeText, Noto Sans CJK SC, Microsoft YaHei, sans-serif';t.fontSize=size;t.color=color;t.align=align;t.valign='middle';t.wordWrap=true;t.leading=8;t.mouseEnabled=false;parent.addChild(t);return t;
+ const t=new Laya.Text();t.text=content;t.pos(x,y);t.size(w,h);t.font=serif?'jade-song, Noto Serif CJK SC, Songti SC, SimSun, serif':'jade-text, Noto Sans CJK SC, Microsoft YaHei, sans-serif';t.fontSize=size;t.color=color;t.align=align;t.valign='middle';t.wordWrap=true;t.leading=8;t.mouseEnabled=false;parent.addChild(t);return t;
 }
 export function panel(parent:Laya.Sprite,x:number,y:number,w:number,h:number,r=24,fill=COLORS.cream,line=THEME.faint):Laya.Sprite{
  const s=new Laya.Sprite();s.pos(x,y);s.size(w,h);s.mouseEnabled=false;

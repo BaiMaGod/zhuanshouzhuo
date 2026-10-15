@@ -1,3 +1,4 @@
+globalThis.Laya={LocalStorage:{getItem:k=>globalThis.localStorage.getItem(k),setItem:(k,v)=>globalThis.localStorage.setItem(k,v)}};
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import C from '../dist/js/core.js';

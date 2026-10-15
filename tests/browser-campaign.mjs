@@ -5,7 +5,8 @@ import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {resolve,extname,sep} from 'node:path';
 import {chromium} from 'playwright';
-const root=resolve('dist'),out=resolve('tests/results/campaign');await mkdir(out,{recursive:true});
+import solutions from '../src/solutions.js';
+const root=resolve(process.env.JADE_DIST||'dist'),out=resolve(process.env.JADE_REPORT||'tests/results/campaign');await mkdir(out,{recursive:true});
 const server=createServer(async(req,res)=>{
  try{
   const pathname=new URL(req.url,'http://local').pathname;
@@ -18,6 +19,11 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}),args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--enable-webgl','--ignore-gpu-blocklist']});
 const report={errors:[],profiles:[]};
 async function button(page,label){
+ await page.waitForFunction(label=>{
+  const g=window.jadeDebug?.game;if(!g||g.modalOpen&&g.modalCard?.alpha<.99)return false;
+  const walk=n=>{if(n.visible===false)return false;if(n.name===label||n.label?.text===label||(label==='提示'&&n.label?.text?.startsWith('提示 ×')))return n.enabled!==false;for(let i=0;i<n.numChildren;i++)if(walk(n.getChildAt(i)))return true;return false};
+  return walk(g.modalOpen?g.overlay:g.scene);
+ },label);
  const p=await page.evaluate(label=>{
   const g=window.jadeDebug.game;
   const walk=(n,x=0,y=0)=>{
@@ -26,13 +32,13 @@ async function button(page,label){
    for(let i=0;i<n.numChildren;i++){const q=walk(n.getChildAt(i),x,y);if(q)return q}
   };
   const q=walk(g.modalOpen?g.overlay:g.scene);if(!q)throw Error('Missing button: '+label);
-  const r=g.canvas.getBoundingClientRect();return{x:r.left+q.x/g.scene.width*r.width,y:r.top+q.y/g.scene.height*r.height};
+  const r=document.querySelector('canvas').getBoundingClientRect();return{x:r.left+q.x/g.scene.width*r.width,y:r.top+q.y/g.scene.height*r.height};
  },label);
  await page.mouse.click(p.x,p.y);await page.waitForTimeout(80);
 }
 async function drag(page,a){
  const points=await page.evaluate(a=>{
-  const {game:g,Core:C}=window.jadeDebug,r=C.ring(g.model.state,a.id),start=r.a+50,box=g.canvas.getBoundingClientRect(),n=Math.ceil(Math.abs(a.delta)/3);
+  const {game:g,Core:C}=window.jadeDebug,r=C.ring(g.model.state,a.id),start=r.a+50,box=document.querySelector('canvas').getBoundingClientRect(),n=Math.ceil(Math.abs(a.delta)/3);
   return Array.from({length:n+1},(_,i)=>{const p=g.board.toScreen(C.point(r,start+a.delta*i/n));return{x:box.left+p.x/g.scene.width*box.width,y:box.top+p.y/g.scene.height*box.height}});
  },a);
  await page.mouse.move(points[0].x,points[0].y);await page.mouse.down();
@@ -45,10 +51,10 @@ try{
   p.on('pageerror',e=>report.errors.push(e.message));p.on('requestfailed',r=>report.errors.push(r.url()));
   p.on('response',r=>{if(r.status()>=400)report.errors.push(r.status()+' '+r.url())});
   await p.goto('http://127.0.0.1:'+server.address().port+'/?debug');
-  await p.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot'));
+  await p.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot')&&(!document.querySelector('#splash')||getComputedStyle(document.querySelector('#splash')).display==='none'));
   await button(p,'第1关');
   assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.length),10);
-  const route=await p.evaluate(async()=>{const version=await (await fetch('./version.json')).json();return (await import('./js/solutions.js?v='+version.version)).default[10]});
+  const route=solutions[10];
   for(const a of route)await drag(p,a);
   assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.cleared),true);
   await p.waitForFunction(()=>window.jadeDebug.game.modalOpen&&window.jadeDebug.game.settled);
@@ -66,7 +72,7 @@ try{
    for(let i=10;i<54;i++)progress.records[i]??={steps:i-9,stars:2};
    localStorage.setItem(key,JSON.stringify(progress));
   });
-  await p.reload();await p.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot'));
+  await p.reload();await p.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot')&&(!document.querySelector('#splash')||getComputedStyle(document.querySelector('#splash')).display==='none'));
   await button(p,'关卡图谱');await p.screenshot({path:resolve(out,width+'-level45-page.png')});
   await button(p,'formal-level:45');
   assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.length),54);
@@ -78,7 +84,7 @@ try{
    for(let i=10;i<109;i++)progress.records[i]??={steps:i-9,stars:2};
    localStorage.setItem(key,JSON.stringify(progress));
   });
-  await p.reload();await p.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot'));
+  await p.reload();await p.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot')&&(!document.querySelector('#splash')||getComputedStyle(document.querySelector('#splash')).display==='none'));
   await button(p,'关卡图谱');await p.screenshot({path:resolve(out,width+'-page5.png')});
   await button(p,'formal-level:100');
   assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.length),109);

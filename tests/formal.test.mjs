@@ -1,3 +1,4 @@
+globalThis.Laya={LocalStorage:{getItem:k=>globalThis.localStorage.getItem(k),setItem:(k,v)=>globalThis.localStorage.setItem(k,v)}};
 import test from 'node:test';import assert from 'node:assert/strict';import C from '../dist/js/core.js';import {LEGACY_FORMAL_INDEX} from '../dist/js/levels.js';import solutions from '../dist/js/solutions.js';import {Save} from '../dist/js/storage.js';
 test('54镯正式关卡为相连九宫结构，跨宫杆真实阻挡且完整路线通关',()=>{
  const s=C.make(LEGACY_FORMAL_INDEX);assert.equal(s.rings.length,54);assert.equal(s.rods.length,62);assert.deepEqual(C.validate(s),[]);assert.equal(C.settle(C.clone(s)).length,0);

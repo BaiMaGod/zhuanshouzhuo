@@ -8,7 +8,7 @@ export class Save {
  data:Progress={version:2,unlocked:0,records:{},sound:true,tutorial:0};
  constructor(){
   try {
-   const p=JSON.parse(localStorage.getItem(KEY)||'null');
+   const p=JSON.parse(Laya.LocalStorage.getItem(KEY)||'null');
    if(p?.version===1||p?.version===2){
     if(Number.isInteger(p.unlocked))this.data.unlocked=Math.max(0,Math.min(9,p.unlocked));
     if(typeof p.sound==='boolean')this.data.sound=p.sound;
@@ -31,7 +31,7 @@ export class Save {
  }
  readRun(index:number):{state:State;hint:number;erase:number;hintProgress?:number}|null{
   try{
-   const r=JSON.parse(localStorage.getItem(KEY+'-run-'+index)||'null'),initial=Core.make(index);
+   const r=JSON.parse(Laya.LocalStorage.getItem(KEY+'-run-'+index)||'null'),initial=Core.make(index);
    if(!r||r.version!==1||![0,1].includes(r.hint)||![0,1].includes(r.erase)||r.hintProgress!==undefined&&(!Number.isInteger(r.hintProgress)||r.hintProgress<0||r.hintProgress>10000))return null;
    const s=r.state as State;
    if(!s||!Number.isFinite(s.steps)||s.steps<0||s.rings?.length!==initial.rings.length||s.rods?.length!==initial.rods.length)return null;
@@ -42,10 +42,10 @@ export class Save {
   }catch{return null}
  }
  writeRun(index:number,state:State,hint:number,erase:number,hintProgress=0):void{
-  try{const payload=JSON.stringify({version:1,state,hint,erase,hintProgress});if(this.runCache.get(index)===payload)return;localStorage.setItem(KEY+'-run-'+index,payload);this.runCache.set(index,payload)}catch{}
+  try{const payload=JSON.stringify({version:1,state,hint,erase,hintProgress});if(this.runCache.get(index)===payload)return;Laya.LocalStorage.setItem(KEY+'-run-'+index,payload);this.runCache.set(index,payload)}catch{}
  }
- clearRun(index:number):void{this.runCache.delete(index);try{localStorage.setItem(KEY+'-run-'+index,'null')}catch{}}
- persist():void {try{localStorage.setItem(KEY,JSON.stringify(this.data))}catch{}}
+ clearRun(index:number):void{this.runCache.delete(index);try{Laya.LocalStorage.setItem(KEY+'-run-'+index,'null')}catch{}}
+ persist():void {try{Laya.LocalStorage.setItem(KEY,JSON.stringify(this.data))}catch{}}
  win(index:number,steps:number,baseline:number):number{
   const stars=steps<=baseline+2?3:steps<=baseline+6?2:1;
   const old=this.data.records[index];

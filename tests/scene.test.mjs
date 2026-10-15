@@ -11,7 +11,7 @@ test('正式场景导航、点击只选中、真实手势路径与逐关解锁',
  assert.equal(g.mode,'home');g.load(1);assert.equal(g.mode,'home','未解锁不能直接进入');
  g.load(0);assert.equal(g.mode,'game');assert.equal(g.modalOpen,false);assert.ok(g.guide,'New player gets in-board coach without a blocking modal');
  const ring=C.ring(g.model.state,'B'),startAngle=ring.a,p=g.board.toScreen(C.point(ring,70));
- const event=(q)=>({clientX:q.x/2,clientY:q.y/2,pointerId:8});
+ const event=(q)=>({stageX:q.x*.75,stageY:q.y*.75,pointerId:8});
  g.down(event(p));g.up(event(p));assert.equal(ring.a,startAngle);assert.equal(g.model.state.steps,0);
  // Sweep on the actual ring hit area through the same controller used by pointers.
  g.down(event(p));
@@ -23,8 +23,8 @@ test('正式场景导航、点击只选中、真实手势路径与逐关解锁',
 });
 test('取消、重开与撤销解除指针捕获，恢复完整场景',()=>{
  g.load(1);const r=C.ring(g.model.state,'B'),p=g.board.toScreen(C.point(r,290));
- const e={clientX:p.x/2,clientY:p.y/2,pointerId:9};
- g.down(e);assert.equal(h.canvas.captured,9);g.cancel();assert.equal(g.drag,null);assert.equal(h.canvas.captured,null);
+ const e={stageX:p.x*.75,stageY:p.y*.75,pointerId:9};
+ g.down(e);assert.equal(g.pointers.has(9),true);g.cancel();assert.equal(g.drag,null);assert.equal(g.pointers.size,0);
  g.manual(30);assert.ok(g.model.history.length);g.undo();
  assert.equal(g.model.state.steps,0);assert.deepEqual(C.validate(g.model.state),[]);
  g.load(1);assert.equal(g.busy,false);assert.equal(g.drag,null);
@@ -107,7 +107,7 @@ test('首页不显示继续解镯按钮，主按钮点击与禁用状态正常',
 
 test('正式关独立开放且没有微调、演示，双指缩放不旋转玉镯',()=>{
  g.save.data.unlocked=0;g.home();g.load(10);assert.equal(g.model.index,10);assert.equal(g.controls.length,0);assert.equal(g.demoButton,null);assert.equal(g.guide,null);
- const before=C.clone(g.model.state),board=g.board,mid={x:board.rect.x+board.rect.w/2,y:board.rect.y+board.rect.h/2},event=(x,y,id)=>({clientX:x/2,clientY:y/2,pointerId:id,button:0});
+ const before=C.clone(g.model.state),board=g.board,mid={x:board.rect.x+board.rect.w/2,y:board.rect.y+board.rect.h/2},event=(x,y,id)=>({stageX:x*.75,stageY:y*.75,pointerId:id,button:0});
  g.down(event(mid.x-50,mid.y,31));g.down(event(mid.x+50,mid.y,32));g.move(event(mid.x-100,mid.y,31));g.move(event(mid.x+100,mid.y,32));
  assert.ok(board.zoom>board.fitZoom*1.9);assert.deepEqual(g.model.state,before);assert.equal(g.drag,null);
  g.up(event(mid.x+100,mid.y,32));g.move(event(mid.x-90,mid.y+30,31));assert.deepEqual(g.model.state,before,'remaining pinch finger cannot accidentally rotate');g.up(event(mid.x-90,mid.y+30,31));assert.equal(g.viewGesture,null);
@@ -121,7 +121,7 @@ test('所有关卡没有旋转按钮、撤销、选中圆圈，正式关可用�
  const route=(await import('../dist/js/solutions.js')).default[LEGACY_FORMAL_INDEX];
  for(const i of [0,1,10]){g.load(i);const labels=[];function walk(n){if(n.label)labels.push(n.label.text);for(const c of n.children)walk(c)}walk(g.scene);for(const label of ['旋转手镯','移动棋盘','撤销','↶ 30°','30° ↷','↶ 微调','微调 ↷','演示'])assert.ok(!labels.includes(label));assert.equal(g.undoButton,null);for(const v of g.board.rings.values())assert.equal(v.halo.graphics.ops.length,0);}
  g.load(LEGACY_FORMAL_INDEX);const b=g.board;
- for(const a of route){const r=C.ring(g.model.state,a.id);b.zoomTo(b.fitZoom*3,{x:360,y:500});const delta=C.rot({x:r.x-b.center.x,y:r.y-b.center.y},b.turn);b.panTo({x:360-delta.x*b.zoom,y:500-delta.y*b.zoom});const start=r.a+50,event=q=>({clientX:q.x/2,clientY:q.y/2,pointerId:88,button:0});const first=b.toScreen(C.point(r,start));g.down(event(first));assert.equal(g.drag?.id,a.id);const n=Math.ceil(Math.abs(a.delta)/4);for(let k=1;k<=n;k++)g.move(event(b.toScreen(C.point(r,start+a.delta*k/n))));g.up(event(first));for(let k=0;k<40;k++)h.tick();assert.ok(!b.animating);for(const v of b.rings.values())assert.equal(v.halo.graphics.ops.length,0);}
+ for(const a of route){const r=C.ring(g.model.state,a.id);b.zoomTo(b.fitZoom*3,{x:360,y:500});const delta=C.rot({x:r.x-b.center.x,y:r.y-b.center.y},b.turn);b.panTo({x:360-delta.x*b.zoom,y:500-delta.y*b.zoom});const start=r.a+50,event=q=>({stageX:q.x*.75,stageY:q.y*.75,pointerId:88,button:0});const first=b.toScreen(C.point(r,start));g.down(event(first));assert.equal(g.drag?.id,a.id);const n=Math.ceil(Math.abs(a.delta)/4);for(let k=1;k<=n;k++)g.move(event(b.toScreen(C.point(r,start+a.delta*k/n))));g.up(event(first));for(let k=0;k<40;k++)h.tick();assert.ok(!b.animating);for(const v of b.rings.values())assert.equal(v.halo.graphics.ops.length,0);}
  assert.ok(g.model.cleared);assert.ok(g.settled);assert.equal(g.model.state.steps,route.length);g.load(LEGACY_FORMAL_INDEX);assert.equal(g.model.state.rings.filter(r=>r.life==='active').length,54);
 });
 
@@ -175,7 +175,7 @@ test('正式提示只显示方向手指，不改步数或扣位；跟随视角�
  assert.deepEqual(g.model.state,before);
  const r=C.ring(g.model.state,g.guide.id),p=g.board.toScreen(C.point(r,r.a+50));
  g.board.panTo({x:360-(r.x-g.board.center.x)*g.board.zoom,y:600-(r.y-g.board.center.y)*g.board.zoom});
- const q=g.board.toScreen(C.point(r,r.a+50));g.down({clientX:q.x/2,clientY:q.y/2,pointerId:94,button:0});
+ const q=g.board.toScreen(C.point(r,r.a+50));g.down({stageX:q.x*.75,stageY:q.y*.75,pointerId:94,button:0});
  assert.equal(g.guide,null);g.releasePointers();g.load(10);assert.equal(g.guide,null);assert.equal(g.model.state.steps,0);
 });
 
@@ -306,7 +306,7 @@ test('正式关消除道具选定手镯后确认生效，取消不生效，按�
  const offset=C.rot({x:ring.x-b.center.x,y:ring.y-b.center.y},b.turn);
  b.panTo({x:360-offset.x*b.zoom,y:500-offset.y*b.zoom});
  const p=b.toScreen(C.point(ring,ring.a+70));
- const tap={clientX:p.x/2,clientY:p.y/2,pointerId:76,button:0};
+ const tap={stageX:p.x*.75,stageY:p.y*.75,pointerId:76,button:0};
  g.down(tap);
  assert.equal(g.modalOpen,false,'按下时不应立即消除，避免误触');
  g.up(tap);
@@ -338,17 +338,17 @@ test('消除道具选镯时拖动画面不触发消除，双指缩放不会误�
  g.load(10,true);g.eraseButton.click();
  const r=g.model.state.rings[0],b=g.board;
  const ringPoint=b.toScreen(C.point(r,r.a+55));
- const p={clientX:ringPoint.x/2,clientY:ringPoint.y/2,pointerId:202,button:0};
+ const p={stageX:ringPoint.x*.75,stageY:ringPoint.y*.75,pointerId:202,button:0};
  g.down(p);
- g.move({...p,clientX:p.clientX+20});
- g.up({...p,clientX:p.clientX+20});
+ g.move({...p,stageX:p.stageX+20});
+ g.up({...p,stageX:p.stageX+20});
  assert.equal(g.modalOpen,false,'拖动不能作为选镯点击');
  assert.equal(g.eraseMode,true);
  assert.equal(r.life,'active');
  g.down(p);
- const other={clientX:p.clientX+40,clientY:p.clientY,pointerId:203,button:0};
+ const other={stageX:p.stageX+40,stageY:p.stageY,pointerId:203,button:0};
  g.down(other);
- g.move({...other,clientX:other.clientX+35});
+ g.move({...other,stageX:other.stageX+35});
  g.up(other);g.up(p);
  assert.equal(g.modalOpen,false,'双指缩放不能触发消除确认');
  assert.equal(g.eraseMode,true);
@@ -411,8 +411,8 @@ test('紧凑卡片仅有名称，三颗星或锁；滑动不会误进关卡',()=
  assert.equal(card.width,148);assert.ok(card.height<=132);
  assert.deepEqual(card.children.filter(n=>n.text).map(n=>n.text),['第1关']);
  const start=g.atlasOffset;
- g.atlasDown({pointerId:77,clientX:100,clientY:200});
- g.atlasMove({pointerId:77,clientX:100,clientY:80});
+ g.atlasDown({pointerId:77,stageX:100,stageY:200});
+ g.atlasMove({pointerId:77,stageX:100,stageY:80});
  g.atlasUp({pointerId:77});card.click();assert.equal(g.mode,'levels');assert.ok(g.atlasOffset>start);
  g.scrollAtlas(-999);assert.equal(g.atlasOffset,0);
  g.scrollAtlas(999999);assert.equal(g.atlasOffset,4*g.atlasHeight);

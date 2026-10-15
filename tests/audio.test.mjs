@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Audio,frictionLoop,cueBuffer} from '../dist/js/audio.js';
+import {Audio} from '../dist/js/audio.js';
+import {frictionLoop,cueBuffer} from '../scripts/audio-dsp.mjs';
 
 function fixture(){
  let now=1000;const sources=[];
@@ -15,7 +16,8 @@ function fixture(){
   createBufferSource(){const n={...node(),playbackRate:param(),starts:0,stops:0,start(){this.starts++},stop(){this.stops++}};sources.push(n);return n}
  }
  globalThis.AudioContext=Context;globalThis.performance={now:()=>now};
- const a=new Audio();a.wake();a.buffers={ceramic_drag_1:{duration:.4},ceramic_place_1:{duration:.3}};
+ globalThis.Laya={loader:{load:async()=>{}},SoundManager:{playSound(url,loops,complete){const n={url,loop:loops===0,volume:1,playbackRate:1,starts:1,stops:0,isStopped:false,stop(){this.stops++;this.isStopped=true},complete};sources.push(n);return n}}};
+ const a=new Audio();a.context=new Context();
  return{a,sources,advance:ms=>now+=ms,get now(){return now}};
 }
 test('motion follows actual rotation, decays when stationary and never starts for selection',()=>{
@@ -33,20 +35,20 @@ test('one contact hit per sustained collision, reverse motion permits a new hit'
 });
 test('mute immediately silences master, stops all voices and prevents playback until enabled',()=>{
  const {a,sources}=fixture();a.motion(3);a.play('clear');a.enabled=false;
- assert.equal(a.master.gain.value,0);assert.ok(sources.every(s=>s.stops===1));
+ assert.ok(sources.every(s=>s.stops===1));
  const n=sources.length;a.motion(5);a.play('win');assert.equal(sources.length,n);
  a.enabled=true;a.motion(3);assert.equal(sources.length,n+1);a.stopAll();assert.equal(a.rotation,null);
 });
 test('equal physical speed gives equal friction loudness at different touch event rates',()=>{
  const fast=fixture();fast.a.motion(1);
  for(let i=0;i<30;i++){fast.advance(16);fast.a.motion(1)}
- const fastGain=fast.a.rotation.gain.gain.value,fastRate=fast.a.rotation.source.playbackRate.value;
+ const fastGain=fast.a.rotation.volume,fastRate=fast.a.rotation.playbackRate;
  const slow=fixture();slow.a.motion(2);
  for(let i=0;i<15;i++){slow.advance(32);slow.a.motion(2)}
- assert.ok(Math.abs(fastGain-slow.a.rotation.gain.gain.value)<.00001);
- assert.ok(Math.abs(fastRate-slow.a.rotation.source.playbackRate.value)<.00001);
+ assert.ok(Math.abs(fastGain-slow.a.rotation.volume)<.00001);
+ assert.ok(Math.abs(fastRate-slow.a.rotation.playbackRate)<.00001);
  slow.advance(32);slow.a.motion(10);
- assert.ok(slow.a.rotation.gain.gain.value>fastGain);
+ assert.ok(slow.a.rotation.volume>fastGain);
 });
 test('friction loop blends each channel without a discontinuity at the wrap boundary',()=>{
  const input=[Float32Array.from({length:1000},(_,i)=>i/1000),Float32Array.from({length:1000},(_,i)=>-i/2000)];
@@ -72,12 +74,10 @@ test('reward cues have different waveforms, bounded peaks and quiet endpoints',(
 test('buttons sound, selection stays silent, win uses one bounded voice',()=>{
  const {a,sources}=fixture();a.play('select');assert.equal(sources.length,0);
  a.play('button');a.play('clear');a.play('tool');a.play('win');
- assert.equal(sources.length,4);assert.notEqual(sources[0].buffer,sources[1].buffer);
- assert.ok(sources[3].buffer.duration>.6);a.enabled=false;assert.ok(sources.every(s=>s.stops===1));
+ assert.equal(sources.length,4);assert.notEqual(sources[0].url,sources[1].url);
+ assert.ok(sources[3].url.endsWith('win.wav'));a.enabled=false;assert.ok(sources.every(s=>s.stops===1));
 });
-test('load completes decoding before the first interaction without resuming autoplay',async()=>{
- const oldFetch=globalThis.fetch;const {a}=fixture();a.buffers={};a.context.state='suspended';
- globalThis.fetch=async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(8)});
- try{await a.load();assert.ok(a.buffers.ceramic_drag_1);assert.ok(a.buffers.ceramic_place_1);assert.equal(a.context.state,'suspended');a.wake();assert.equal(a.context.state,'running')}
- finally{globalThis.fetch=oldFetch}
+test('load uses the engine asset loader without starting playback',async()=>{
+ const {a,sources}=fixture();let loaded;Laya.loader.load=async urls=>{loaded=urls};
+ await a.load();assert.equal(loaded.length,7);assert.ok(loaded.every(u=>u.endsWith('.wav')));assert.equal(sources.length,0);
 });

@@ -1,8 +1,17 @@
 /* Minimal declarations for the bundled LayaAir 3.4 API used by this project. */
 declare namespace Laya {
  const Config:{useWebGL2:boolean};
- const Browser:{width:number;height:number};
- const Event:{CLICK:string;MOUSE_DOWN:string;MOUSE_MOVE:string;MOUSE_UP:string;MOUSE_OUT:string;RESIZE:string};
+ const Browser:{width:number;height:number;clientWidth:number;clientHeight:number};
+ const InputManager:{multiTouchEnabled:boolean};
+ const LocalStorage:{getItem(key:string):string|null;setItem(key:string,value:string):void};
+ class Event {
+  static CLICK:string;static MOUSE_DOWN:string;static MOUSE_MOVE:string;static MOUSE_UP:string;static MOUSE_OUT:string;static MOUSE_WHEEL:string;static RESIZE:string;static BLUR:string;static VISIBILITY_CHANGE:string;static KEY_DOWN:string;
+  touchId:number;stageX:number;stageY:number;button:number;delta:number;keyCode:number;nativeEvent?:{type:string};
+ }
+ class Handler {static create(caller:unknown,fn:Function):Handler}
+ class SoundChannel {volume:number;playbackRate:number;isStopped:boolean;stop():void}
+ const SoundManager:{playSound(url:string,loops?:number,complete?:()=>void,startTime?:number):SoundChannel;autoStopMusic:boolean};
+
  function init(width:number,height:number):Promise<void>;
  class Sprite {
   x:number;y:number;width:number;height:number;rotation:number;alpha:number;visible:boolean;
@@ -36,7 +45,7 @@ declare namespace Laya {
  class Stage extends Sprite {
   static SCALE_SHOWALL:string;static SCREEN_NONE:string;
   scaleMode:string;screenMode:string;alignH:string;alignV:string;bgColor:string;
-  mouseX:number;mouseY:number;
+  mouseX:number;mouseY:number;isVisibility:boolean;
  }
  const stage:Stage;
  const loader:{load(url:string|string[]):Promise<unknown>;getRes(url:string):Texture};

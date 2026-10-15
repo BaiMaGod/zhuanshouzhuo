@@ -1,13 +1,20 @@
 {
   "name": "zhuanshouzhuo-laya",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
     "test": "npm run build && node --test tests/*.test.mjs",
-    "art": "python3 scripts/generate-jade.py"
+    "art": "python3 scripts/generate-jade.py",
+    "audio:generate": "npm run build && node scripts/generate-audio.mjs",
+    "laya:prepare": "npm run build && node scripts/prepare-laya.mjs",
+    "release:web": "node scripts/build-platform.mjs web",
+    "release:wechat": "node scripts/build-platform.mjs wxgame",
+    "release:douyin": "node scripts/build-platform.mjs bytedancegame",
+    "release:android": "node scripts/build-platform.mjs android",
+    "release:ios": "node scripts/build-platform.mjs ios"
   },
   "devDependencies": {
     "typescript": "5.9.3"

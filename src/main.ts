@@ -4,15 +4,16 @@ import {text,panel,Button,ornament,COLORS,THEME,icon,flower} from './ui.js';
 import {Guide} from './guide.js';
 import {Audio} from './audio.js';
 import {Save} from './storage.js';
+import {finishWebShell,failWebShell,debugEnabled,exposeDebug} from './web-shell.js';
+import {search,nextFrame} from './solver.js';
+interface GamePointer {pointerId:number;stageX:number;stageY:number;button?:number}
 import {JADE_ASSETS,jadeSprite} from './jade.js';
 import solutions from './solutions.js';
 import {TEACHING_COUNT,FORMAL_INDEX} from './levels.js';
 import type {Action,Point,State,Result} from './types.js';
 
-const W=720,H=Math.round(Math.max(1180,Math.min(1600,innerHeight/Math.min(innerWidth,720)*720)));
-// Keep UI and hit coordinates at 720 logical units, but bound mobile pixel fill.
-const RENDER_W=innerWidth<600?Math.min(W,Math.round(innerWidth*1.5)):W;
-const RENDER_SCALE=RENDER_W/W;
+const W=720;
+let H=1280,RENDER_W=720,RENDER_SCALE=1;
 const TRAY='assets/art-rose/tray.png';
 const HOME_BG='assets/art-rose/home-bg.jpg';
 const ASSETS=[...JADE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,'assets/art-v3/clasp.png'];
@@ -36,31 +37,36 @@ class Game {
   if(this.eraseButton)this.eraseButton.alpha=this.eraseLeft===0?.5:1;
  }
  get formal():boolean{return this.model!==null&&this.model.index>=TEACHING_COUNT}
- drag:{id:string;pointer:number;last:number;started:boolean}|null=null;canvas:HTMLCanvasElement;
- busy=false;epoch=0;worker:Worker|null=null;finishPlan:((path:Action[]|null)=>void)|null=null;
+ drag:{id:string;pointer:number;last:number;started:boolean}|null=null;
+ busy=false;epoch=0;finishPlan:((path:Action[]|null)=>void)|null=null;
  demoButton:Button|null=null;settled=false;tutorialSeen=false;modalOpen=false;
  guide:Guide|null=null;guideTitle:Laya.Text|null=null;guideSkip:Button|null=null;homePreview:Board|null=null;homeSettingsButton:Button|null=null;modalCard:Laya.Sprite|null=null;modalShade:Laya.Sprite|null=null;
  constructor(){
   this.root.scale(RENDER_SCALE,RENDER_SCALE);
   Laya.stage.addChild(this.root);this.root.addChild(this.scene);this.root.addChild(this.overlay);
-  this.canvas=document.querySelector('#layaCanvas')||document.querySelector('canvas')!;
   this.audio.enabled=this.save.data.sound;Button.feedback=()=>{this.audio.wake();this.audio.play('button')};
-  this.canvas.addEventListener('pointerdown',e=>this.atlasDown(e));
-  this.canvas.addEventListener('pointermove',e=>this.atlasMove(e));
-  this.canvas.addEventListener('pointerup',e=>this.atlasUp(e));
-  this.canvas.addEventListener('pointercancel',()=>{this.atlasDrag=null});
-  this.canvas.addEventListener('wheel',e=>{if(!this.atlas||this.mode!=='levels')return;e.preventDefault();this.scrollAtlas(this.atlasOffset+e.deltaY)},{passive:false});
-  this.canvas.addEventListener('pointerdown',e=>this.down(e));
-  this.canvas.addEventListener('pointermove',e=>this.move(e));
-  this.canvas.addEventListener('pointerup',e=>this.up(e));
-  this.canvas.addEventListener('pointercancel',()=>this.releasePointers());
-  this.canvas.addEventListener('lostpointercapture',e=>{if(this.pointers.has(e.pointerId))this.releasePointers()});
-  this.canvas.addEventListener('wheel',e=>{if(this.mode!=='game'||!this.board||this.modalOpen||this.busy)return;const p=this.point(e);if(!this.board.contains(p))return;e.preventDefault();this.releasePointers();this.board.zoomTo(this.board.zoom*Math.exp(-e.deltaY*.0015),p);this.syncView()},{passive:false});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){this.cancel();this.audio.stopAll()}});
-  window.addEventListener('blur',()=>{this.releasePointers();this.persistRun();this.audio.stopAll()});
-  window.addEventListener('keydown',e=>{
-   if(this.mode!=='game'||this.modalOpen)return;
-   if(e.key==='Escape'){this.eraseMode=false;this.syncEraseUI();this.cancel();this.hideModal()}
+  const pointer=(e:Laya.Event):GamePointer=>({pointerId:e.touchId,stageX:e.stageX,stageY:e.stageY,button:e.button});
+  Laya.InputManager.multiTouchEnabled=true;
+  Laya.stage.on(Laya.Event.MOUSE_DOWN,this,(e:Laya.Event)=>{const p=pointer(e);this.atlasDown(p);this.down(p)});
+  Laya.stage.on(Laya.Event.MOUSE_MOVE,this,(e:Laya.Event)=>{const p=pointer(e);this.atlasMove(p);this.move(p)});
+  Laya.stage.on(Laya.Event.MOUSE_UP,this,(e:Laya.Event)=>{
+   // Laya normalizes touchcancel to MOUSE_UP. A cancelled touch must never use a tool.
+   if(e.nativeEvent?.type==='touchcancel'){this.atlasDrag=null;this.releasePointers();return}
+   const p=pointer(e);this.atlasUp(p);this.up(p);
+  });
+  Laya.stage.on(Laya.Event.MOUSE_WHEEL,this,(e:Laya.Event)=>{
+   const delta=-e.delta*40;
+   if(this.atlas&&this.mode==='levels'){this.scrollAtlas(this.atlasOffset+delta);return}
+   if(this.mode!=='game'||!this.board||this.modalOpen||this.busy)return;
+   const p=this.point(pointer(e));if(!this.board.contains(p))return;
+   this.releasePointers();this.board.zoomTo(this.board.zoom*Math.exp(-delta*.0015),p);this.syncView();
+  });
+  const suspend=()=>{this.atlasDrag=null;this.cancel();this.persistRun();this.audio.stopAll()};
+  Laya.stage.on(Laya.Event.BLUR,this,suspend);
+  Laya.stage.on(Laya.Event.VISIBILITY_CHANGE,this,()=>{if(!Laya.stage.isVisibility)suspend()});
+  Laya.stage.on(Laya.Event.RESIZE,this,()=>{this.atlasDrag=null;this.releasePointers()});
+  Laya.stage.on(Laya.Event.KEY_DOWN,this,(e:Laya.Event)=>{
+   if(this.mode==='game'&&!this.modalOpen&&e.keyCode===27){this.eraseMode=false;this.syncEraseUI();this.cancel();this.hideModal()}
   });
   Laya.timer.frameLoop(1,this,this.tick);this.home();
  }
@@ -165,23 +171,23 @@ class Game {
    }
   }
  }
- atlasDown(e:PointerEvent):void{
+ atlasDown(e:GamePointer):void{
   if(!this.atlas||this.mode!=='levels'||(e.button!==undefined&&e.button!==0))return;
   const p=this.point(e);if(p.y<170||p.y>H-35)return;
   this.atlasDrag={id:e.pointerId,y:p.y,offset:this.atlasOffset,moved:false};
-  this.canvas.setPointerCapture(e.pointerId);
+
  }
- atlasMove(e:PointerEvent):void{
+ atlasMove(e:GamePointer):void{
   const drag=this.atlasDrag;if(!drag||drag.id!==e.pointerId)return;
   const delta=this.point(e).y-drag.y;
   if(Math.abs(delta)>10)drag.moved=true;
   if(drag.moved){this.atlasClickAfter=performance.now()+300;this.scrollAtlas(drag.offset-delta)}
  }
- atlasUp(e:PointerEvent):void{
+ atlasUp(e:GamePointer):void{
   if(this.atlasDrag?.id!==e.pointerId)return;
   if(this.atlasDrag.moved)this.atlasClickAfter=performance.now()+300;
   this.atlasDrag=null;
-  if(this.canvas.hasPointerCapture(e.pointerId))this.canvas.releasePointerCapture(e.pointerId);
+
  }
  teachingLevels():void{
   this.clear('levels');
@@ -314,22 +320,22 @@ class Game {
  releaseDrag(releaseCapture=true):void{
   this.audio.stopMotion();this.audio.resetContact();
   const d=this.drag;this.drag=null;
-  if(d&&releaseCapture){this.pointers.delete(d.pointer);try{if(this.canvas.hasPointerCapture(d.pointer))this.canvas.releasePointerCapture(d.pointer)}catch{}}
+  if(d&&releaseCapture)this.pointers.delete(d.pointer);
  }
  cancel():void{
   this.audio.stopAll();
   this.epoch++;this.busy=false;this.releasePointers();
-  this.worker?.terminate();this.worker=null;
+
   this.finishPlan?.(null);this.finishPlan=null;
   if(this.demoButton)this.demoButton.label.text='演示';
   this.sync();
  }
- point(e:MouseEvent):Point{
-  const r=this.canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};
+ point(e:GamePointer):Point{
+  return{x:e.stageX/RENDER_SCALE,y:e.stageY/RENDER_SCALE};
  }
  releasePointers():void{
-  this.releaseDrag();this.eraseTap=null;const ids=[...this.pointers.keys()];this.pointers.clear();this.viewGesture=null;
-  for(const id of ids)try{if(this.canvas.hasPointerCapture(id))this.canvas.releasePointerCapture(id)}catch{}
+  this.releaseDrag();this.eraseTap=null;this.pointers.clear();this.viewGesture=null;
+
  }
  syncView():void{
   if(!this.board)return;
@@ -339,11 +345,11 @@ class Game {
   if(!this.board||this.modalOpen)return;this.releasePointers();const r=this.board.rect;
   this.board.zoomTo(this.board.zoom*factor,{x:r.x+r.w/2,y:r.y+r.h/2});this.syncView();
  }
- down(e:PointerEvent):void{
+ down(e:GamePointer):void{
   this.audio.wake();
   if(this.mode!=='game'||!this.model||!this.board||this.busy||this.board.animating||this.modalOpen||(e.button!==undefined&&e.button!==0))return;
   const p=this.point(e);if(!this.board.contains(p))return;
-  this.pointers.set(e.pointerId,p);this.canvas.setPointerCapture(e.pointerId);
+  this.pointers.set(e.pointerId,p);
   if(this.pointers.size>=2){
    this.eraseTap=null;this.releaseDrag(false);const [a,b]=[...this.pointers.values()];const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
    this.viewGesture={kind:'pinch',start:mid,screen:{...this.board.screen},zoom:this.board.zoom,distance:Math.max(1,C.dist(a,b)),anchor:this.board.toWorld(mid)};return;
@@ -360,7 +366,7 @@ class Game {
   this.drag={id:ring.id,pointer:e.pointerId,last:C.angle(ring,this.board.toWorld(p)),started:false};
   this.audio.play('select');this.sync();
  }
- move(e:PointerEvent):void{
+ move(e:GamePointer):void{
   if(!this.pointers.has(e.pointerId)||!this.model||!this.board||this.busy||this.modalOpen)return;
   const point=this.point(e);this.pointers.set(e.pointerId,point);
   if(this.eraseTap?.pointer===e.pointerId){
@@ -382,12 +388,12 @@ class Game {
   if(!d.started){this.model.begin();d.started=true}
   this.perform(d.id,delta);
  }
- up(e:PointerEvent):void{
+ up(e:GamePointer):void{
   const d=this.drag?.pointer===e.pointerId?this.drag:null;
   const erase=this.eraseTap?.pointer===e.pointerId?this.eraseTap:null;
   if(erase)this.eraseTap=null;
   this.pointers.delete(e.pointerId);if(d)this.releaseDrag();
-  try{if(this.canvas.hasPointerCapture(e.pointerId))this.canvas.releasePointerCapture(e.pointerId)}catch{}
+
   if(!this.pointers.size)this.viewGesture=null;
   if(d?.started&&!this.busy&&!this.board?.animating)this.snap(d.id);
   if(erase&&this.eraseMode)this.chooseEraseTarget(erase.id);
@@ -440,15 +446,20 @@ class Game {
   const initial=C.make(this.model.index),s=this.model.state;
   if(s.rings.every((r,i)=>r.life===initial.rings[i].life&&Math.abs(C.diff(r.a,initial.rings[i].a))<1e-7))return Promise.resolve(C.clone(solutions[this.model.index]) as Action[]);
   return new Promise(resolve=>{
-   let timeout:ReturnType<typeof setTimeout>;
-   const finish=(p:Action[]|null)=>{clearTimeout(timeout);this.worker?.terminate();this.worker=null;this.finishPlan=null;resolve(p)};
-   this.finishPlan=finish;
-   try{
-    this.worker=new Worker(new URL('./solver-worker.js',import.meta.url),{type:'module'});
-    this.worker.onmessage=e=>finish(e.data.path||null);
-    this.worker.onerror=()=>finish(null);
-    timeout=setTimeout(()=>finish(null),20000);this.worker.postMessage(C.clone(s));
-   }catch{finish(null)}
+   const iterator=search(s);let cancelled=false;
+   const finish=(p:Action[]|null)=>{if(cancelled)return;cancelled=true;this.finishPlan=null;resolve(p)};
+   this.finishPlan=finish;const started=performance.now();
+   const step=()=>{
+    if(cancelled)return;
+    if(performance.now()-started>20000){finish(null);return}
+    const start=performance.now();
+    for(let n=0;n<12;n++){
+     const result=iterator.next();if(result.done){finish(result.value);return}
+     if(performance.now()-start>=3)break;
+    }
+    Laya.timer.frameOnce(1,this,step);
+   };
+   Laya.timer.frameOnce(1,this,step);
   });
  }
  async hint():Promise<void>{
@@ -497,9 +508,9 @@ class Game {
     const res=this.perform(a.id,amount);remaining-=res.done;
     if(res.blocked||Math.abs(res.done)<.001){this.busy=false;this.sync();return}
     if(C.ring(this.model.state,a.id)?.life!=='active')break;
-    await new Promise<void>(r=>requestAnimationFrame(()=>r()));
+    await nextFrame();
    }
-   while(this.board.animating){if(token!==this.epoch)return;await new Promise<void>(r=>requestAnimationFrame(()=>r()))}
+   while(this.board.animating){if(token!==this.epoch)return;await nextFrame()}
   }
   if(token!==this.epoch)return;this.busy=false;this.sync();
  }
@@ -630,20 +641,23 @@ class Game {
 }
 async function boot():Promise<void>{
  // Load the compact Chinese fonts before Laya measures or caches any UI text.
- if(document.fonts)await Promise.all([document.fonts.load('24px JadeSong'),document.fonts.load('24px JadeText')]);
  // The 2D game needs no WebGL2 features. WebGL1 keeps scene caches single-sampled
  // instead of allocating 4x MSAA targets for the magnified photographic board.
  Laya.Config.useWebGL2=false;
- await Laya.init(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
+ await Laya.init(W,H);
+ const viewportWidth=Laya.Browser.clientWidth,viewportHeight=Laya.Browser.clientHeight;
+ H=Math.round(Math.max(1180,Math.min(1600,viewportHeight/Math.min(viewportWidth,720)*720)));
+ RENDER_W=viewportWidth<600?Math.min(W,Math.round(viewportWidth*1.5)):W;RENDER_SCALE=RENDER_W/W;
+ Laya.stage.size(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
  Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor=THEME.paper;
- await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load().catch(e=>console.warn('Recorded audio unavailable',e));document.getElementById('boot')?.remove();
- if(new URLSearchParams(location.search).has('debug')){
-  (window as unknown as {jadeDebug:unknown}).jadeDebug={game:g,Core:C,getState:()=>g.model?C.clone(g.model.state):null};
+ await Laya.loader.load(['assets/fonts/jade-song.woff','assets/fonts/jade-text.woff']);
+ await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load().catch(e=>console.warn('Recorded audio unavailable',e));finishWebShell();
+ if(debugEnabled()){
+  exposeDebug({game:g,Core:C,getState:()=>g.model?C.clone(g.model.state):null});
  }
 }
 boot().catch(e=>{
- console.error(e);const box=document.getElementById('boot');
- if(box){box.classList.add('error');box.textContent='玉盘暂时没有加载完成，请刷新再试。'}
+ console.error(e);failWebShell();
 });
 
 

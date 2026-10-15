@@ -1,0 +1,32 @@
+{
+  "errors": [],
+  "profiles": [
+    {
+      "width": 360,
+      "height": 640,
+      "firstLevelCleared": true,
+      "legacyLevel": 45,
+      "lastLevel": 100,
+      "lastCount": 109,
+      "hintAfterInput": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "firstLevelCleared": true,
+      "legacyLevel": 45,
+      "lastLevel": 100,
+      "lastCount": 109,
+      "hintAfterInput": true
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "firstLevelCleared": true,
+      "legacyLevel": 45,
+      "lastLevel": 100,
+      "lastCount": 109,
+      "hintAfterInput": true
+    }
+  ]
+}

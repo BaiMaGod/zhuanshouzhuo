@@ -6,12 +6,16 @@ mkdirSync('dist',{recursive:true});
 const run=spawnSync(process.execPath,['node_modules/typescript/bin/tsc','--project','tsconfig.json'],{stdio:'inherit'});
 if(run.status!==0)process.exit(run.status||1);
 cpSync('public','dist',{recursive:true});
+// Only ship assets the current game loads. Historical originals stay in source control.
+for(const name of readdirSync('dist/assets'))if(!['jade-v2','art-rose','art-v3','fonts','audio','shadow.png'].includes(name))rmSync('dist/assets/'+name,{recursive:true,force:true});
+for(const name of readdirSync('dist/assets/art-v3'))if(name!=='clasp.png')rmSync('dist/assets/art-v3/'+name,{force:true});
+for(const name of ['ceramic_drag_1','ceramic_place_1'])rmSync('dist/assets/audio/'+name+'.wav',{force:true});
+rmSync('dist/js/solver-worker.js',{force:true});
 const p=JSON.parse(readFileSync('package.json','utf8'));
 for(const file of readdirSync('dist/js').filter(f=>f.endsWith('.js'))){
  const path='dist/js/'+file;
  const text=readFileSync(path,'utf8')
-  .replace(/(from\s+|import\s*)(['"])(\.\/[^'"]+\.js)\2/g,(_,prefix,q,url)=>prefix+q+url+'?v='+p.version+q)
-  .replace(/new URL\((['"])(\.\/solver-worker\.js)\1/g,(_,q,url)=>'new URL('+q+url+'?v='+p.version+q);
+  .replace(/(from\s+|import\s*)(['"])(\.\/[^'"]+\.js)\2/g,(_,prefix,q,url)=>prefix+q+url+'?v='+p.version+q);
  writeFileSync(path,text);
 }
 const html=readFileSync('dist/index.html','utf8').replace('src="js/main.js"','src="js/main.js?v='+p.version+'"');

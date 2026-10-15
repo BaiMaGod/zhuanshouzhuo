@@ -1,0 +1,21 @@
+{
+  "errors": [],
+  "profiles": [
+    {
+      "width": 360,
+      "height": 640,
+      "pinch": true,
+      "touchCancel": true,
+      "realTouchClear": true,
+      "resize": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "pinch": true,
+      "touchCancel": true,
+      "realTouchClear": true,
+      "resize": true
+    }
+  ]
+}
