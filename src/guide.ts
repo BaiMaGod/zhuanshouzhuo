@@ -14,7 +14,9 @@ export class Guide {
   if(!ring||ring.life!=='active'||this.board.animating)return;
   const screen=(p:Point)=>{const q=this.board.toScreen(p);return this.action?{x:q.x-this.board.rect.x,y:q.y-this.board.rect.y}:q};
   const targets=state.rods.filter(z=>C.exists(state,z)&&(!this.action?.rod||z.id===this.action.rod)).flatMap(z=>C.endpoints(state,z)).filter(e=>e.id===ring.id);
-  const target=this.action?targets.sort((a,b)=>Math.abs(C.diff(C.angle(ring,a.p),ring.a+this.action!.delta))-Math.abs(C.diff(C.angle(ring,b.p),ring.a+this.action!.delta)))[0]:undefined;
+  // Staged alignment may target a gap angle rather than a single clasp.
+  const target=this.action?.targetAngle!==undefined?{id:ring.id,p:C.point(ring,this.action.targetAngle)}:
+   this.action?targets.sort((a,b)=>Math.abs(C.diff(C.angle(ring,a.p),ring.a+this.action!.delta))-Math.abs(C.diff(C.angle(ring,b.p),ring.a+this.action!.delta)))[0]:undefined;
   const pulse=1+Math.sin(now/350)*.06;
   for(const e of target?[target]:targets){
    const p=screen(e.p),d=(this.action?10:15)*pulse;

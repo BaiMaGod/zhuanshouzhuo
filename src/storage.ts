@@ -29,10 +29,10 @@ export class Save {
    }
   } catch {}
  }
- readRun(index:number):{state:State;hint:number;erase:number}|null{
+ readRun(index:number):{state:State;hint:number;erase:number;hintProgress?:number}|null{
   try{
    const r=JSON.parse(localStorage.getItem(KEY+'-run-'+index)||'null'),initial=Core.make(index);
-   if(!r||r.version!==1||![0,1].includes(r.hint)||![0,1].includes(r.erase))return null;
+   if(!r||r.version!==1||![0,1].includes(r.hint)||![0,1].includes(r.erase)||r.hintProgress!==undefined&&(!Number.isInteger(r.hintProgress)||r.hintProgress<0||r.hintProgress>10000))return null;
    const s=r.state as State;
    if(!s||!Number.isFinite(s.steps)||s.steps<0||s.rings?.length!==initial.rings.length||s.rods?.length!==initial.rods.length)return null;
    if(s.rings.some((v,i)=>v.id!==initial.rings[i].id||!Number.isFinite(v.a)||!['active','removed'].includes(v.life)))return null;
@@ -41,8 +41,8 @@ export class Save {
    return r;
   }catch{return null}
  }
- writeRun(index:number,state:State,hint:number,erase:number):void{
-  try{const payload=JSON.stringify({version:1,state,hint,erase});if(this.runCache.get(index)===payload)return;localStorage.setItem(KEY+'-run-'+index,payload);this.runCache.set(index,payload)}catch{}
+ writeRun(index:number,state:State,hint:number,erase:number,hintProgress=0):void{
+  try{const payload=JSON.stringify({version:1,state,hint,erase,hintProgress});if(this.runCache.get(index)===payload)return;localStorage.setItem(KEY+'-run-'+index,payload);this.runCache.set(index,payload)}catch{}
  }
  clearRun(index:number):void{this.runCache.delete(index);try{localStorage.setItem(KEY+'-run-'+index,'null')}catch{}}
  persist():void {try{localStorage.setItem(KEY,JSON.stringify(this.data))}catch{}}

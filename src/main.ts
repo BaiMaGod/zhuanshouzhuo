@@ -26,7 +26,7 @@ class Game {
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
  atlas:Laya.Sprite|null=null;atlasOffset=0;atlasHeight=0;atlasPage=-1;atlasDrag:{id:number;y:number;offset:number;moved:boolean}|null=null;atlasClickAfter=0;
  hintLeft=1;eraseLeft=1;noticeUntil=0;
- persistRun():void{if(this.formal&&this.model)this.save.writeRun(this.model.index,this.model.state,this.hintLeft,this.eraseLeft)}
+ persistRun():void{if(this.formal&&this.model)this.save.writeRun(this.model.index,this.model.state,this.hintLeft,this.eraseLeft,this.model.hints?.progress||0)}
  toolNotice(message:string):void{if(this.eraseTip){this.eraseTip.text=message;this.eraseTip.visible=true;this.noticeUntil=performance.now()+2200}}
  syncTools():void{
   if(!this.formal)return;
@@ -206,7 +206,7 @@ class Game {
   this.hintLeft=1;this.eraseLeft=1;
   if(this.formal){
    const saved=this.save.readRun(i);
-   if(!restart&&saved){this.model.state=saved.state;this.model.selected=null;this.hintLeft=saved.hint;this.eraseLeft=saved.erase}
+   if(!restart&&saved){this.model.state=saved.state;this.model.selected=null;this.model.resetHint(saved.hintProgress||0);this.hintLeft=saved.hint;this.eraseLeft=saved.erase}
    if(restart)this.save.clearRun(i);
   }
   if(this.formal){
@@ -456,10 +456,11 @@ class Game {
   if(this.formal&&this.hintLeft===0){this.toolNotice('本关提示已用完');return}
   if(this.guide?.action&&this.formal)return;
   this.busy=true;const token=++this.epoch;this.say('正在观察当前扣位…');if(this.hintButton)this.hintButton.label.text='观察…';this.sync();
-  const path=await this.plan();if(token!==this.epoch)return;
+  // Formal hint = direct lookup of precomputed DAG/stage data. No Worker.
+  const a=this.formal?this.model.hints?.next(this.model.state)||null:(await this.plan())?.[0]||null;
+  if(token!==this.epoch)return;
   this.busy=false;if(this.hintButton)this.hintButton.label.text='提示';
-  if(!path?.length){if(this.formal)this.toolNotice('暂未找到有效提示，未扣次数');this.say('这一步还没找到路线。可以重开，再观察连接。');if(this.hintButton)this.hintButton.label.text='暂无路线';this.sync();return}
-  const a=path[0];
+  if(!a){if(this.formal)this.toolNotice('当前暂无可执行提示，未扣次数');this.say('当前没有可执行的提示动作，可以调整扣位后再试。');if(this.hintButton)this.hintButton.label.text='暂无路线';this.sync();return}
   if(!C.ring(this.model.state,a.id)||!Number.isFinite(a.delta)||!a.delta){this.sync();return}
   this.model.selected=a.id;
   if(this.formal){
