@@ -21,7 +21,7 @@ class Game {
  garden:Laya.Sprite|null=null;wallpaper:Laya.Sprite|null=null;
  save=new Save();audio=new Audio();model:GameModel|null=null;board:Board|null=null;
  mode:'home'|'levels'|'game'='home';message:Laya.Text|null=null;status:Laya.Text|null=null;turnStatus:Laya.Text|null=null;
- controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;
+ controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;eraseButton:Button|null=null;eraseTip:Laya.Text|null=null;eraseMode=false;
  pointers=new Map<number,Point>();panMode=false;viewLabel:Laya.Text|null=null;panButton:Button|null=null;
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
  get formal():boolean{return this.model!==null&&this.model.index>=TEACHING_COUNT}
@@ -63,9 +63,11 @@ class Game {
   // gameplay scene, never inside the tray/ring rendering pass.
   this.wallpaper?.destroy(true);this.wallpaper=null;
   this.scene.destroy(true);this.homeSettingsButton=null;this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
-  this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.message=null;this.status=null;this.turnStatus=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
+  this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.eraseButton=null;this.eraseTip=null;this.eraseMode=false;this.message=null;this.status=null;this.turnStatus=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
   // Keep render-pass topology stable through zoom, undo and restart.
-  this.scene.size(W,H);this.scene.cacheAs=mode==='game'?'bitmap':'none';
+  // A full-scene bitmap cache can lose buttons when their state or icons update.
+  // Preserve live HUD and cache only static decorations where appropriate.
+  this.scene.size(W,H);this.scene.cacheAs='none';
   // The camera also moves the artwork. Clip its expanded bounds to the screen.
   if(mode==='game')this.scene.scrollRect=new Laya.Rectangle(0,0,W,H);
   this.mode=mode;this.background();
@@ -159,8 +161,8 @@ class Game {
    const wallpaper=this.image(this.root,HOME_BG,W/2,H/2,W,H);
    wallpaper.name='formal-wallpaper';wallpaper.zOrder=-10;
    this.wallpaper=wallpaper;
-   const home=new Button('',28,26,76,64,()=>this.home(),false,'home');home.name='button:home';this.scene.addChild(home);
-   const restart=new Button('',116,26,76,64,()=>this.load(i),false,'restart');restart.name='button:restart';this.scene.addChild(restart);
+   const home=new Button('',28,26,76,64,()=>this.confirmExit(),false,'home');home.name='button:home';this.scene.addChild(home);
+   const restart=new Button('',116,26,76,64,()=>this.confirmRestart(),false,'restart');restart.name='button:restart';this.scene.addChild(restart);
    const title=text(this.scene,'第'+(i-TEACHING_COUNT+1)+'关',216,26,288,64,43,COLORS.ink,'center',true);
    const sound=new Button('',528,26,76,64,()=>{this.toggleSound();sound.setIcon(this.audio.enabled?'sound':'mute')},false,this.audio.enabled?'sound':'mute');sound.name='button:sound';this.scene.addChild(sound);
    const help=new Button('',616,26,76,64,()=>this.help(),false,'help');help.name='button:help';this.scene.addChild(help);
@@ -191,6 +193,10 @@ class Game {
    this.scene.addChild(new Button('−',208,y,76,62,()=>this.zoomView(1/1.35)));
    this.scene.addChild(new Button('全盘',298,y,124,62,()=>{this.releasePointers();this.board!.resetView();this.syncView()}));
    this.scene.addChild(new Button('+',436,y,76,62,()=>this.zoomView(1.35)));
+   this.eraseButton=new Button('消除',548,y,144,62,()=>this.toggleErase(),false,'erase');
+   this.eraseButton.name='button:erase';this.scene.addChild(this.eraseButton);
+   this.eraseTip=text(this.scene,'请点击要消除的手镯',130,y-60,460,44,23,COLORS.ink,'center',true);
+   this.eraseTip.visible=false;
    this.syncView();
   }else{
   // Reuse the former lower-caption space so the whole jade tray is taller.
@@ -248,6 +254,7 @@ class Game {
   if(this.undoButton)this.undoButton.enabled=this.model.history.length>0&&!this.modalOpen;
   if(this.demoButton)this.demoButton.label.text=this.busy?'停止':'演示';
   if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.board.animating&&!this.modalOpen;
+  if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.board.animating&&!this.modalOpen;
  }
  releaseDrag(releaseCapture=true):void{
   this.audio.stopMotion();this.audio.resetContact();
@@ -281,6 +288,11 @@ class Game {
   this.audio.wake();
   if(this.mode!=='game'||!this.model||!this.board||this.busy||this.board.animating||this.modalOpen||(e.button!==undefined&&e.button!==0))return;
   const p=this.point(e);if(!this.board.contains(p))return;
+  // A target tap in removal mode never rotates the bracelet.
+  if(this.eraseMode){
+   const target=this.board.pick(p,this.model.state);
+   if(target){this.chooseEraseTarget(target.id);return}
+  }
   this.pointers.set(e.pointerId,p);this.canvas.setPointerCapture(e.pointerId);
   if(this.pointers.size>=2){
    this.releaseDrag(false);const [a,b]=[...this.pointers.values()];const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
@@ -423,6 +435,7 @@ class Game {
   if(this.board.animating||this.board.sparks.length||this.board.hint||performance.now()<this.board.blockUntil)this.board.draw(this.model.state);
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.board.animating&&!this.modalOpen;
+  if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.board.animating&&!this.modalOpen;
   if(this.model.cleared&&!this.board.animating&&!this.busy&&!this.settled){this.settled=true;this.win()}
  }
  win():void{
@@ -433,6 +446,53 @@ class Game {
    {label:i===9?'进入正式关卡':'进入第 '+(i+2)+' 境',action:()=>i===9?this.levels():this.load(i+1),primary:true},
    {label:'再解一次',action:()=>this.load(i),primary:false}
   ]);
+ }
+ confirmExit():void{
+  if(!this.formal||!this.model||this.modalOpen)return;
+  this.modal('返回首页？',['离开后，本次尚未完成的解镯进度不会保留。'],[
+   {label:'继续解镯',action:()=>this.hideModal(),primary:true},
+   {label:'确认返回',action:()=>this.home(),primary:false}
+  ]);
+ }
+ confirmRestart():void{
+  if(!this.formal||!this.model||this.modalOpen)return;
+  const index=this.model.index;
+  this.modal('重新开始？',['当前手镯的位置和操作记录将重置。'],[
+   {label:'继续解镯',action:()=>this.hideModal(),primary:true},
+   {label:'确认重开',action:()=>this.load(index),primary:false}
+  ]);
+ }
+ toggleErase():void{
+  if(!this.formal||!this.model||!this.board||this.modalOpen||this.busy||this.board.animating)return;
+  this.releasePointers();this.stopGuide(false);
+  this.eraseMode=!this.eraseMode;
+  this.syncEraseUI();
+ }
+ syncEraseUI():void{
+  if(this.eraseButton)this.eraseButton.label.text=this.eraseMode?'取消':'消除';
+  if(this.eraseTip)this.eraseTip.visible=this.eraseMode;
+ }
+ chooseEraseTarget(id:string):void{
+  if(!this.eraseMode||!this.formal||!this.model||!this.board||this.busy||this.board.animating||this.modalOpen)return;
+  const target=C.ring(this.model.state,id);
+  if(!target||target.life!=='active')return;
+  this.eraseMode=false;this.syncEraseUI();
+  this.model.selected=id;this.board.selected=id;this.sync();
+  this.modal('确认消除手镯？',['将使用消除道具移除选中的一只手镯。','该手镯上的活动扣会一起消失。'],[
+   {label:'取消',action:()=>this.hideModal(),primary:false},
+   {label:'确认消除',action:()=>this.eraseRing(id),primary:true}
+  ]);
+ }
+ eraseRing(id:string):void{
+  if(!this.formal||!this.model||!this.board)return;
+  const before=C.clone(this.model.state);
+  const removed=this.model.removeWithTool(id);
+  this.hideModal();
+  if(!removed.length)return;
+  this.releasePointers();this.stopGuide(false);this.board.hint=null;
+  this.board.release(before,this.model.state,removed);
+  this.audio.play('clear');
+  this.sync();
  }
  help():void{
   this.cancel();this.guide?.clear();this.modal('记住三件小事',[
