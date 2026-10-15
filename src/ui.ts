@@ -46,10 +46,14 @@ export function icon(g:Laya.Graphics,kind:Icon,x:number,y:number,size:number,col
 export class Button extends Laya.Sprite {
  static feedback:(()=>void)|null=null;
  label:Laya.Text; skin=new Laya.Sprite();private enabled_=true;private pressed=false;
+ // State layers are independent of the artwork. The background and icon never
+ // move, rescale or change opacity during clicks or enable/disable transitions.
  private iconSprite=new Laya.Sprite();
+ private pressedCover=new Laya.Sprite();
+ private disabledCover=new Laya.Sprite();
  constructor(title:string,x:number,y:number,w:number,h:number,callback:()=>void,primary=false,kind?:Icon){
   super();this.pos(x,y);this.size(w,h);this.mouseEnabled=true;this.name='button:'+title;
-  const r=Math.min(h*.25,18),g=this.skin.graphics;this.skin.mouseEnabled=false;this.addChild(this.skin);
+  const r=Math.min(h*.25,18),g=this.skin.graphics;this.skin.size(w,h);this.skin.mouseEnabled=false;this.addChild(this.skin);
   const face=primary?THEME.rose:THEME.pink,rim=primary?THEME.rose:THEME.line;
   // Flat flower-window ends stay inside the hit rectangle. Small controls stay plain.
   if(title&&w>=200&&h<=110){
@@ -59,20 +63,28 @@ export class Button extends Laya.Sprite {
    flower(g,tab,h/2,3,primary?THEME.pink:THEME.line);
    flower(g,w-tab,h/2,3,primary?THEME.pink:THEME.line);
   }else round(g,0,0,w,h,r,face,rim,1.2);
-  this.iconSprite.mouseEnabled=false;this.skin.addChild(this.iconSprite);
+  this.iconSprite.size(26,26);this.iconSprite.mouseEnabled=false;this.addChild(this.iconSprite);
   this.label=text(this,title,0,0,w,h,h>=82?32:23,primary?THEME.white:THEME.ink,'center',true);
+  // These lightweight overlays are toggled without mutating any renderable
+  // background or icon transform, which was losing the button's skin on WebGL.
+  for(const cover of [this.pressedCover,this.disabledCover]){
+   cover.size(w,h);cover.mouseEnabled=false;cover.cacheAs='none';cover.visible=false;
+   this.addChild(cover);
+  }
+  round(this.pressedCover.graphics,0,0,w,h,r,'rgba(104,72,83,0.13)');
+  round(this.disabledCover.graphics,0,0,w,h,r,'rgba(252,247,243,0.52)');
   if(!title)this.label.visible=false;
   if(kind)this.setIcon(kind,primary);
   else {this.label.pos(8,0);this.label.size(w-16,h)}
-  // Cache only the sculpted decoration; text and input remain separate and sharp.
+  // Keep every interactive button layer live. Only static page art may be cached.
   this.skin.cacheAs='none';
   this.on(Laya.Event.MOUSE_DOWN,this,()=>this.press(true));
   this.on(Laya.Event.MOUSE_UP,this,()=>this.press(false));
   this.on(Laya.Event.MOUSE_OUT,this,()=>this.press(false));
   this.on(Laya.Event.CLICK,this,()=>{if(this.enabled_){this.press(false);callback();Button.feedback?.()}});
  }
- private press(v:boolean):void{if(!this.enabled_||this.pressed===v)return;this.pressed=v;this.skin.y=v?4:0;this.skin.x=v?this.width*.0075:0;this.skin.scale(v?.985:1);this.skin.alpha=v?.85:1;this.label.y=v?3:0}
- set enabled(v:boolean){if(v===this.enabled_)return;this.press(false);this.enabled_=v;this.alpha=v?1:.55}
+ private press(v:boolean):void{if(!this.enabled_||this.pressed===v)return;this.pressed=v;this.pressedCover.visible=v}
+ set enabled(v:boolean){if(v===this.enabled_)return;this.press(false);this.enabled_=v;this.disabledCover.visible=!v}
  get enabled():boolean{return this.enabled_}
  setIcon(kind:Icon,primary=false):void{
   const g=this.iconSprite.graphics;g.clear();
