@@ -67,6 +67,7 @@ test('首页只保留主标题和操作入口，设置弹窗关闭后按钮可�
  for(let n=0;n<3;n++){
   settings.click();assert.equal(g.modalOpen,true);
   assert.ok(g.modalCard?.parent===overlay);
+  assert.equal(g.modalCard.cacheAs,'none','含互动按钮的设置弹窗不能缓存成位图');
   const card=g.modalCard,shade=g.modalShade;
   const close=card.children.find(node=>node.label?.text==='关闭');
   assert.ok(close);close.click();assert.equal(g.modalOpen,false);
@@ -95,9 +96,9 @@ test('首页不显示继续解镯按钮，主按钮点击与禁用状态正常',
  assert.ok(!labels.includes('继续解镯'));
  assert.ok(!labels.includes('开始解镯'));
  const b=g.scene.children.find(n=>n.label?.text==='第1关');
- assert.ok(b);for(const f of b.events.mousedown)f();assert.equal(b.skin.y,4);
- for(const f of b.events.mouseout)f();assert.equal(b.skin.y,0);
- b.enabled=false;b.click();assert.equal(g.mode,'home');
+ assert.ok(b);for(const f of b.events.mousedown)f();assert.equal(b.skin.y,0);assert.equal(b.pressedCover.visible,true);
+ for(const f of b.events.mouseout)f();assert.equal(b.skin.y,0);assert.equal(b.pressedCover.visible,false);
+ b.enabled=false;assert.equal(b.disabledCover.visible,true);assert.equal(b.alpha,1);b.click();assert.equal(g.mode,'home');
  b.enabled=true;b.click();assert.equal(g.mode,'game');assert.ok(g.formal);
 });
 
