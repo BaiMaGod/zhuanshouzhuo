@@ -1,6 +1,6 @@
 import {Core} from './model.js';
 import type {State} from './types.js';
-import {FORMAL_INDEX,LEGACY_FORMAL_INDEX} from './levels.js';
+import {TEACHING_COUNT,FORMAL_INDEX,LEGACY_FORMAL_INDEX} from './levels.js';
 export interface Progress {version:2;unlocked:number;records:Record<string,{steps:number;stars:number}>;sound:boolean;tutorial:number}
 const KEY='jade-bracelet-laya-v1';
 export class Save {
@@ -18,8 +18,14 @@ export class Save {
      const v=r as {steps:number;stars:number};
      if(/^(?:0|[1-9]\d*)$/.test(i)&&Number(i)<1000&&Number.isFinite(v.steps)&&v.steps>=0&&Number.isInteger(v.stars)&&v.stars>=1&&v.stars<=3)this.data.records[p.version===1&&Number(i)===FORMAL_INDEX?LEGACY_FORMAL_INDEX:i]=v;
     }
-    // Save the migrated schema immediately so the old 54-bracelet score moves once.
-    if(p.version===1)this.persist();
+    // Completed teaching records are authoritative if an older save has stale unlock data.
+    // The separate "tutorial" field only tracks the first three guide prompts.
+    let repaired=false;
+    for(let i=0;i<TEACHING_COUNT;i++)if(this.data.records[i]&&this.data.unlocked<Math.min(TEACHING_COUNT-1,i+1)){
+     this.data.unlocked=Math.min(TEACHING_COUNT-1,i+1);repaired=true;
+    }
+    // Migrate old scores only once and preserve all completed levels across reloads.
+    if(p.version===1||repaired)this.persist();
    }
   } catch {}
  }
