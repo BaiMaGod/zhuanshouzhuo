@@ -24,6 +24,16 @@ class Game {
  controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;eraseButton:Button|null=null;eraseTip:Laya.Text|null=null;eraseMode=false;eraseTap:{id:string;pointer:number;start:Point}|null=null;
  pointers=new Map<number,Point>();panMode=false;viewLabel:Laya.Text|null=null;panButton:Button|null=null;
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
+ hintLeft=1;eraseLeft=1;noticeUntil=0;
+ persistRun():void{if(this.formal&&this.model)this.save.writeRun(this.model.index,this.model.state,this.hintLeft,this.eraseLeft)}
+ toolNotice(message:string):void{if(this.eraseTip){this.eraseTip.text=message;this.eraseTip.visible=true;this.noticeUntil=performance.now()+2200}}
+ syncTools():void{
+  if(!this.formal)return;
+  if(this.hintButton){this.hintButton.label.text=this.busy?'观察…':'提示 ×'+this.hintLeft;this.hintButton.setIcon('hint')}
+  if(this.eraseButton){this.eraseButton.label.text=this.eraseMode?'取消':'消除 ×'+this.eraseLeft;this.eraseButton.setIcon('erase')}
+  if(this.hintButton)this.hintButton.alpha=this.hintLeft===0?.5:1;
+  if(this.eraseButton)this.eraseButton.alpha=this.eraseLeft===0?.5:1;
+ }
  get formal():boolean{return this.model!==null&&this.model.index>=TEACHING_COUNT}
  drag:{id:string;pointer:number;last:number;started:boolean}|null=null;canvas:HTMLCanvasElement;
  busy=false;epoch=0;worker:Worker|null=null;finishPlan:((path:Action[]|null)=>void)|null=null;
@@ -41,10 +51,10 @@ class Game {
   this.canvas.addEventListener('lostpointercapture',e=>{if(this.pointers.has(e.pointerId))this.releasePointers()});
   this.canvas.addEventListener('wheel',e=>{if(this.mode!=='game'||!this.board||this.modalOpen||this.busy)return;const p=this.point(e);if(!this.board.contains(p))return;e.preventDefault();this.releasePointers();this.board.zoomTo(this.board.zoom*Math.exp(-e.deltaY*.0015),p);this.syncView()},{passive:false});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){this.cancel();this.audio.stopAll()}});
-  window.addEventListener('blur',()=>{this.releasePointers();this.audio.stopAll()});
+  window.addEventListener('blur',()=>{this.releasePointers();this.persistRun();this.audio.stopAll()});
   window.addEventListener('keydown',e=>{
    if(this.mode!=='game'||this.modalOpen)return;
-   if(e.key==='Escape'){this.cancel();this.hideModal()}
+   if(e.key==='Escape'){this.eraseMode=false;this.syncEraseUI();this.cancel();this.hideModal()}
   });
   Laya.timer.frameLoop(1,this,this.tick);this.home();
  }
@@ -151,9 +161,15 @@ class Game {
   }
   text(this.scene,'完成前一关后，后续教程会逐步开放',64,H-87,592,44,21,COLORS.muted);
  }
- load(i:number):void{
+ load(i:number,restart=false):void{
   if(i<0||i>=C.levels.length||(i<TEACHING_COUNT&&i>this.save.data.unlocked))return;
   this.clear('game');this.settled=false;this.model=new GameModel(i);
+  this.hintLeft=1;this.eraseLeft=1;
+  if(this.formal){
+   const saved=this.save.readRun(i);
+   if(!restart&&saved){this.model.state=saved.state;this.model.selected=null;this.hintLeft=saved.hint;this.eraseLeft=saved.erase}
+   if(restart)this.save.clearRun(i);
+  }
   if(this.formal){
    // The wallpaper must be behind the *entire cached gameplay scene*, not
    // another child of it: otherwise Laya's bitmap cache can flatten it
@@ -249,7 +265,7 @@ class Game {
   const s=this.model.state,n=s.rings.filter(r=>r.life==='active').length;
   this.status!.text=this.formal?n+' 手镯待解':n+' 镯待解  ·  '+s.steps+' 次转动'+(this.model.selected?'  ·  选中 '+this.model.selected:'');
   if(this.turnStatus)this.turnStatus.text=s.steps+' 次转动';
-  this.board.selected=this.model.selected;this.board.draw(s);
+  this.board.selected=this.model.selected;this.board.draw(s);this.syncTools();if(!this.drag)this.persistRun();
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.undoButton)this.undoButton.enabled=this.model.history.length>0&&!this.modalOpen;
   if(this.demoButton)this.demoButton.label.text=this.busy?'停止':'演示';
@@ -336,6 +352,7 @@ class Game {
   if(!this.pointers.size)this.viewGesture=null;
   if(d?.started&&!this.busy&&!this.board?.animating)this.snap(d.id);
   if(erase&&this.eraseMode)this.chooseEraseTarget(erase.id);
+  this.persistRun();
  }
  snap(id:string):void{
   if(!this.model)return;const s=this.model.state,r=C.ring(s,id);if(!r||r.life!=='active')return;
@@ -397,11 +414,15 @@ class Game {
  }
  async hint():Promise<void>{
   if(this.busy||this.modalOpen||this.board?.animating||!this.model)return;
+  if(this.formal&&this.hintLeft===0){this.toolNotice('本关提示已用完');return}
+  if(this.guide?.action&&this.formal)return;
   this.busy=true;const token=++this.epoch;this.say('正在观察当前扣位…');if(this.hintButton)this.hintButton.label.text='观察…';this.sync();
   const path=await this.plan();if(token!==this.epoch)return;
   this.busy=false;if(this.hintButton)this.hintButton.label.text='提示';
-  if(!path?.length){this.say('这一步还没找到路线。可以重开，再观察连接。');if(this.hintButton)this.hintButton.label.text='暂无路线';this.sync();return}
-  const a=path[0];this.model.selected=a.id;
+  if(!path?.length){if(this.formal)this.toolNotice('暂未找到有效提示，未扣次数');this.say('这一步还没找到路线。可以重开，再观察连接。');if(this.hintButton)this.hintButton.label.text='暂无路线';this.sync();return}
+  const a=path[0];
+  if(!C.ring(this.model.state,a.id)||!Number.isFinite(a.delta)||!a.delta){this.sync();return}
+  this.model.selected=a.id;
   if(this.formal){
    this.releasePointers();this.stopGuide(false);
    const ring=C.ring(this.model.state,a.id)!;
@@ -411,7 +432,7 @@ class Game {
     this.board!.panTo({x:b.x+b.w/2-offset.x*this.board!.zoom,y:b.y+b.h/2-offset.y*this.board!.zoom});
    }
    this.guide=new Guide(this.scene,this.board!,a.id,a);this.guide.phase='turn';
-   this.guide.draw(this.model.state,performance.now(),false);this.sync();return;
+   this.guide.draw(this.model.state,performance.now(),false);this.hintLeft--;this.sync();return;
   }
   // Same unobtrusive guided hand used for hard levels; never block input.
   this.releasePointers();this.stopGuide(false);this.board!.hint=null;
@@ -445,6 +466,7 @@ class Game {
  tick():void{
   this.audio.tick(performance.now());
   const now=performance.now();
+  if(this.noticeUntil&&now>this.noticeUntil){this.noticeUntil=0;if(this.eraseTip&&!this.eraseMode)this.eraseTip.visible=false}
   if(!this.model||!this.board||this.mode!=='game')return;
   if(this.guide&&!this.modalOpen)this.guide.draw(this.model.state,now,!!this.drag);
   if(this.board.animating||this.board.sparks.length||this.board.hint||performance.now()<this.board.blockUntil)this.board.draw(this.model.state);
@@ -461,18 +483,18 @@ class Game {
    this.modal(level+' · 全部解开',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].points.length+' 只玉镯全部解开 · '+steps+' 次转动',last?'最后一关已解开，随时回来再挑战。':'通关成绩已记录，下一关再多一只玉镯。'],[
     {label:last?'关卡图谱':'下一关',action:()=>last?this.levels():this.load(i+1),primary:true},
     {label:'回到首页',action:()=>this.home(),primary:false},
-    {label:'再挑战一次',action:()=>this.load(i),primary:false}
+    {label:'再挑战一次',action:()=>this.load(i,true),primary:false}
    ]);return;
   }
   const stars=this.save.win(i,steps,solutions[i].length);if(i<3){this.save.data.tutorial=Math.max(this.save.data.tutorial,i+1);this.save.persist()}this.stopGuide(false);this.audio.play('win');
   this.modal(i===9?'十境皆通':'这一境，解开了',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].name+' · '+steps+' 次转动',i===9?'玉环十境全部完成，随时回来再解。':'下一境已开启，机关会再多一点变化。'],[
    {label:i===9?'进入正式关卡':'进入第 '+(i+2)+' 境',action:()=>i===9?this.levels():this.load(i+1),primary:true},
-   {label:'再解一次',action:()=>this.load(i),primary:false}
+   {label:'再解一次',action:()=>this.load(i,true),primary:false}
   ]);
  }
  confirmExit():void{
   if(!this.formal||!this.model||this.modalOpen)return;
-  this.modal('返回首页？',['离开后，本次尚未完成的解镯进度不会保留。'],[
+  this.modal('返回首页？',['当前盘面和道具余量会保留，下次进入可继续。'],[
    {label:'继续解镯',action:()=>this.hideModal(),primary:true},
    {label:'确认返回',action:()=>this.home(),primary:false}
   ]);
@@ -480,19 +502,21 @@ class Game {
  confirmRestart():void{
   if(!this.formal||!this.model||this.modalOpen)return;
   const index=this.model.index;
-  this.modal('重新开始？',['当前手镯的位置和操作记录将重置。'],[
+  this.modal('重新开始？',['当前盘面将重置，提示和消除各恢复1次。'],[
    {label:'继续解镯',action:()=>this.hideModal(),primary:true},
-   {label:'确认重开',action:()=>this.load(index),primary:false}
+   {label:'确认重开',action:()=>this.load(index,true),primary:false}
   ]);
  }
  toggleErase():void{
   if(!this.formal||!this.model||!this.board||this.modalOpen||this.busy||this.board.animating)return;
+  if(this.eraseLeft===0){this.toolNotice('本关消除已用完');return}
   this.releasePointers();this.stopGuide(false);
   this.eraseMode=!this.eraseMode;
   this.syncEraseUI();
  }
  syncEraseUI():void{
-  if(this.eraseButton)this.eraseButton.label.text=this.eraseMode?'取消':'消除';
+  this.syncTools();
+  if(this.eraseTip)this.eraseTip.text='请选择要消除的手镯';
   if(this.eraseTip)this.eraseTip.visible=this.eraseMode;
  }
  chooseEraseTarget(id:string):void{
@@ -507,11 +531,12 @@ class Game {
   ]);
  }
  eraseRing(id:string):void{
-  if(!this.formal||!this.model||!this.board)return;
+  if(!this.formal||!this.model||!this.board||this.eraseLeft===0)return;
   const before=C.clone(this.model.state);
   const removed=this.model.removeWithTool(id);
   this.hideModal();
   if(!removed.length)return;
+  this.eraseLeft--;
   this.releasePointers();this.stopGuide(false);this.board.hint=null;
   this.board.release(before,this.model.state,removed);
   this.audio.play('tool');
@@ -580,6 +605,7 @@ boot().catch(e=>{
  console.error(e);const box=document.getElementById('boot');
  if(box){box.classList.add('error');box.textContent='玉盘暂时没有加载完成，请刷新再试。'}
 });
+
 
 
 

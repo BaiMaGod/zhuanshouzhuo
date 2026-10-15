@@ -285,12 +285,12 @@ test('正式关返回和重开都必须二次确认，取消不会损失进度',
 });
 
 test('正式关消除道具选定手镯后确认生效，取消不生效，按钮可恢复',()=>{
- g.load(10);
+ g.load(10,true);
  const button=g.eraseButton;
  assert.ok(button);
  assert.equal(button.name,'button:erase');
  assert.equal(button.visible,true);
- assert.equal(button.label.text,'消除');
+ assert.equal(button.label.text,'消除 ×1');
  const initial=g.model.state.rings.filter(r=>r.life==='active').length;
  button.click();
  assert.equal(g.eraseMode,true);
@@ -322,7 +322,7 @@ test('正式关消除道具选定手镯后确认生效，取消不生效，按�
  assert.ok(g.model.state.rings.filter(r=>r.life==='active').length<initial);
  assert.equal(g.model.state.steps,0,'道具不应计入转动次数');
  assert.equal(g.eraseMode,false);
- assert.equal(button.label.text,'消除');
+ assert.equal(button.label.text,'消除 ×0');
  assert.ok(button.skin.graphics.ops.length);
  assert.equal(g.modalOpen,false);
  assert.ok(g.board.ghosts.length>0,'保留玉镯移除动画');
@@ -334,7 +334,7 @@ test('正式关消除道具选定手镯后确认生效，取消不生效，按�
 });
 
 test('消除道具选镯时拖动画面不触发消除，双指缩放不会误确认',()=>{
- g.load(10);g.eraseButton.click();
+ g.load(10,true);g.eraseButton.click();
  const r=g.model.state.rings[0],b=g.board;
  const ringPoint=b.toScreen(C.point(r,r.a+55));
  const p={clientX:ringPoint.x/2,clientY:ringPoint.y/2,pointerId:202,button:0};
@@ -411,3 +411,4 @@ test('正式图谱翻页按钮、页码与最后一行卡片互不遮挡',()=>{
  const cards=g.scene.children.filter(n=>n.name?.startsWith('formal-level:'));
  assert.ok(Math.max(...cards.map(n=>n.y+n.height))<previous.y);
 });
+

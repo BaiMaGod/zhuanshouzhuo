@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {installHarness} from './scene-harness.mjs';
+const h=installHarness();
+await import('../dist/js/main.js');
+await new Promise(r=>setImmediate(r));
+const g=window.jadeDebug.game;
+g.audio.enabled=false;
+test('正式道具只在成功后扣除，取消、刷新、重开与切关余量正确',async()=>{
+ g.load(10,true);
+ assert.equal(g.hintButton.label.text,'提示 ×1');
+ g.toggleErase();g.toggleErase();assert.equal(g.eraseLeft,1);
+ g.toggleErase();const id=g.model.state.rings.find(r=>r.life==='active').id;
+ g.chooseEraseTarget(id);g.hideModal();assert.equal(g.eraseLeft,1);
+ await g.hint();assert.equal(g.hintLeft,0);assert.ok(g.guide);
+ await g.hint();assert.equal(g.hintLeft,0);assert.equal(g.eraseTip.text,'本关提示已用完');
+ g.eraseRing('missing');assert.equal(g.eraseLeft,1);
+ g.eraseRing(id);assert.equal(g.eraseLeft,0);
+ const state=JSON.stringify(g.model.state);g.eraseRing(id);assert.equal(JSON.stringify(g.model.state),state);
+ g.home();g.load(10);assert.equal(g.hintLeft,0);assert.equal(g.eraseLeft,0);assert.equal(JSON.stringify(g.model.state),state);
+ const {Save}=await import('../dist/js/storage.js');const saved=new Save().readRun(10);
+ assert.equal(saved.hint,0);assert.equal(saved.erase,0);assert.equal(JSON.stringify(saved.state),state);
+ g.load(11,true);assert.equal(g.hintLeft,1);assert.equal(g.eraseLeft,1);
+ g.load(10);assert.equal(g.hintLeft,0);g.load(10,true);assert.equal(g.hintLeft,1);assert.equal(g.eraseLeft,1);
+});
+test('失败提示和过期异步结果不扣次数，教学提示不限量',async()=>{
+ g.load(10,true);g.plan=async()=>null;await g.hint();assert.equal(g.hintLeft,1);
+ let done;g.plan=()=>new Promise(r=>done=r);const pending=g.hint();g.cancel();done([{id:'A',delta:10}]);await pending;assert.equal(g.hintLeft,1);
+ g.load(0);g.plan=async()=>[{id:'B',delta:10}];await g.hint();await g.hint();assert.equal(g.hintLeft,1);assert.equal(g.hintButton.label.text,'提示');h.tick();
+});
