@@ -14,5 +14,19 @@ export class GameModel {
   return res;
  }
  undo():boolean{const h=this.history.pop();if(!h)return false;this.state=h.state;this.selected=h.selected;return true}
+ removeWithTool(id:string):string[]{
+  const target=Core.ring(this.state,id);
+  if(!target||target.life!=='active')return[];
+  // A tool bypasses rotation but honors the same lock/lifecycle state.
+  // Owned movable clasps vanish with the removed bracelet.
+  this.history.push({state:Core.clone(this.state),selected:this.selected});
+  if(this.history.length>150)this.history.shift();
+  target.life='removed';
+  Core.update(this.state);
+  const removed=[id,...Core.settle(this.state)];
+  this.state.events.push({kind:'erase',id,removed});
+  if(this.selected&&Core.ring(this.state,this.selected)?.life!=='active')this.selected=this.first();
+  return removed;
+ }
  get cleared():boolean{return this.state.rings.every(r=>r.life==='removed')}
 }
