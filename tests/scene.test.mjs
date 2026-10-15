@@ -186,8 +186,8 @@ test('新手练习可返回首页，图谱只列正式关卡并统一编号',()=
  labels(g.scene,homeLabels);assert.ok(homeLabels.includes('第1关'));assert.ok(!homeLabels.some(x=>x.includes('九宫锁玉阵')));
  g.levels();assert.equal(g.mode,'levels');const pageLabels=[];labels(g.scene,pageLabels);
  assert.ok(pageLabels.includes('第1关'));assert.ok(!pageLabels.some(x=>x.includes('初识双镯')||x.includes('教学十关')||x.includes('九宫锁玉阵')));
- assert.equal(g.scene.children.filter(n=>n.name?.startsWith('formal-level:')).length,8);
- const formal=g.scene.children.find(n=>n.name==='formal-level:1');assert.ok(formal);formal.click();
+ assert.equal(g.atlas.children.filter(n=>n.name?.startsWith('formal-level:')).length,40);
+ const formal=g.atlas.children.find(n=>n.name==='formal-level:1');assert.ok(formal);formal.click();
  assert.equal(g.model.index,10);assert.equal(g.formal,true);
 });
 
@@ -380,18 +380,19 @@ test('导航按钮先切场景再播放点击反馈，声音不会被场景清�
  finally{g.audio.play=originalPlay;g.audio.stopAll=originalStop;g.audio.enabled=false}
 });
 
-test('正式图谱13页覆盖100关，末页可进入第100关且隐藏编号',()=>{
- const ids=[];
- for(let page=0;page<13;page++){
-  g.levels(page);const entries=g.scene.children.filter(n=>n.name?.startsWith('formal-level:'));
-  assert.equal(entries.length,page===12?4:8);ids.push(...entries.map(n=>n.name));
+test('图谱滚动按页懒加载，锁定关不可点击，重复打开定位当前页',()=>{
+ const records=g.save.data.records;g.save.data.records={};
+ for(let i=10;i<35;i++)g.save.data.records[i]={steps:1,stars:2};
+ g.levels();assert.equal(g.atlasOffset,g.atlasHeight);assert.equal(g.atlas.children.length,60);
+ const locked=g.atlas.children.find(n=>n.name==='formal-level:27');assert.equal(locked.enabled,false);locked.click();assert.equal(g.mode,'levels');
+ const ids=new Set;
+ for(let p=0;p<5;p++){
+  g.scrollAtlas(p*g.atlasHeight);assert.ok(g.atlas.children.length<=60);
+  for(const n of g.atlas.children)ids.add(n.name);
  }
- assert.equal(new Set(ids).size,100);
- const last=g.scene.children.find(n=>n.name==='formal-level:100');assert.ok(last);last.click();
- assert.equal(g.model.index,109);assert.equal(g.model.state.rings.length,109);assert.equal(g.formal,true);
- assert.ok(g.scene.children.some(n=>n.text==='第100关'));
- assert.ok([...g.board.rings.values()].every(v=>v.label.text===''));
- assert.ok(g.board.fitZoom>0);g.load(110);assert.equal(g.model.index,109);
+ assert.equal(ids.size,100);g.levels();assert.equal(g.atlasOffset,g.atlasHeight);
+ const card=g.atlas.children.find(n=>n.name==='formal-level:26');card.click();assert.equal(g.model.index,35);
+ g.save.data.records=records;
 });
 
 test('正式关结算能进入下一关，第100关结算返回图谱',()=>{
@@ -403,12 +404,15 @@ test('正式关结算能进入下一关，第100关结算返回图谱',()=>{
 });
 
 
-test('正式图谱翻页按钮、页码与最后一行卡片互不遮挡',()=>{
- g.levels(6);
- const previous=g.scene.children.find(n=>n.label?.text==='上一页'),next=g.scene.children.find(n=>n.label?.text==='下一页');
- const counter=g.scene.children.find(n=>n.text==='7 / 13');
- assert.ok(previous.x+previous.width<counter.x);assert.ok(counter.x+counter.width<next.x);
- const cards=g.scene.children.filter(n=>n.name?.startsWith('formal-level:'));
- assert.ok(Math.max(...cards.map(n=>n.y+n.height))<previous.y);
+test('紧凑卡片仅有名称，三颗星或锁；滑动不会误进关卡',()=>{
+ g.levels();g.scrollAtlas(0);
+ const card=g.atlas.children.find(n=>n.name==='formal-level:1');
+ assert.equal(card.width,148);assert.ok(card.height<=132);
+ assert.deepEqual(card.children.filter(n=>n.text).map(n=>n.text),['第1关']);
+ const start=g.atlasOffset;
+ g.atlasDown({pointerId:77,clientX:100,clientY:200});
+ g.atlasMove({pointerId:77,clientX:100,clientY:80});
+ g.atlasUp({pointerId:77});card.click();assert.equal(g.mode,'levels');assert.ok(g.atlasOffset>start);
+ g.scrollAtlas(-999);assert.equal(g.atlasOffset,0);
+ g.scrollAtlas(999999);assert.equal(g.atlasOffset,4*g.atlasHeight);
 });
-

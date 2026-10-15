@@ -24,6 +24,7 @@ class Game {
  controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;eraseButton:Button|null=null;eraseTip:Laya.Text|null=null;eraseMode=false;eraseTap:{id:string;pointer:number;start:Point}|null=null;
  pointers=new Map<number,Point>();panMode=false;viewLabel:Laya.Text|null=null;panButton:Button|null=null;
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
+ atlas:Laya.Sprite|null=null;atlasOffset=0;atlasHeight=0;atlasPage=-1;atlasDrag:{id:number;y:number;offset:number;moved:boolean}|null=null;atlasClickAfter=0;
  hintLeft=1;eraseLeft=1;noticeUntil=0;
  persistRun():void{if(this.formal&&this.model)this.save.writeRun(this.model.index,this.model.state,this.hintLeft,this.eraseLeft)}
  toolNotice(message:string):void{if(this.eraseTip){this.eraseTip.text=message;this.eraseTip.visible=true;this.noticeUntil=performance.now()+2200}}
@@ -44,6 +45,11 @@ class Game {
   Laya.stage.addChild(this.root);this.root.addChild(this.scene);this.root.addChild(this.overlay);
   this.canvas=document.querySelector('#layaCanvas')||document.querySelector('canvas')!;
   this.audio.enabled=this.save.data.sound;Button.feedback=()=>{this.audio.wake();this.audio.play('button')};
+  this.canvas.addEventListener('pointerdown',e=>this.atlasDown(e));
+  this.canvas.addEventListener('pointermove',e=>this.atlasMove(e));
+  this.canvas.addEventListener('pointerup',e=>this.atlasUp(e));
+  this.canvas.addEventListener('pointercancel',()=>{this.atlasDrag=null});
+  this.canvas.addEventListener('wheel',e=>{if(!this.atlas||this.mode!=='levels')return;e.preventDefault();this.scrollAtlas(this.atlasOffset+e.deltaY)},{passive:false});
   this.canvas.addEventListener('pointerdown',e=>this.down(e));
   this.canvas.addEventListener('pointermove',e=>this.move(e));
   this.canvas.addEventListener('pointerup',e=>this.up(e));
@@ -68,6 +74,7 @@ class Game {
   if(this.mode!=='game')this.image(this.scene,HOME_BG,W/2,H/2,W,H);
  }
  clear(mode:Game['mode']):void{
+  this.atlas=null;this.atlasDrag=null;this.atlasPage=-1;
   this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.board?.destroy();this.board=null;this.model=null;
   // Dispose the fixed decorative wallpaper separately: it lives under the
   // gameplay scene, never inside the tray/ring rendering pass.
@@ -111,38 +118,65 @@ class Game {
   ]);
  }
  toggleSound():void{this.audio.enabled=!this.audio.enabled;this.save.data.sound=this.audio.enabled;this.save.persist()}
- levels(page=0):void{
+ formalCurrent():number{
+  let index=TEACHING_COUNT;
+  while(index<C.levels.length-1&&this.save.data.records[index])index++;
+  return index;
+ }
+ levels():void{
   this.clear('levels');
-  const total=Math.max(0,C.levels.length-TEACHING_COUNT),pageSize=8;
-  const pages=Math.max(1,Math.ceil(total/pageSize)),current=Math.max(0,Math.min(pages-1,page));
-  const passed=Object.keys(this.save.data.records).filter(k=>Number(k)>=TEACHING_COUNT&&Number(k)<C.levels.length).length;
   this.scene.addChild(new Button('',30,28,76,66,()=>this.home(),false,'back'));
   text(this.scene,'关卡图谱',160,41,400,70,44,COLORS.ink,'center',true);
-  text(this.scene,'正式关卡 · 已通关 '+passed+' / '+total+' 关',80,133,560,43,23,COLORS.ink,'center');
-  ornament(this.scene,185,202,350);
-  const start=current*pageSize,end=Math.min(total,start+pageSize),single=total===1;
-  const cellH=Math.min(190,Math.floor((H-483)/4));
-  for(let j=start;j<end;j++){
-   const index=TEACHING_COUNT+j,slot=j-start;
-   const x=single?68:slot%2?378:42;
-   const y=single?Math.max(285,Math.round((H-245)/2)-90):247+Math.floor(slot/2)*(cellH+12);
-   const w=single?584:300,h=single?228:cellH;
-   const done=this.save.data.records[index];
-   const b=new Button('',x,y,w,h,()=>this.load(index),j===0);
-   b.name='formal-level:'+String(j+1);this.scene.addChild(b);
-   const ink=j===0?THEME.white:COLORS.ink;
-   const secondary=j===0?THEME.white:COLORS.muted;
-   text(b,'第'+(j+1)+'关',26,single?24:13,w-52,56,single?48:36,ink,'left',true);
-   text(b,C.levels[index].points.length+' 镯 · 正式挑战',28,single?97:70,w-56,42,single?27:23,secondary);
-   text(b,done?'已通关  '+'★'.repeat(done.stars)+'☆'.repeat(3-done.stars):'点击挑战',28,single?165:123,w-56,36,23,secondary);
+  ornament(this.scene,185,140,350);
+  const viewport=new Laya.Sprite();viewport.name='atlas-viewport';viewport.pos(0,170);viewport.size(W,H-205);
+  viewport.scrollRect=new Laya.Rectangle(0,0,W,H-205);this.scene.addChild(viewport);
+  this.atlas=new Laya.Sprite();viewport.addChild(this.atlas);
+  this.atlasHeight=H-205;this.atlasPage=-1;
+  this.scrollAtlas(Math.floor((this.formalCurrent()-TEACHING_COUNT)/20)*this.atlasHeight);
+ }
+ scrollAtlas(offset:number):void{
+  if(!this.atlas)return;
+  const total=C.levels.length-TEACHING_COUNT,pages=Math.max(1,Math.ceil(total/20));
+  this.atlasOffset=Math.max(0,Math.min((pages-1)*this.atlasHeight,offset));
+  this.atlas.y=-this.atlasOffset;
+  const page=Math.floor(this.atlasOffset/this.atlasHeight);
+  if(page===this.atlasPage)return;
+  this.atlasPage=page;
+  // Keep only the visible page and its neighbours alive, including when scrolling backwards.
+  const parent=this.atlas.parent!;this.atlas.destroy(true);
+  this.atlas=new Laya.Sprite();this.atlas.y=-this.atlasOffset;parent.addChild(this.atlas);
+  const current=this.formalCurrent(),w=148,gap=18,h=Math.min(132,Math.floor((this.atlasHeight-90)/5)-16);
+  for(let p=Math.max(0,page-1);p<=Math.min(pages-1,page+1);p++){
+   for(let j=p*20;j<Math.min(total,(p+1)*20);j++){
+    const index=TEACHING_COUNT+j,slot=j%20,locked=index>current&&!this.save.data.records[index];
+    const x=37+(slot%4)*(w+gap),y=p*this.atlasHeight+12+Math.floor(slot/4)*(h+16);
+    const card=new Button('',x,y,w,h,()=>{if(performance.now()>=this.atlasClickAfter&&!this.atlasDrag?.moved)this.load(index)});
+    card.name='formal-level:'+String(j+1);card.enabled=!locked;this.atlas.addChild(card);
+    if(locked){card.skin.graphics.clear();card.skin.graphics.drawRect(0,0,w,h,'#e4e3e0');}
+    text(card,'第'+(j+1)+'关',4,9,w-8,44,27,locked?'#999b99':COLORS.ink,'center',true);
+    const marks=new Laya.Sprite();marks.mouseEnabled=false;card.addChild(marks);
+    if(locked)icon(marks.graphics,'lock',(w-28)/2,h-42,28,'#999b99');
+    else for(let k=0;k<3;k++)icon(marks.graphics,'star',(w-88)/2+k*31,h-40,26,k<(this.save.data.records[index]?.stars||0)?COLORS.gold:'#b7b9b7');
+   }
   }
-  if(total===0)text(this.scene,'正式关卡正在制作中',100,Math.round(H/2)-30,520,66,28,COLORS.muted,'center');
-  if(pages>1){
-   if(current>0)this.scene.addChild(new Button('上一页',60,H-162,210,66,()=>this.levels(current-1),false,'back'));
-   if(current<pages-1)this.scene.addChild(new Button('下一页',450,H-162,210,66,()=>this.levels(current+1),false,'play'));
-   text(this.scene,(current+1)+' / '+pages,310,H-151,100,40,22,COLORS.muted,'center');
-  }
-  text(this.scene,'拖动玉镯，逐关解开相扣的机关',86,H-77,548,43,22,COLORS.muted,'center');
+ }
+ atlasDown(e:PointerEvent):void{
+  if(!this.atlas||this.mode!=='levels'||(e.button!==undefined&&e.button!==0))return;
+  const p=this.point(e);if(p.y<170||p.y>H-35)return;
+  this.atlasDrag={id:e.pointerId,y:p.y,offset:this.atlasOffset,moved:false};
+  this.canvas.setPointerCapture(e.pointerId);
+ }
+ atlasMove(e:PointerEvent):void{
+  const drag=this.atlasDrag;if(!drag||drag.id!==e.pointerId)return;
+  const delta=this.point(e).y-drag.y;
+  if(Math.abs(delta)>10)drag.moved=true;
+  if(drag.moved){this.atlasClickAfter=performance.now()+300;this.scrollAtlas(drag.offset-delta)}
+ }
+ atlasUp(e:PointerEvent):void{
+  if(this.atlasDrag?.id!==e.pointerId)return;
+  if(this.atlasDrag.moved)this.atlasClickAfter=performance.now()+300;
+  this.atlasDrag=null;
+  if(this.canvas.hasPointerCapture(e.pointerId))this.canvas.releasePointerCapture(e.pointerId);
  }
  teachingLevels():void{
   this.clear('levels');
