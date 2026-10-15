@@ -303,8 +303,11 @@ test('正式关消除道具选定手镯后确认生效，取消不生效，按�
  const offset=C.rot({x:ring.x-b.center.x,y:ring.y-b.center.y},b.turn);
  b.panTo({x:360-offset.x*b.zoom,y:500-offset.y*b.zoom});
  const p=b.toScreen(C.point(ring,ring.a+70));
- g.down({clientX:p.x/2,clientY:p.y/2,pointerId:76,button:0});
- assert.equal(g.modalOpen,true,'点击玉镯出现确认弹窗');
+ const tap={clientX:p.x/2,clientY:p.y/2,pointerId:76,button:0};
+ g.down(tap);
+ assert.equal(g.modalOpen,false,'按下时不应立即消除，避免误触');
+ g.up(tap);
+ assert.equal(g.modalOpen,true,'轻点并松手后出现确认弹窗');
  assert.equal(g.drag,null,'道具选择不能开始转动');
  assert.equal(g.model.state.rings[0].life,'active','确认前不改变目标');
  g.modalCard.children.find(n=>n.label?.text==='取消').click();
