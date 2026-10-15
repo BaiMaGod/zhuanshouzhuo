@@ -51,7 +51,8 @@ test('新手引导跟随真实选择，可跳过/重学且保存标记不覆盖�
  g.guideSelect('A');assert.equal(g.guide.phase,'choose');
  g.guideSelect('B');assert.equal(g.guide.phase,'turn');
  g.stopGuide(true);assert.equal(g.guide,null);assert.ok(g.save.data.tutorial>=1);
- const record=JSON.stringify(g.save.data.records);g.practice();assert.ok(g.guide);assert.equal(g.model.index,0);
+ const record=JSON.stringify(g.save.data.records);const next=g.teachingCurrent();g.practice();assert.equal(g.model.index,next);
+ g.load(0);g.startGuide();assert.ok(g.guide,'completed teaching levels can still be replayed with guidance');
  assert.equal(JSON.stringify(g.save.data.records),record);
  g.stopGuide(false);g.home();assert.equal(g.mode,'home');assert.equal(g.guide,null);
  g.settings();assert.equal(g.modalOpen,true);g.hideModal();assert.equal(g.modalOpen,false);
@@ -179,7 +180,7 @@ test('正式提示只显示方向手指，不改步数或扣位；跟随视角�
 });
 
 test('新手练习可返回首页，图谱只列正式关卡并统一编号',()=>{
- g.home();g.practice();assert.equal(g.model.index,0);
+ g.home();const checkpoint=g.teachingCurrent();g.practice();assert.equal(g.model.index,checkpoint);
  const home=g.scene.children.find(n=>n.name==='button:home');assert.ok(home,'教学界面有首页图标');
  home.click();assert.equal(g.mode,'home');
  const homeLabels=[];function labels(n,into){if(n.text)into.push(n.text);if(n.label?.text)into.push(n.label.text);for(const c of n.children)labels(c,into)}
@@ -376,7 +377,7 @@ test('对齐音只在扣位从未对齐进入对齐时播放',()=>{
 test('导航按钮先切场景再播放点击反馈，声音不会被场景清理截断',()=>{
  const originalPlay=g.audio.play,originalStop=g.audio.stopAll,events=[];
  g.audio.play=kind=>events.push(kind);g.audio.stopAll=()=>events.push('stop');
- try{g.home();events.length=0;g.scene.children.find(n=>n.name==='button:第1关').click();assert.equal(g.mode,'game');assert.equal(events.at(-1),'button');assert.ok(events.indexOf('stop')<events.lastIndexOf('button'))}
+ try{g.home();events.length=0;const button=g.scene.children.find(n=>/^button:第\\d+关$/.test(n.name));assert.ok(button);button.click();assert.equal(g.mode,'game');assert.equal(events.at(-1),'button');assert.ok(events.indexOf('stop')<events.lastIndexOf('button'))}
  finally{g.audio.play=originalPlay;g.audio.stopAll=originalStop;g.audio.enabled=false}
 });
 
@@ -415,4 +416,40 @@ test('紧凑卡片仅有名称，三颗星或锁；滑动不会误进关卡',()=
  g.atlasUp({pointerId:77});card.click();assert.equal(g.mode,'levels');assert.ok(g.atlasOffset>start);
  g.scrollAtlas(-999);assert.equal(g.atlasOffset,0);
  g.scrollAtlas(999999);assert.equal(g.atlasOffset,4*g.atlasHeight);
+});
+
+
+test('首页与教学入口恢复上次通关进度，重新读取本地存档后仍可续关',async()=>{
+ const {Save}=await import('../dist/js/storage.js');
+ const original=JSON.parse(JSON.stringify(g.save.data));
+ try{
+  g.save.data.records={
+   0:{steps:1,stars:3},1:{steps:2,stars:2},
+   10:{steps:10,stars:3},11:{steps:11,stars:2},12:{steps:12,stars:1},
+   54:{steps:54,stars:2}
+  };
+  g.save.data.unlocked=0; // Simulate an older save with stale unlock metadata.
+  g.save.persist();
+  g.save=new Save(); // Simulate reopening the game.
+  assert.equal(g.save.data.unlocked,2);
+  assert.equal(g.save.data.records[54].stars,2,'historical level scores stay intact');
+  assert.equal(g.teachingCurrent(),2);
+  assert.equal(g.formalCurrent(),13);
+
+  g.home();
+  const primary=g.scene.children.find(n=>n.label?.text==='第4关');
+  assert.ok(primary,'home button shows the next uncompleted formal level');
+  const practice=g.scene.children.find(n=>n.label?.text==='新手练习');
+  assert.ok(practice);practice.click();
+  assert.equal(g.model.index,2,'tutorial resumes at the third teaching level');
+
+  g.home();g.scene.children.find(n=>n.label?.text==='第4关').click();
+  assert.equal(g.model.index,13,'formal play opens the next uncompleted level');
+
+  for(let i=0;i<10;i++)g.save.data.records[i]={steps:i+1,stars:3};
+  g.save.data.unlocked=9;
+  g.home();g.practice();assert.equal(g.model.index,9,'completed tutorial offers replay of its final level');
+ }finally{
+  g.save.data=original;g.save.persist();g.home();
+ }
 });
