@@ -22,7 +22,7 @@ async function button(page,label){
   const g=window.jadeDebug.game;
   const walk=(n,x=0,y=0)=>{
    x+=n.x;y+=n.y;
-   if(n.name===label||n.label?.text===label)return{x:x+n.width/2,y:y+n.height/2};
+   if(n.name===label||n.label?.text===label||(label==='提示'&&n.label?.text?.startsWith('提示 ×')))return{x:x+n.width/2,y:y+n.height/2};
    for(let i=0;i<n.numChildren;i++){const q=walk(n.getChildAt(i),x,y);if(q)return q}
   };
   const q=walk(g.modalOpen?g.overlay:g.scene);if(!q)throw Error('Missing button: '+label);
@@ -90,8 +90,10 @@ try{
   const before=await p.evaluate(()=>window.jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length);
   await drag(p,action);
   assert.ok(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length)<before,'actual level100 gesture removes a ring');
-  // Partial progress uses the worker's formal hint path at index 109.
-  await button(p,'提示');await p.waitForFunction(()=>!!window.jadeDebug.game.guide?.action,{timeout:25000});
+  // Formal levels allow only one hint per attempt. Extra taps show a notice.
+  await button(p,'提示');
+  assert.equal(await p.evaluate(()=>window.jadeDebug.game.hintLeft),0);
+  assert.equal(await p.evaluate(()=>window.jadeDebug.game.eraseTip.text),'本关提示已用完');
   assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.steps),1);
   await button(p,'button:restart');await button(p,'确认重开');
   assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length),109);
