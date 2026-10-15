@@ -377,7 +377,7 @@ test('对齐音只在扣位从未对齐进入对齐时播放',()=>{
 test('导航按钮先切场景再播放点击反馈，声音不会被场景清理截断',()=>{
  const originalPlay=g.audio.play,originalStop=g.audio.stopAll,events=[];
  g.audio.play=kind=>events.push(kind);g.audio.stopAll=()=>events.push('stop');
- try{g.home();events.length=0;const button=g.scene.children.find(n=>/^button:第\\d+关$/.test(n.name));assert.ok(button);button.click();assert.equal(g.mode,'game');assert.equal(events.at(-1),'button');assert.ok(events.indexOf('stop')<events.lastIndexOf('button'))}
+ try{g.home();events.length=0;const button=g.scene.children.find(n=>/^button:第\d+关$/.test(n.name));assert.ok(button);button.click();assert.equal(g.mode,'game');assert.equal(events.at(-1),'button');assert.ok(events.indexOf('stop')<events.lastIndexOf('button'))}
  finally{g.audio.play=originalPlay;g.audio.stopAll=originalStop;g.audio.enabled=false}
 });
 
