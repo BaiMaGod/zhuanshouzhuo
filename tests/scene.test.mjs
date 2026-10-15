@@ -67,12 +67,21 @@ test('首页只保留主标题和操作入口，设置弹窗关闭后按钮可�
  for(let n=0;n<3;n++){
   settings.click();assert.equal(g.modalOpen,true);
   assert.ok(g.modalCard?.parent===overlay);
-  const close=g.modalCard.children.find(node=>node.label?.text==='关闭');
+  const card=g.modalCard,shade=g.modalShade;
+  const close=card.children.find(node=>node.label?.text==='关闭');
   assert.ok(close);close.click();assert.equal(g.modalOpen,false);
   assert.equal(g.overlay,overlay,'关闭设置不能销毁或换掉常驻弹窗容器');
   assert.equal(settings.parent,g.scene,'关闭设置不能移除首页设置按钮');
   assert.ok(g.scene.children.includes(settings));
+  assert.equal(settings.visible,true,'设置按钮关闭弹窗后必须可见');
+  assert.equal(settings.alpha,1,'设置按钮关闭弹窗后不能透明');
   assert.equal(settings.enabled,true);
+  assert.equal(card.visible,false,'弹窗在当前点击事件内先隐藏');
+  assert.equal(shade.visible,false,'遮罩在当前点击事件内先隐藏');
+  assert.equal(card.parent,overlay,'弹窗不在点击事件内销毁，避免 Laya 点击状态异常');
+  h.tick();
+  assert.equal(card.parent,null,'下一帧移除关闭的弹窗');
+  assert.equal(shade.parent,null,'下一帧移除关闭的遮罩');
  }
  settings.click();const sound=g.modalCard.children.find(node=>node.label?.text?.startsWith('音效 '));
  assert.ok(sound);const before=g.audio.enabled;sound.click();
