@@ -14,7 +14,9 @@ export class Guide {
   this.hand.size(144,144);this.hand.pivot(144*.245,144*.175)}
 
  draw(state:State,now:number,dragging:boolean):void{
-  if(now-this.lastDraw<50)return;this.lastDraw=now;
+  // During debug auto-rotation the hand must follow the moving gap each frame.
+  // The 50ms throttle is only suitable for static, passive hint illustrations.
+  if(!this.followRotation&&now-this.lastDraw<50)return;this.lastDraw=now;
   const g=this.root.graphics;g.clear();this.hand.visible=false;const ring=C.ring(state,this.id);
   if(!ring||ring.life!=='active'||this.board.animating)return;
   const screen=(p:Point)=>{const q=this.board.toScreen(p);return this.action?{x:q.x-this.board.rect.x,y:q.y-this.board.rect.y}:q};
