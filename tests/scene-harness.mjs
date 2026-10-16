@@ -12,6 +12,8 @@ export function installHarness(){
   constructor(){Object.assign(this,{x:0,y:0,width:0,height:0,rotation:0,alpha:1,visible:true,scaleX:1,scaleY:1,pivotX:0,pivotY:0,zOrder:0,parent:null,children:[],events:{},graphics:new Graphics})}
   pos(x,y){this.x=x;this.y=y;return this}size(w,h){this.width=w;this.height=h;return this}
   scale(x,y=x){this.scaleX=x;this.scaleY=y;return this}pivot(x,y){this.pivotX=x;this.pivotY=y;return this}
+  get numChildren(){return this.children.length}
+  getChildAt(i){return this.children[i]}
   addChild(c){c.removeSelf();this.children.push(c);c.parent=this;return c}
   removeSelf(){if(this.parent){this.parent.children=this.parent.children.filter(c=>c!==this);this.parent=null}return this}
   destroy(children=true){if(children)for(const c of [...this.children])c.destroy(true);this.children=[];this.removeSelf()}

@@ -19,7 +19,7 @@ test('54-ring board keeps its jade and clasp batches cached across unchanged fra
  for(let i=0;i<5;i++)b.draw(s);
  assert.equal(b.rods.graphics.ops,rods,'unchanged physics and camera must not rebuild rods');
  assert.equal(b.effects,fx,'effects root must survive every draw');
- assert.equal(fx.numChildren,undefined===fx.numChildren?undefined:0);
+ assert.equal(fx.numChildren,0,'no leftover ghost sprites in a steady frame');
  b.zoomTo(b.fitZoom*2,{x:360,y:500});
  assert.notEqual(b.rods.graphics.ops,rods,'camera change must re-cull and rebuild clasps');
  const afterZoom=b.rods.graphics.ops;

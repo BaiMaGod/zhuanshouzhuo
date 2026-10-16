@@ -19,6 +19,7 @@ declare namespace Laya {
   scaleX:number;scaleY:number;texture:Texture|null;graphics:Graphics;
   parent:Sprite|null;scrollRect:Rectangle|null;
   constructor();
+  readonly numChildren:number;getChildAt(index:number):Sprite;
   addChild<T extends Sprite>(s:T):T;removeChildren():void;
   destroy(destroyChild?:boolean):void;removeSelf():this;
   pos(x:number,y:number):this;size(w:number,h:number):this;scale(x:number,y?:number):this;
