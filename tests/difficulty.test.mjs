@@ -6,8 +6,19 @@ import {HintGraphRuntime} from '../dist/js/hint-graph.js';
 import {GameModel} from '../dist/js/model.js';
 import {Save} from '../dist/js/storage.js';
 
-test('混合机关有真实多扣和保持约束，固定扣不将单缺口镯永久锁死',()=>{
- for(let index=10;index<110;index++){
+test('第1关恢复十镯九扣的简单入门，每次对齐都能消除并完整通关',()=>{
+ const s=C.make(10),graph=new HintGraphRuntime(10,s);
+ assert.equal(s.rings.length,10);assert.equal(s.rods.length,9);assert.ok(s.rods.every(z=>z.kind==='m'));
+ assert.equal(C.levels[10].revision,2);assert.equal(graph.graph.kind,'dependency');assert.equal(solutions[10].length,9);
+ for(let step=0;step<9;step++){
+  const a=graph.next(s);assert.ok(a);const from=C.ring(s,a.id).a,res=C.request(s,a.id,a.delta);
+  assert.equal(res.blocked,null);assert.ok(res.removed.length>0);graph.observe(s,res.removed,{id:a.id,from,done:res.done});
+ }
+ assert.ok(s.rings.every(r=>r.life==='removed'));assert.equal(graph.next(s),null);
+});
+
+test('后续混合机关有真实多扣和保持约束，固定扣不将单缺口镯永久锁死',()=>{
+ for(let index=11;index<110;index++){
   if(index===54)continue;
   const l=C.levels[index],s=C.make(index),background=s.rods.filter(z=>z.kind==='b');
   assert.equal(l.revision,1);assert.equal(l.hintGraph.kind,'stages');
@@ -21,8 +32,8 @@ test('混合机关有真实多扣和保持约束，固定扣不将单缺口镯�
  }
 });
 
-test('前10关穷举仅产生消除的合法目标操作，不能一路贪心清空',()=>{
- for(let index=10;index<20;index++){
+test('第2—10关穷举仅产生消除的合法目标操作，不能一路贪心清空',()=>{
+ for(let index=11;index<20;index++){
   const visited=new Set();
   function greedy(s){
    if(s.rings.every(r=>r.life==='removed'))return true;
@@ -41,8 +52,8 @@ test('前10关穷举仅产生消除的合法目标操作，不能一路贪心清
  }
 });
 
-test('前10关完整图提示可通关；保持被转离后修复，已消失的中心不再要求旧角度',()=>{
- for(let index=10;index<20;index++){
+test('第2—10关完整图提示可通关；保持被转离后修复，已消失的中心不再要求旧角度',()=>{
+ for(let index=11;index<20;index++){
   const s=C.make(index),graph=new HintGraphRuntime(index,s);let moves=0,setups=0,reversed=false;
   while(!s.rings.every(r=>r.life==='removed')){
    const before=JSON.stringify(s),a=graph.next(s);assert.equal(JSON.stringify(s),before,'query is read only');assert.ok(a,index+'/'+moves);
@@ -66,7 +77,7 @@ test('前10关完整图提示可通关；保持被转离后修复，已消失的
 });
 
 test('偏离、部分拖动及消除任意镯后，阶段提示仍能合法收尾',()=>{
- for(const index of [10,14,19])for(const tool of ['center','receiver']){
+ for(const index of [11,14,19])for(const tool of ['center','receiver']){
   const m=new GameModel(index),stages=C.levels[index].hintGraph.stages;
   // Move several receivers off the recommended sequence before erasing a ring.
   for(const stage of stages.slice(0,6))m.turn(stage.ringId,13);
@@ -87,7 +98,7 @@ test('关卡重构拒绝旧局内盘面，保留通关成绩并恢复新版道�
  globalThis.Laya={LocalStorage:{getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)}};
  memory.set(key,JSON.stringify({version:2,records:{10:{steps:9,stars:3},21:{steps:20,stars:2}},unlocked:5,sound:false,tutorial:2}));
  const save=new Save(),s=C.make(10);
- memory.set(key+'-run-10',JSON.stringify({version:1,state:s,hint:0,erase:0,hintProgress:8}));
+ memory.set(key+'-run-10',JSON.stringify({version:1,levelRevision:1,state:s,hint:0,erase:0,hintProgress:8}));
  assert.equal(save.readRun(10),null,'old level definition cannot use new stage indices');
  assert.equal(save.data.records[10].stars,3);assert.equal(save.data.records[21].stars,2);assert.equal(save.data.sound,false);
  save.writeRun(10,s,0,1,2);const restored=save.readRun(10);
