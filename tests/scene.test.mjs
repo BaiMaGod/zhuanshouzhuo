@@ -19,7 +19,7 @@ test('游戏页剩余数与转动次数固定为单行居中且实时更新',()=
  assert.equal(g.status.text,'剩余 '+count+' 个  ·  已转 7 次');
  g.load(10,true); // Restore the run before moving on.
  g.load(0);
- assert.match(g.status.text,/^剩余 \\d+ 个  ·  已转 \\d+ 次/);
+ assert.match(g.status.text,/^剩余 \d+ 个  ·  已转 \d+ 次/);
  g.home();
 });
 test('正式场景导航、点击只选中、真实手势路径与逐关解锁',()=>{
