@@ -1,7 +1,7 @@
 import {Core as C,GameModel} from './model.js';
 import {Board} from './renderer.js';
 import {text,panel,Button,ornament,COLORS,THEME,icon,flower} from './ui.js';
-import {Guide} from './guide.js';
+import {Guide,HINT_HAND_ASSET} from './guide.js';
 import {Audio} from './audio.js';
 import {Haptics} from './haptics.js';
 import {snapDelta} from './snap.js';
@@ -18,7 +18,7 @@ const W=720;
 let H=1280,RENDER_W=720,RENDER_SCALE=1;
 const TRAY='assets/art-rose/tray.png';
 const HOME_BG='assets/art-rose/home-bg.jpg';
-const ASSETS=[...JADE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,'assets/art-v3/clasp.png'];
+const ASSETS=[HINT_HAND_ASSET,...JADE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,'assets/art-v3/clasp.png'];
 class Game {
  readonly debugMode=debugHintEnabled();
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
@@ -89,7 +89,7 @@ class Game {
   // gameplay scene, never inside the tray/ring rendering pass.
   this.wallpaper?.destroy(true);this.wallpaper=null;
   this.scene.destroy(true);this.homeSettingsButton=null;this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
-  this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.eraseButton=null;this.eraseTip=null;this.eraseMode=false;this.eraseTap=null;this.message=null;this.status=nullthis.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
+  this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.eraseButton=null;this.eraseTip=null;this.eraseMode=false;this.eraseTap=null;this.message=null;this.status=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
   // Keep render-pass topology stable through zoom, undo and restart.
   // A full-scene bitmap cache can lose buttons when their state or icons update.
   // Preserve live HUD and cache only static decorations where appropriate.

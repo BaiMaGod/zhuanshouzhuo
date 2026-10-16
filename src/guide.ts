@@ -1,13 +1,18 @@
 import {Core as C} from './model.js';
 import type {State,Action,Point} from './types.js';
 import type {Board} from './renderer.js';
-import {curvedPath,THEME} from './ui.js';
+import {THEME} from './ui.js';
+export const HINT_HAND_ASSET='assets/art-rose/hint-hand.png';
 // Presentation only: Game owns debug rotation through the normal rule API.
 export class Guide {
  root=new Laya.Sprite();hand=new Laya.Sprite();phase:'choose'|'turn'='choose';lastDraw=0;followRotation=false;
  constructor(parent:Laya.Sprite,public board:Board,public id:string,public action?:Action){this.root.mouseEnabled=false;this.root.zOrder=25;parent.addChild(this.root);this.hand.mouseEnabled=false;this.root.addChild(this.hand);
   if(action){this.root.pos(board.rect.x,board.rect.y);this.root.size(board.rect.w,board.rect.h);this.root.scrollRect=new Laya.Rectangle(0,0,board.rect.w,board.rect.h);this.hand.scale(1.25,1.25)}
-  curvedPath(this.hand.graphics,0,0,[['moveTo',-4,10],['lineTo',-4,-9],['quadraticCurveTo',-4,-17,3,-14],['lineTo',4,-1],['quadraticCurveTo',18,-3,22,8],['lineTo',23,22],['quadraticCurveTo',17,31,6,28],['lineTo',-7,15],['quadraticCurveTo',-11,8,-4,10]],{fillStyle:THEME.white},{strokeStyle:THEME.pressed,lineWidth:2.5})}
+  // The artwork points upper-left. Anchor its fingertip (24.5%, 17.5%)
+  // at the traced ring position; preserve its natural orientation and aspect ratio.
+  this.hand.texture=Laya.loader.getRes(HINT_HAND_ASSET);
+  this.hand.size(144,144);this.hand.pivot(144*.245,144*.175)}
+
  draw(state:State,now:number,dragging:boolean):void{
   if(now-this.lastDraw<50)return;this.lastDraw=now;
   const g=this.root.graphics;g.clear();this.hand.visible=false;const ring=C.ring(state,this.id);
@@ -40,7 +45,7 @@ export class Guide {
    g.drawPoly(tip.x,tip.y,[0,0,-v.x*10-v.y*5,-v.y*10+v.x*5,-v.x*10+v.y*5,-v.y*10-v.x*5],THEME.pressed);
   }
   const p=screen(C.point(ring,a));
-  this.hand.pos(p.x+6,p.y+6);this.hand.visible=true;
+  this.hand.pos(p.x,p.y);this.hand.visible=true;
  }
  clear():void{this.root.graphics.clear();this.hand.visible=false}
  destroy():void{this.root.destroy(true)}
