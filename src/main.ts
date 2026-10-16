@@ -6,7 +6,7 @@ import {Audio} from './audio.js';
 import {Haptics} from './haptics.js';
 import {snapDelta} from './snap.js';
 import {Save} from './storage.js';
-import {finishWebShell,failWebShell,debugEnabled,exposeDebug} from './web-shell.js';
+import {finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug} from './web-shell.js';
 import {search,nextFrame} from './solver.js';
 interface GamePointer {pointerId:number;stageX:number;stageY:number;button?:number}
 import {JADE_ASSETS,jadeSprite} from './jade.js';
@@ -20,6 +20,7 @@ const TRAY='assets/art-rose/tray.png';
 const HOME_BG='assets/art-rose/home-bg.jpg';
 const ASSETS=[...JADE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,'assets/art-v3/clasp.png'];
 class Game {
+ readonly debugMode=debugHintEnabled();
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
  garden:Laya.Sprite|null=null;wallpaper:Laya.Sprite|null=null;
  save=new Save();audio=new Audio();haptics=new Haptics();model:GameModel|null=null;board:Board|null=null;
@@ -328,6 +329,7 @@ class Game {
  }
  cancel():void{
   this.audio.stopAll();
+  if(this.guide?.followRotation)this.stopGuide(false);
   this.epoch++;this.busy=false;this.releasePointers();
 
   this.finishPlan?.(null);this.finishPlan=null;
@@ -491,14 +493,43 @@ class Game {
    this.guide=new Guide(this.scene,this.board!,a.id,a);this.guide.phase='turn';
    // The hint owns its graphics. State is unchanged; panTo already redraws if
    // needed. Rebuilding every static clasp twice made dense-board hints stall.
-   this.guide.draw(this.model.state,performance.now(),false);this.hintLeft--;this.sync(false);return;
+   this.hintLeft--;
+   if(this.debugMode){await this.rotateHint(a,token);return}
+   this.guide.draw(this.model.state,performance.now(),false);this.sync(false);return;
   }
   // Same unobtrusive guided hand used for hard levels; never block input.
   this.releasePointers();this.stopGuide(false);this.board!.hint=null;
   this.guide=new Guide(this.scene,this.board!,a.id,a);this.guide.phase='turn';
+  if(this.debugMode){await this.rotateHint(a,token);return}
   this.guide.draw(this.model.state,performance.now(),false);
   this.say('跟着手指，'+(a.delta>0?'顺时针':'逆时针')+'转动 '+a.id+' 镯，让缺口对准锁扣。');
   this.sync();
+ }
+ async rotateHint(action:Action,token:number):Promise<void>{
+  const model=this.model,board=this.board,guide=this.guide;
+  if(!model||!board||!guide)return;
+  this.busy=true;guide.followRotation=true;model.begin();this.sync(false);
+  guide.draw(model.state,performance.now(),false);
+  let remaining=action.delta;
+  try{
+   // One press executes one verified hint action, including multi-stage alignments.
+   // Reuse normal rotation for collision, release, audio, haptics and persistence.
+   while(Math.abs(remaining)>.001){
+    await nextFrame();
+    if(token!==this.epoch||this.model!==model||this.board!==board)return;
+    if(this.modalOpen){this.cancel();return}
+    const amount=Math.sign(remaining)*Math.min(2.4,Math.abs(remaining));
+    const res=this.perform(action.id,amount);remaining-=res.done;
+    guide.lastDraw=0;
+    if(this.guide===guide)guide.draw(model.state,performance.now(),false);
+    if(res.blocked||Math.abs(res.done)<.001||C.ring(model.state,action.id)?.life!=='active')break;
+   }
+   this.audio.stopMotion();
+   if(this.guide===guide)this.stopGuide(false);
+   while(board.animating){await nextFrame();if(token!==this.epoch)return}
+  }finally{
+   if(token===this.epoch){this.busy=false;this.audio.stopMotion();if(this.guide===guide)this.stopGuide(false);this.sync()}
+  }
  }
  async automatic(all:boolean):Promise<void>{
   if(this.formal||this.busy||this.modalOpen||this.board?.animating||!this.model)return;

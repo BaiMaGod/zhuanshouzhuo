@@ -5,6 +5,8 @@ export function failWebShell():void{
  const box=document.getElementById('boot');if(box){box.classList.add('error');box.textContent='玉盘暂时没有加载完成，请刷新再试。'}
 }
 export function debugEnabled():boolean{return typeof location!=='undefined'&&new URLSearchParams(location.search).has('debug')}
+// QA's legacy ?debug bridge stays passive; only an explicit opt-in moves rings.
+export function debugHintEnabled():boolean{return typeof location!=='undefined'&&new URLSearchParams(location.search).get('debug')==='1'}
 export function exposeDebug(value:unknown):void{
  // Preserve the existing browser QA bridge without giving gameplay a DOM dependency.
  const debug=value as {game?:object};
