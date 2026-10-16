@@ -31,11 +31,11 @@ test('debug hand follows legal frame-by-frame rotation and counts one action',as
  g.perform=(id,delta)=>{const result=perform(id,delta);angles.push(C.ring(g.model.state,id).a);return result};
  const pending=g.hint(),guide=g.guide;
  assert.equal(g.busy,true);assert.equal(g.model.state.steps,1);
- assert.equal(guide.followRotation,true);assert.equal(g.hintLeft,0);
+ assert.equal(guide.followRotation,true);assert.equal(g.hintLeft,1);
  const draw=guide.draw.bind(guide);
  guide.draw=(state,now,dragging)=>{draw(state,now,dragging);if(guide.hand.visible){
   const ring=C.ring(state,action.id),p=g.board.toScreen(C.point(ring,ring.a));
-  hands.push([guide.hand.x-(p.x-g.board.rect.x+6),guide.hand.y-(p.y-g.board.rect.y+6)]);
+  hands.push([guide.hand.x-(p.x-g.board.rect.x),guide.hand.y-(p.y-g.board.rect.y)]);
  }};
  await g.hint();assert.equal(g.model.state.steps,1,'repeated click cannot start another turn');
  await pending;g.perform=perform;
@@ -68,4 +68,35 @@ test('debug mode retains collision checks and stops a blocked action',async()=>{
  let calls=0;g.model.turn=()=>{calls++;return{done:0,removed:[],blocked:{kind:'ring',rod:a.rod,target:a.id,text:'blocked'}}};
  await g.hint();g.model.turn=original;
  assert.equal(calls,1);assert.equal(g.busy,false);assert.equal(g.guide,null);assert.equal(g.board.blockedRing,a.id);
+});
+test('debug tools are unlimited at positive or exhausted quotas and preserve normal quotas on reload',async()=>{
+ for(const quota of [1,0]){
+  g.load(11,true);g.hintLeft=quota;g.eraseLeft=quota;g.sync();
+  assert.equal(g.hintButton.label.text,'提示 ×∞');assert.equal(g.eraseButton.label.text,'消除 ×∞');
+  assert.equal(g.hintButton.alpha,1);assert.equal(g.eraseButton.alpha,1);
+  for(let i=0;i<2;i++){
+   const steps=g.model.state.steps;await g.hint();
+   assert.equal(g.model.state.steps,steps+1,'each debug hint still performs one real turn');
+   assert.equal(g.hintLeft,quota);
+  }
+  for(let i=0;i<2;i++){
+   g.toggleErase();assert.equal(g.eraseMode,true,'exhausted quotas must not block target selection');
+   const id=g.model.state.rings.find(r=>r.life==='active').id;
+   g.chooseEraseTarget(id);assert.equal(g.modalOpen,true);
+   g.modalCard.children.find(n=>n.label?.text==='确认消除').click();
+   assert.equal(C.ring(g.model.state,id).life,'removed');assert.equal(g.eraseLeft,quota);
+   for(let frame=0;frame<50;frame++)h.tick();
+  }
+  const saved=g.save.readRun(11);assert.equal(saved.hint,quota);assert.equal(saved.erase,quota);
+  g.home();g.load(11);assert.equal(g.hintLeft,quota);assert.equal(g.eraseLeft,quota);
+  assert.equal(g.hintButton.label.text,'提示 ×∞');assert.equal(g.eraseButton.label.text,'消除 ×∞');
+  g.home();normal.load(11);
+  assert.equal(normal.hintButton.label.text,'提示 ×'+quota);assert.equal(normal.eraseButton.label.text,'消除 ×'+quota);
+  if(quota===0){
+   const before=C.clone(normal.model.state);await normal.hint();normal.toggleErase();
+   normal.eraseRing(normal.model.state.rings.find(r=>r.life==='active').id);
+   assert.deepEqual(normal.model.state,before);assert.equal(normal.eraseMode,false);
+  }
+  normal.home();
+ }
 });

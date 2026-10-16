@@ -41,7 +41,7 @@ try{
   assert.equal(await page.evaluate(()=>window.jadeDebug.game.guide?.followRotation),true);
   await page.waitForFunction(()=>!window.jadeDebug.game.busy,undefined,{timeout:15000});
   const result=await page.evaluate(()=>({s:window.jadeDebug.getState(),samples:window.debugSamples,left:window.jadeDebug.game.hintLeft,guide:!!window.jadeDebug.game.guide}));
-  assert.ok(result.samples.length>2);assert.equal(result.s.steps,1);assert.equal(result.left,0);assert.equal(result.guide,false);
+  assert.ok(result.samples.length>2);assert.equal(result.s.steps,1);assert.equal(result.left,1);assert.equal(result.guide,false);
   assert.deepEqual(result.s.rings.map(r=>r.life),expected.rings.map(r=>r.life));
   assert.ok(result.s.rings.every((r,i)=>Math.abs(((r.a-expected.rings[i].a+540)%360)-180)<.3));
   assert.deepEqual(errors,[]);await page.close();console.log('WebGL debug hint passed',viewport);

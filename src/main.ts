@@ -34,10 +34,10 @@ class Game {
  toolNotice(message:string):void{if(this.eraseTip){this.eraseTip.text=message;this.eraseTip.visible=true;this.noticeUntil=performance.now()+2200}}
  syncTools():void{
   if(!this.formal)return;
-  if(this.hintButton){this.hintButton.label.text=this.busy?'观察…':'提示 ×'+this.hintLeft;this.hintButton.setIcon('hint')}
-  if(this.eraseButton){this.eraseButton.label.text=this.eraseMode?'取消':'消除 ×'+this.eraseLeft;this.eraseButton.setIcon('erase')}
-  if(this.hintButton)this.hintButton.alpha=this.hintLeft===0?.5:1;
-  if(this.eraseButton)this.eraseButton.alpha=this.eraseLeft===0?.5:1;
+  if(this.hintButton){this.hintButton.label.text=this.busy?'观察…':'提示 ×'+(this.debugMode?'∞':this.hintLeft);this.hintButton.setIcon('hint')}
+  if(this.eraseButton){this.eraseButton.label.text=this.eraseMode?'取消':'消除 ×'+(this.debugMode?'∞':this.eraseLeft);this.eraseButton.setIcon('erase')}
+  if(this.hintButton)this.hintButton.alpha=!this.debugMode&&this.hintLeft===0?.5:1;
+  if(this.eraseButton)this.eraseButton.alpha=!this.debugMode&&this.eraseLeft===0?.5:1;
  }
  get formal():boolean{return this.model!==null&&this.model.index>=TEACHING_COUNT}
  drag:{id:string;pointer:number;last:number;started:boolean}|null=null;
@@ -472,7 +472,7 @@ class Game {
  }
  async hint():Promise<void>{
   if(this.busy||this.modalOpen||this.board?.animating||!this.model)return;
-  if(this.formal&&this.hintLeft===0){this.toolNotice('本关提示已用完');return}
+  if(!this.debugMode&&this.formal&&this.hintLeft===0){this.toolNotice('本关提示已用完');return}
   if(this.guide?.action&&this.formal)return;
   this.busy=true;const token=++this.epoch;this.say('正在观察当前扣位…');if(this.hintButton)this.hintButton.label.text='观察…';this.sync(!this.formal);
   // Formal hint = direct lookup of precomputed DAG/stage data. No Worker.
@@ -493,7 +493,7 @@ class Game {
    this.guide=new Guide(this.scene,this.board!,a.id,a);this.guide.phase='turn';
    // The hint owns its graphics. State is unchanged; panTo already redraws if
    // needed. Rebuilding every static clasp twice made dense-board hints stall.
-   this.hintLeft--;
+   if(!this.debugMode)this.hintLeft--;
    if(this.debugMode){await this.rotateHint(a,token);return}
    this.guide.draw(this.model.state,performance.now(),false);this.sync(false);return;
   }
@@ -600,7 +600,7 @@ class Game {
  }
  toggleErase():void{
   if(!this.formal||!this.model||!this.board||this.modalOpen||this.busy||this.board.animating)return;
-  if(this.eraseLeft===0){this.toolNotice('本关消除已用完');return}
+  if(!this.debugMode&&this.eraseLeft===0){this.toolNotice('本关消除已用完');return}
   this.releasePointers();this.stopGuide(false);
   this.eraseMode=!this.eraseMode;
   this.syncEraseUI();
@@ -622,12 +622,12 @@ class Game {
   ]);
  }
  eraseRing(id:string):void{
-  if(!this.formal||!this.model||!this.board||this.eraseLeft===0)return;
+  if(!this.formal||!this.model||!this.board||!this.debugMode&&this.eraseLeft===0)return;
   const before=C.clone(this.model.state);
   const removed=this.model.removeWithTool(id);
   this.hideModal();
   if(!removed.length)return;
-  this.eraseLeft--;
+  if(!this.debugMode)this.eraseLeft--;
   this.releasePointers();this.stopGuide(false);this.board.hint=null;
   this.board.release(before,this.model.state,removed);
   this.audio.play('tool');
