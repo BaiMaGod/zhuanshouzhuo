@@ -15,7 +15,7 @@ const s={index,rings,rods,steps:0,states:{},events:[]};update(s);return s;}
 const ringCache=new WeakMap;
 function ring(s,id){let cache=ringCache.get(s);if(!cache||cache.size!==s.rings.length){cache=new Map(s.rings.map(r=>[r.id,r]));ringCache.set(s,cache)}return cache.get(id)}
 function pose(s,z){if(z.kind==='b')return{p:z.p,q:z.q};const r=ring(s,z.owner),p=rot(z.local,r.a),q=rot(z.end,r.a);return{p:{x:r.x+p.x,y:r.y+p.y},q:{x:r.x+q.x,y:r.y+q.y}}}
-function exists(s,z){return z.kind==='b'||ring(s,z.owner).life==='active'}
+function exists(s,z){return z.kind==='b'?z.targets.some(id=>ring(s,id)?.life==='active'):ring(s,z.owner).life==='active'}
 function endpoints(s,z){const p=pose(s,z);return z.kind==='m'?[{id:z.targets[0],p:p.q}]:[{id:z.targets[0],p:p.p},{id:z.targets[1],p:p.q}]}
 function update(s){s.states={};for(const z of s.rods){s.states[z.id]=endpoints(s,z).map(e=>{const r=ring(s,e.id);if(!exists(s,z)||r.life!=='active')return'inactive';if(Math.abs(dist(r,e.p)-R)>.025)return'latched';return Math.abs(diff(r.a,angle(r,e.p)))<=tolerance+1e-8?'aligned':'latched'})}}
 function connections(s,id){return s.rods.filter(z=>exists(s,z)).flatMap(z=>endpoints(s,z).map((e,i)=>({z,e,state:s.states[z.id][i],i}))).filter(x=>x.state==='latched'&&(x.e.id===id||x.z.owner===id))}
