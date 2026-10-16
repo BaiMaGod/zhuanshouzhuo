@@ -15,7 +15,7 @@ export class Board {
  lastState:State|null=null;
  showLabels=true;
  private traySize:{w:number;h:number}|undefined;
- hint:Point|null=null;blocked:Block|null=null;blockUntil=0;
+ hint:Point|null=null;blocked:Block|null=null;blockUntil=0;blockedRing:string|null=null;
  ghosts:Ghost[]=[];sparks:{x:number;y:number;start:number;seed:number}[]=[];
  constructor(private parent:Laya.Sprite,public rect:{x:number;y:number;w:number;h:number}){
   this.screen={x:rect.x+rect.w/2,y:rect.y+rect.h/2};
@@ -171,6 +171,17 @@ export class Board {
    const offset=C.rot({x:0,y:dy},-this.turn);v.root.pos(r.x+offset.x,r.y+offset.y);
    v.body.rotation=r.a;v.shadow.rotation=r.a;
    v.halo.graphics.clear();v.label.alpha=r.id===this.selected?1:.55;
+   if(r.id===this.blockedRing&&now<this.blockUntil){
+    const fade=Math.min(1,(this.blockUntil-now)/180);
+    v.halo.alpha=fade;
+    // Trace both band edges, leaving the physical gap visible.
+    const outer:number[]=[],inner:number[]=[];
+    for(let a=8;a<=352;a+=4){const p=C.point({x:0,y:0},r.a+a,C.R+C.BAND/2+1);outer.push(p.x,p.y);const q=C.point({x:0,y:0},r.a+a,C.R-C.BAND/2-1);inner.push(q.x,q.y)}
+    for(const points of [outer,inner])for(let i=2;i<points.length;i+=2){
+     v.halo.graphics.drawLine(points[i-2],points[i-1],points[i],points[i+1],'rgba(234,79,88,0.22)',6);
+     v.halo.graphics.drawLine(points[i-2],points[i-1],points[i],points[i+1],'#ed6670',1.8);
+    }
+   }
    // Keep every jade opaque when selecting; release fading stays on the root.
    v.body.alpha=1;
   }

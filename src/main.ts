@@ -3,6 +3,8 @@ import {Board} from './renderer.js';
 import {text,panel,Button,ornament,COLORS,THEME,icon,flower} from './ui.js';
 import {Guide} from './guide.js';
 import {Audio} from './audio.js';
+import {Haptics} from './haptics.js';
+import {snapDelta} from './snap.js';
 import {Save} from './storage.js';
 import {finishWebShell,failWebShell,debugEnabled,exposeDebug} from './web-shell.js';
 import {search,nextFrame} from './solver.js';
@@ -20,7 +22,7 @@ const ASSETS=[...JADE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,'assets/art-v3/cla
 class Game {
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
  garden:Laya.Sprite|null=null;wallpaper:Laya.Sprite|null=null;
- save=new Save();audio=new Audio();model:GameModel|null=null;board:Board|null=null;
+ save=new Save();audio=new Audio();haptics=new Haptics();model:GameModel|null=null;board:Board|null=null;
  mode:'home'|'levels'|'game'='home';message:Laya.Text|null=null;status:Laya.Text|null=null;turnStatus:Laya.Text|null=null;
  controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;eraseButton:Button|null=null;eraseTip:Laya.Text|null=null;eraseMode=false;eraseTap:{id:string;pointer:number;start:Point}|null=null;
  pointers=new Map<number,Point>();panMode=false;viewLabel:Laya.Text|null=null;panButton:Button|null=null;
@@ -388,7 +390,8 @@ class Game {
   const a=C.angle(r,p),delta=C.diff(a,d.last);d.last=a;
   if(Math.abs(delta)<.08)return;
   if(!d.started){this.model.begin();d.started=true}
-  this.perform(d.id,delta);
+  const result=this.perform(d.id,delta);
+  if(!result.blocked&&!result.removed.length)this.snap(d.id,delta);
  }
  up(e:GamePointer):void{
   const d=this.drag?.pointer===e.pointerId?this.drag:null;
@@ -401,13 +404,10 @@ class Game {
   if(erase&&this.eraseMode)this.chooseEraseTarget(erase.id);
   this.persistRun();
  }
- snap(id:string):void{
-  if(!this.model)return;const s=this.model.state,r=C.ring(s,id);if(!r||r.life!=='active')return;
-  let best=5;
-  for(const z of s.rods)if(C.exists(s,z))for(const e of C.endpoints(s,z))if(e.id===id){
-   const d=C.diff(C.angle(r,e.p),r.a);if(Math.abs(d)<Math.abs(best))best=d;
-  }
-  if(Math.abs(best)<=4)this.perform(id,best);
+ snap(id:string,motion=0):void{
+  if(!this.model)return;
+  const delta=snapDelta(this.model.state,id,motion);
+  if(delta!==null){const res=this.perform(id,delta);if(!res.blocked)this.haptics.pulse('snap')}
  }
  manual(delta:number):void{
   if(this.formal||!this.model||!this.model.selected||this.busy||this.board?.animating||this.modalOpen)return;
@@ -417,11 +417,13 @@ class Game {
   const model=this.model!,before=C.clone(model.state),res=model.turn(id,d);
   if(res.done){this.audio.motion(res.done);if(!res.blocked)this.audio.resetContact()}
   if(res.removed.length){
+   this.haptics.pulse('snap');
    this.releaseDrag();this.board!.release(before,model.state,res.removed);this.audio.play('clear');
    this.say(res.removed.join('、')+' 已解开。观察下一只手镯的扣位。');
    if(this.guide&&res.removed.includes(this.guide.id))this.stopGuide(true);
   }else if(res.blocked){
    this.board!.blocked=res.blocked;this.board!.blockUntil=performance.now()+550;
+   this.board!.blockedRing=id;this.haptics.pulse('blocked');
    this.audio.collision(id+':'+res.blocked.rod+':'+res.blocked.target,Math.min(1,Math.abs(d)/8));
    this.say(res.blocked.kind==='captive'?id+' 的锁杆还套在 '+res.blocked.target+' 上，先处理 '+res.blocked.target+'。':id+' 的锁杆被挡住了。试试反向转动，或先拆旁边的手镯。');
   }else{
@@ -430,7 +432,7 @@ class Game {
     this.say(id+' 已对齐，保持这个位置，再调整其他扣位。');
     const entered=model.state.rods.some(z=>C.exists(model.state,z)&&C.endpoints(model.state,z).some((e,j)=>
      e.id===id&&model.state.states[z.id][j]==='aligned'&&before.states[z.id]?.[j]!=='aligned'));
-    if(entered)this.audio.play('align');
+    if(entered){this.audio.play('align');this.haptics.pulse('snap')}
    }
   }
   this.sync();return res;
@@ -521,6 +523,7 @@ class Game {
  tick():void{
   this.audio.tick(performance.now());
   const now=performance.now();
+  if(this.board?.blockedRing&&now>=this.board.blockUntil){this.board.blockedRing=null;if(this.model)this.board.draw(this.model.state)}
   if(this.noticeUntil&&now>this.noticeUntil){this.noticeUntil=0;if(this.eraseTip&&!this.eraseMode)this.eraseTip.visible=false}
   if(!this.model||!this.board||this.mode!=='game')return;
   if(this.guide&&!this.modalOpen)this.guide.draw(this.model.state,now,!!this.drag);
