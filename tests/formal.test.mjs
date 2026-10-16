@@ -19,7 +19,7 @@ test('54镯正式关卡为相连九宫结构，跨宫杆真实阻挡且完整路
   let delta=a.delta;
   while(Math.abs(delta)>.001){const res=C.request(s,a.id,Math.sign(delta)*Math.min(5,Math.abs(delta)));assert.equal(res.blocked,null,JSON.stringify(res.blocked));assert.ok(Math.abs(res.done)>.001);delta-=res.done;if(C.ring(s,a.id).life==='removed')break}
  }
- assert.equal(s.rings.filter(r=>r.life==='active').length,0);assert.equal(s.rods.filter(z=>C.exists(s,z)).length,9);
+ assert.equal(s.rings.filter(r=>r.life==='active').length,0);assert.equal(s.rods.filter(z=>C.exists(s,z)).length,0,'All background clasps disappear after their two connected bracelets are gone');
 });
 test('正式挑战保存最佳成绩，不跳过教学关的解锁',()=>{
  const memory=new Map();globalThis.localStorage={getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)};
