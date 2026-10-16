@@ -7,6 +7,22 @@ await import('../dist/js/main.js');
 await new Promise(r=>setImmediate(r));
 const g=window.jadeDebug.game,C=window.jadeDebug.Core;
 g.audio.enabled=false;
+test('游戏页剩余数与转动次数文案居中，并随状态更新',()=>{
+ g.load(10,true);
+ const count=g.model.state.rings.filter(r=>r.life==='active').length;
+ assert.equal(g.status.text,'剩余 '+count+' 个');
+ assert.equal(g.turnStatus.text,'已转 0 次');
+ assert.equal(g.status.align,'center');
+ assert.equal(g.turnStatus.align,'center');
+ const leftCenter=g.status.x+g.status.width/2,rightCenter=g.turnStatus.x+g.turnStatus.width/2;
+ assert.ok(rightCenter-leftCenter>=200,'两个计数区域需要留出间隔');
+ assert.equal((leftCenter+rightCenter)/2,360,'两组计数整体水平居中');
+ g.model.state.steps=7;g.sync(false);
+ assert.equal(g.turnStatus.text,'已转 7 次');
+ g.load(0);
+ assert.match(g.status.text,/^剩余 \d+ 个  ·  已转 \d+ 次/);
+ g.home();
+});
 test('正式场景导航、点击只选中、真实手势路径与逐关解锁',()=>{
  assert.equal(g.mode,'home');g.load(1);assert.equal(g.mode,'home','未解锁不能直接进入');
  g.load(0);assert.equal(g.mode,'game');assert.equal(g.modalOpen,false);assert.ok(g.guide,'New player gets in-board coach without a blocking modal');
