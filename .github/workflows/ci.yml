@@ -4,8 +4,65 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      full: ${{ steps.detect.outputs.full }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "full=true" >> "$GITHUB_OUTPUT"
+          else
+            before="${{ github.event.before }}"
+            if [[ -z "$before" || "$before" =~ ^0+$ ]]; then
+              echo "full=true" >> "$GITHUB_OUTPUT"
+            else
+              git diff --name-only "$before" "${{ github.sha }}" > /tmp/jade-changed-paths.txt
+              cat /tmp/jade-changed-paths.txt
+              if grep -Eq '^(src/(core\.js|main\.ts|model\.ts|renderer\.ts|snap\.ts|guide\.ts|levels\.js|solutions\.js|formal[^/]*\.js|types\.ts)|scripts/(generate-formal-templates\.mjs|build-platform\.mjs)|laya/|tests/full/)' /tmp/jade-changed-paths.txt; then
+                echo "full=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "full=false" >> "$GITHUB_OUTPUT"
+              fi
+            fi
+          fi
+
+  fast:
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run test:fast
+      - run: npm install --no-save --no-audit --no-fund playwright pngjs
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-jade-ci-playwright-1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/browser-buttons.mjs
+      - run: node tests/browser-campaign.mjs
+      - run: node tests/browser-input.mjs
+
+  full:
+    needs: changes
+    if: needs.changes.outputs.full == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -13,10 +70,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --no-audit --no-fund
-      - run: npm test
-      - run: npm install --no-save --no-audit --no-fund playwright pngjs
-      - run: npx playwright install --with-deps chromium
-      - run: node tests/browser-buttons.mjs
-      - run: node tests/browser-campaign.mjs
-      - run: node tests/browser-input.mjs
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: node --test tests/full/*.test.mjs

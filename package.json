@@ -6,7 +6,9 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
-    "test": "npm run build && node --test tests/*.test.mjs",
+    "test": "npm run test:full",
+    "test:fast": "npm run build && node --test tests/*.test.mjs",
+    "test:full": "npm run build && node --test tests/*.test.mjs tests/full/*.test.mjs",
     "art": "python3 scripts/generate-jade.py",
     "audio:generate": "npm run build && node scripts/generate-audio.mjs",
     "levels:generate": "node scripts/generate-formal-templates.mjs",
