@@ -40,7 +40,7 @@ class Game {
   if(this.eraseButton)this.eraseButton.alpha=this.eraseLeft===0?.5:1;
  }
  get formal():boolean{return this.model!==null&&this.model.index>=TEACHING_COUNT}
- drag:{id:string;pointer:number;last:number;started:boolean}|null=null;
+ drag:{id:string;pointer:number;last:number;started:boolean;blocked:boolean}|null=null;
  busy=false;epoch=0;finishPlan:((path:Action[]|null)=>void)|null=null;
  demoButton:Button|null=null;settled=false;tutorialSeen=false;modalOpen=false;
  guide:Guide|null=null;guideTitle:Laya.Text|null=null;guideSkip:Button|null=null;homePreview:Board|null=null;homeSettingsButton:Button|null=null;modalCard:Laya.Sprite|null=null;modalShade:Laya.Sprite|null=null;
@@ -369,7 +369,7 @@ class Game {
   const ring=this.panMode?undefined:this.board.pick(p,this.model.state);
   if(!ring){this.viewGesture={kind:'pan',start:p,screen:{...this.board.screen},zoom:this.board.zoom,distance:0,anchor:p};return}
   this.model.selected=ring.id;this.board.hint=null;this.guideSelect(ring.id);
-  this.drag={id:ring.id,pointer:e.pointerId,last:C.angle(ring,this.board.toWorld(p)),started:false};
+  this.drag={id:ring.id,pointer:e.pointerId,last:C.angle(ring,this.board.toWorld(p)),started:false,blocked:false};
   this.audio.play('select');this.sync();
  }
  move(e:GamePointer):void{
@@ -393,6 +393,9 @@ class Game {
   if(Math.abs(delta)<.08)return;
   if(!d.started){this.model.begin();d.started=true}
   const result=this.perform(d.id,delta);
+  // Preserve the last physical contact result until pointer-up. A blocked drag
+  // must not be magnetically moved to a *different* legal gap on release.
+  d.blocked=!!result.blocked;
   // Engage magnetic alignment during deliberate slow adjustment; rapid swipes must not
   // jump ahead of the moving finger or spoil multi-step alignment routes.
   if(!result.blocked&&!result.removed.length&&Math.abs(delta)<=1.5)this.snap(d.id,delta);
@@ -404,7 +407,7 @@ class Game {
   this.pointers.delete(e.pointerId);if(d)this.releaseDrag();
 
   if(!this.pointers.size)this.viewGesture=null;
-  if(d?.started&&!this.busy&&!this.board?.animating)this.snap(d.id);
+  if(d?.started&&!d.blocked&&!this.busy&&!this.board?.animating)this.snap(d.id);
   if(erase&&this.eraseMode)this.chooseEraseTarget(erase.id);
   this.persistRun();
  }
