@@ -109,7 +109,7 @@ test('正式关独立开放且没有微调、演示，双指缩放不旋转玉�
  g.save.data.unlocked=0;g.home();g.load(10);assert.equal(g.model.index,10);assert.equal(g.controls.length,0);assert.equal(g.demoButton,null);assert.equal(g.guide,null);
  const before=C.clone(g.model.state),board=g.board,mid={x:board.rect.x+board.rect.w/2,y:board.rect.y+board.rect.h/2},event=(x,y,id)=>({stageX:x*.75,stageY:y*.75,pointerId:id,button:0});
  g.down(event(mid.x-50,mid.y,31));g.down(event(mid.x+50,mid.y,32));g.move(event(mid.x-100,mid.y,31));g.move(event(mid.x+100,mid.y,32));
- assert.ok(board.zoom>board.fitZoom*1.9);assert.deepEqual(g.model.state,before);assert.equal(g.drag,null);
+ assert.ok(board.zoom>=Math.min(board.fitZoom*1.9,3.4)-1e-6,'双指缩放达到目标倍率或世界清晰度上限');assert.deepEqual(g.model.state,before);assert.equal(g.drag,null);
  g.up(event(mid.x+100,mid.y,32));g.move(event(mid.x-90,mid.y+30,31));assert.deepEqual(g.model.state,before,'remaining pinch finger cannot accidentally rotate');g.up(event(mid.x-90,mid.y+30,31));assert.equal(g.viewGesture,null);
  g.panMode=true;const screen={...board.screen};g.down(event(mid.x,mid.y,33));g.move(event(mid.x+60,mid.y+40,33));g.up(event(mid.x+60,mid.y+40,33));assert.ok(board.screen.x!==screen.x||board.screen.y!==screen.y);assert.deepEqual(g.model.state,before);
  for(const r of g.model.state.rings){const q=board.toWorld(board.toScreen(r));assert.ok(Math.abs(q.x-r.x)<1e-7&&Math.abs(q.y-r.y)<1e-7)}
