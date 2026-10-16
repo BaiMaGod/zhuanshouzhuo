@@ -14,6 +14,9 @@ export class Board {
  center:Point={x:0,y:0}; screen:Point;zoom=1;fitZoom=1;bounds={w:1,h:1};turn=0;selected:string|null=null;
  lastState:State|null=null;
  showLabels=true;
+ // A single immutable graphics batch costs one cached quad per frame.
+ // Invalidate only when the camera, ring poses or collision highlight changes.
+ private rodsDrawKey=''; private highlightedRing:string|null=null;
  private traySize:{w:number;h:number}|undefined;
  hint:Point|null=null;blocked:Block|null=null;blockUntil=0;blockedRing:string|null=null;
  ghosts:Ghost[]=[];sparks:{x:number;y:number;start:number;seed:number}[]=[];
@@ -21,15 +24,20 @@ export class Board {
   this.screen={x:rect.x+rect.w/2,y:rect.y+rect.h/2};
   this.viewport.pos(rect.x,rect.y);this.viewport.size(rect.w,rect.h);this.viewport.scrollRect=new Laya.Rectangle(0,0,rect.w,rect.h);this.viewport.mouseEnabled=false;
   parent.addChild(this.viewport);this.viewport.addChild(this.root);this.root.addChild(this.space);
+  this.rods.name='board-rods';this.rods.cacheAs='normal';
+  this.effects.name='board-effects';
   this.space.addChild(this.rods);this.space.addChild(this.effects);
   this.rods.zOrder=10;this.effects.zOrder=20;this.root.mouseEnabled=false;
  }
  load(s:State,traySize?:{w:number;h:number}):void{
   if(traySize)this.traySize=traySize;
-  this.lastState=null;
-  // Keep the world uncached; culling limits magnified draw calls.
+  this.lastState=null;this.rodsDrawKey='';this.highlightedRing=null;
+  // Cache only the immutable jade/ring bodies and the clasp batch; never
+  // cache the moving whole scene, input targets or zoomable camera.
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
-  this.ghosts=[];this.sparks=[];this.hint=null;this.blocked=null;
+  this.ghosts=[];this.sparks=[];this.hint=null;this.blocked=null;this.blockedRing=null;this.blockUntil=0;
+  this.effects.graphics.clear();
+  for(let i=this.effects.numChildren-1;i>=0;i--)this.effects.getChildAt(i).destroy(true);
   const xs=s.rings.map(r=>r.x),ys=s.rings.map(r=>r.y);
   const dx=Math.max(...xs)-Math.min(...xs),dy=Math.max(...ys)-Math.min(...ys);
   this.center={x:(Math.min(...xs)+Math.max(...xs))/2,y:(Math.min(...ys)+Math.max(...ys))/2};
@@ -49,7 +57,10 @@ export class Board {
    shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-55,-55,110,110);
    const offset=C.rot({x:1.7,y:3.6},-this.turn);shadow.pos(offset.x,offset.y);root.addChild(shadow);
    const halo=new Laya.Sprite();root.addChild(halo);
-   const body=new Laya.Sprite();drawJade(body.graphics,JADE_NAMES[i%5]);root.addChild(body);
+   const body=new Laya.Sprite();drawJade(body.graphics,JADE_NAMES[i%5]);
+   // A body never changes its local mesh; only its sprite rotation changes.
+   // Rasterize once into a small offscreen surface, even on a 54-ring board.
+   body.cacheAs='normal';root.addChild(body);
    const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index>=TEACHING_COUNT||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
    this.rings.set(r.id,{root,body,halo,label,shadow});
   });
@@ -169,9 +180,11 @@ export class Board {
    v.root.alpha=ghost?1-(now-ghost.start)/340:1;
    const dy=ghost?((now-ghost.start)/340)**2*16:0;
    const offset=C.rot({x:0,y:dy},-this.turn);v.root.pos(r.x+offset.x,r.y+offset.y);
-   v.body.rotation=r.a;v.shadow.rotation=r.a;
-   v.halo.graphics.clear();v.label.alpha=r.id===this.selected?1:.55;
+   if(v.body.rotation!==r.a)v.body.rotation=r.a;
+   if(v.shadow.rotation!==r.a)v.shadow.rotation=r.a;
+   v.label.alpha=r.id===this.selected?1:.55;
    if(r.id===this.blockedRing&&now<this.blockUntil){
+    v.halo.graphics.clear();
     const fade=Math.min(1,(this.blockUntil-now)/180);
     v.halo.alpha=fade;
     // Trace both band edges, leaving the physical gap visible.
@@ -181,13 +194,24 @@ export class Board {
      v.halo.graphics.drawLine(points[i-2],points[i-1],points[i],points[i+1],'rgba(234,79,88,0.22)',6);
      v.halo.graphics.drawLine(points[i-2],points[i-1],points[i],points[i+1],'#ed6670',1.8);
     }
-   }
+   }else if(this.highlightedRing===r.id)v.halo.graphics.clear();
    // Keep every jade opaque when selecting; release fading stays on the root.
    v.body.alpha=1;
   }
-  this.rods.graphics.clear();this.drawRods(s,this.rods.graphics);
-  // Ghost rods are separate entities so their alpha can animate with their owner.
-  this.effects.destroy(true);this.effects=new Laya.Sprite();this.effects.zOrder=20;this.space.addChild(this.effects);
+  this.highlightedRing=now<this.blockUntil?this.blockedRing:null;
+  // Most frames contain no ring/clasp changes. Replacing hundreds of graphic
+  // commands invalidates Laya's GPU cache and costs far more than a short key.
+  const hot=now<this.blockUntil?this.blocked?.rod||'':'';
+  const key=[this.zoom,this.screen.x,this.screen.y,this.turn,hot,
+   ...s.rings.map(r=>r.id+':'+r.a+':'+r.life)].join('|');
+  if(this.rodsDrawKey!==key){
+   this.rods.graphics.clear();this.drawRods(s,this.rods.graphics);
+   this.rodsDrawKey=key;
+  }
+  // Preserve the effects container instead of destroying and allocating it
+  // on every frame. Only temporary ghost children are disposed.
+  for(let i=this.effects.numChildren-1;i>=0;i--)this.effects.getChildAt(i).destroy(true);
+  this.effects.graphics.clear();
   for(const ghost of this.ghosts){
    const sprite=new Laya.Sprite();sprite.alpha=1-(now-ghost.start)/340;
    const dy=((now-ghost.start)/340)**2*16,offset=C.rot({x:0,y:dy},-this.turn);
