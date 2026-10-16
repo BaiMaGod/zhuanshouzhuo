@@ -1,33 +1,49 @@
-// Playback through Laya's platform sound adapter; cues are generated at build time.
+// Playback through Laya's platform sound adapter. Rotation uses one recorded ratchet tick
+// paced by actual angular speed, not a repeating loop or a pitch-shifted motor.
 type Kind='button'|'tool'|'select'|'align'|'clear'|'block'|'win';
 export class Audio {
  private enabled_=true;
  private rotation:Laya.SoundChannel|null=null;
  private voices=new Set<Laya.SoundChannel>();
  private fading=new Set<Laya.SoundChannel>();
- private motionAt=0;private velocity=0;private lastAt=-Infinity;private contact:string|null=null;
+ private motionAt=0;private velocity=0;private lastTickAt=-Infinity;private lastAt=-Infinity;private contact:string|null=null;
  get enabled():boolean{return this.enabled_}
  set enabled(v:boolean){this.enabled_=v;if(!v)this.stopAll()}
  async load():Promise<void>{
-  await Laya.loader.load(['friction','collision','button','align','clear','tool','win'].map(n=>'assets/audio/'+n+'.wav'));
+  await Laya.loader.load(['ratchet_tick','collision','button','align','clear','tool','win'].map(n=>'assets/audio/'+n+'.wav'));
  }
  wake():void{/* Laya handles platform gesture unlock. */}
  motion(delta:number):void{
   if(!this.enabled||Math.abs(delta)<.001)return;
-  const now=performance.now(),continuous=!!this.rotation,elapsed=continuous?Math.max(1,now-this.motionAt):1000/60;
-  const angularSpeed=Math.abs(delta)*1000/elapsed,blend=1-Math.exp(-elapsed/40);
-  this.velocity=continuous?this.velocity+(angularSpeed-this.velocity)*blend:angularSpeed;this.motionAt=now;
-  if(!this.rotation||this.rotation.isStopped)this.rotation=Laya.SoundManager.playSound('assets/audio/friction.wav',0);
-  const speed=Math.min(1,this.velocity/360);
-  if(this.rotation){this.rotation.playbackRate=.72+speed*.36;this.rotation.volume=(.025+speed*.145)*.65}
+  const now=performance.now(),continuous=this.motionAt>0&&now-this.motionAt<=110;
+  const elapsed=continuous?Math.max(1,now-this.motionAt):1000/60;
+  const angularSpeed=Math.min(720,Math.abs(delta)*1000/elapsed);
+  const blend=1-Math.exp(-elapsed/75);
+  this.velocity=continuous?this.velocity+(angularSpeed-this.velocity)*blend:angularSpeed;
+  this.motionAt=now;
+  if(!continuous)this.lastTickAt=-Infinity;
+  // Keep the sample's crisp natural pitch. Faster angular motion causes closer
+  // ticks; the 200ms floor avoids a harsh buzz on a very fast swipe.
+  const interval=Math.max(200,900/(1+this.velocity/85));
+  if(now-this.lastTickAt<interval)return;
+  const previous=this.rotation;
+  if(previous&&!previous.isStopped)previous.stop();
+  const voice=Laya.SoundManager.playSound('assets/audio/ratchet_tick.wav',1);
+  if(voice){
+   voice.playbackRate=1;
+   voice.volume=(.12+.08*Math.min(1,this.velocity/360))*.65;
+   this.rotation=voice;
+   this.lastTickAt=now;
+  }
  }
  tick(now:number):void{
-  if(this.rotation&&now-this.motionAt>110)this.stopMotion();
+  if(this.motionAt&&now-this.motionAt>110)this.stopMotion();
   for(const v of this.voices)if(v.isStopped)this.voices.delete(v);
  }
  stopMotion():void{
-  const v=this.rotation;this.rotation=null;this.velocity=0;this.motionAt=0;if(!v)return;
-  if(Laya.Tween&&Laya.Handler){this.fading.add(v);Laya.Tween.to(v,{volume:0},55,undefined,Laya.Handler.create(this,()=>{this.fading.delete(v);v.stop()}))}
+  const v=this.rotation;this.rotation=null;this.velocity=0;this.motionAt=0;this.lastTickAt=-Infinity;
+  if(!v||v.isStopped)return;
+  if(Laya.Tween&&Laya.Handler){this.fading.add(v);Laya.Tween.to(v,{volume:0},45,undefined,Laya.Handler.create(this,()=>{this.fading.delete(v);v.stop()}))}
   else v.stop();
  }
  resetContact():void{this.contact=null}

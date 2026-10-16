@@ -1,5 +1,5 @@
 import {readFileSync,writeFileSync} from 'node:fs';
-import {cueBuffer,frictionLoop} from './audio-dsp.mjs';
+import {cueBuffer} from './audio-dsp.mjs';
 const createBuffer=(channels,length,sampleRate)=>{const data=Array.from({length:channels},()=>new Float32Array(length));return{length,sampleRate,numberOfChannels:channels,getChannelData:i=>data[i]}};
 const ctx={sampleRate:44100,createBuffer};
 function read(name){
@@ -16,6 +16,7 @@ function lowpass(buffer,hz){for(let c=0;c<buffer.numberOfChannels;c++){
  for(let i=0;i<d.length;i++){const x=d[i],y=b0*x+b1*x1+b2*x2-a1*y1-a2*y2;d[i]=y;x2=x1;x1=x;y2=y1;y1=y}
  }return buffer}
 function write(name,b){const bytes=b.length*b.numberOfChannels*2,out=Buffer.alloc(44+bytes);out.write('RIFF');out.writeUInt32LE(36+bytes,4);out.write('WAVEfmt ',8);out.writeUInt32LE(16,16);out.writeUInt16LE(1,20);out.writeUInt16LE(b.numberOfChannels,22);out.writeUInt32LE(b.sampleRate,24);out.writeUInt32LE(b.sampleRate*b.numberOfChannels*2,28);out.writeUInt16LE(b.numberOfChannels*2,32);out.writeUInt16LE(16,34);out.write('data',36);out.writeUInt32LE(bytes,40);for(let i=0;i<b.length;i++)for(let c=0;c<b.numberOfChannels;c++)out.writeInt16LE(Math.round(Math.max(-1,Math.min(1,b.getChannelData(c)[i]))*32767),44+(i*b.numberOfChannels+c)*2);writeFileSync('public/assets/audio/'+name+'.wav',out)}
-write('friction',lowpass(frictionLoop(ctx,read('ceramic_drag_1')),2800));
+// The selected ratchet_tick.wav is a mastered user-approved recording.
+// Do not regenerate or overwrite it with synthetic/ceramic friction.
 write('collision',lowpass(read('ceramic_place_1'),3400));
 for(const n of ['button','align','clear','tool','win'])write(n,lowpass(cueBuffer(ctx,n),6200));

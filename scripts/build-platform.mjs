@@ -14,7 +14,7 @@ if(built.status!==0||!/Build end, result=Success/.test(built.stdout||''))throw E
 if(!existsSync(output))throw Error('Official output missing');
 const entry=target==='web'?'index.html':target==='wxgame'||target==='bytedancegame'?'game.js':null;
 if(entry&&!existsSync(output+'/'+entry))throw Error('Missing platform entry');
-for(const p of ['assets/jade-v2/amber.png','assets/art-rose/tray.png','assets/art-v3/clasp.png','assets/fonts/jade-text.woff','assets/audio/friction.wav','assets/audio/win.wav']){
+for(const p of ['assets/jade-v2/amber.png','assets/art-rose/tray.png','assets/art-v3/clasp.png','assets/fonts/jade-text.woff','assets/audio/ratchet_tick.wav','assets/audio/win.wav']){
  // Native exporters may put Web resources in a nested package; require an explicit check before claiming verification.
  if(entry&&!existsSync(output+'/'+p))throw Error('Missing runtime asset: '+p);
 }

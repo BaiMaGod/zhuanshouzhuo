@@ -23,7 +23,7 @@ function fixture(){
 test('motion follows actual rotation, decays when stationary and never starts for selection',()=>{
  const {a,sources,advance,now}=fixture();
  a.play('select');a.motion(0);assert.equal(sources.length,0);
- a.motion(2);assert.equal(sources.length,1);assert.equal(sources[0].loop,true);
+ a.motion(2);assert.equal(sources.length,1);assert.equal(sources[0].loop,false);assert.equal(sources[0].url,'assets/audio/ratchet_tick.wav');assert.equal(sources[0].playbackRate,1);
  a.motion(5);assert.equal(sources.length,1,'continuous movement reuses one source');
  advance(120);a.tick(now+120);assert.equal(sources[0].stops,1);
 });
@@ -39,17 +39,25 @@ test('mute immediately silences master, stops all voices and prevents playback u
  const n=sources.length;a.motion(5);a.play('win');assert.equal(sources.length,n);
  a.enabled=true;a.motion(3);assert.equal(sources.length,n+1);a.stopAll();assert.equal(a.rotation,null);
 });
-test('equal physical speed gives equal friction loudness at different touch event rates',()=>{
- const fast=fixture();fast.a.motion(1);
- for(let i=0;i<30;i++){fast.advance(16);fast.a.motion(1)}
- const fastGain=fast.a.rotation.volume,fastRate=fast.a.rotation.playbackRate;
- const slow=fixture();slow.a.motion(2);
- for(let i=0;i<15;i++){slow.advance(32);slow.a.motion(2)}
- assert.ok(Math.abs(fastGain-slow.a.rotation.volume)<.00001);
- assert.ok(Math.abs(fastRate-slow.a.rotation.playbackRate)<.00001);
- slow.advance(32);slow.a.motion(10);
- assert.ok(slow.a.rotation.volume>fastGain);
+function runRotation(speed,step=16){
+ const {a,sources,advance}=fixture();
+ for(let t=0;t<2000;t+=step){advance(step);a.motion(speed*step/1000)}
+ return {a,sources};
+}
+test('recorded ratchet cadence follows angular speed without high-frequency chatter',()=>{
+ const slow=runRotation(25),normal=runRotation(90),fast=runRotation(360);
+ assert.ok(slow.sources.length>=2&&slow.sources.length<=4);
+ assert.ok(slow.sources.length<normal.sources.length);
+ assert.ok(normal.sources.length<fast.sources.length);
+ assert.ok(fast.sources.length<=10,'caps at five clicks per second');
+ assert.ok(fast.sources.every(v=>!v.loop&&v.playbackRate===1));
 });
+test('same physical speed yields same click cadence across touch event rates',()=>{
+ const fast=runRotation(90,16),slow=runRotation(90,32);
+ assert.ok(Math.abs(fast.sources.length-slow.sources.length)<=1);
+ assert.ok(Math.abs(fast.a.velocity-slow.a.velocity)<.01);
+});
+
 test('friction loop blends each channel without a discontinuity at the wrap boundary',()=>{
  const input=[Float32Array.from({length:1000},(_,i)=>i/1000),Float32Array.from({length:1000},(_,i)=>-i/2000)];
  const buffer={sampleRate:1000,length:1000,numberOfChannels:2,getChannelData:i=>input[i]};

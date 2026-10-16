@@ -9,7 +9,7 @@ cpSync('public','dist',{recursive:true});
 // Only ship assets the current game loads. Historical originals stay in source control.
 for(const name of readdirSync('dist/assets'))if(!['jade-v2','art-rose','art-v3','fonts','audio','shadow.png'].includes(name))rmSync('dist/assets/'+name,{recursive:true,force:true});
 for(const name of readdirSync('dist/assets/art-v3'))if(name!=='clasp.png')rmSync('dist/assets/art-v3/'+name,{force:true});
-for(const name of ['ceramic_drag_1','ceramic_place_1'])rmSync('dist/assets/audio/'+name+'.wav',{force:true});
+for(const name of ['ceramic_drag_1','ceramic_place_1','friction'])rmSync('dist/assets/audio/'+name+'.wav',{force:true});
 rmSync('dist/js/solver-worker.js',{force:true});
 const p=JSON.parse(readFileSync('package.json','utf8'));
 for(const file of readdirSync('dist/js').filter(f=>f.endsWith('.js'))){
