@@ -391,7 +391,9 @@ class Game {
   if(Math.abs(delta)<.08)return;
   if(!d.started){this.model.begin();d.started=true}
   const result=this.perform(d.id,delta);
-  if(!result.blocked&&!result.removed.length)this.snap(d.id,delta);
+  // Engage magnetic alignment during deliberate slow adjustment; rapid swipes must not
+  // jump ahead of the moving finger or spoil multi-step alignment routes.
+  if(!result.blocked&&!result.removed.length&&Math.abs(delta)<=1.5)this.snap(d.id,delta);
  }
  up(e:GamePointer):void{
   const d=this.drag?.pointer===e.pointerId?this.drag:null;
