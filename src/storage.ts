@@ -32,7 +32,7 @@ export class Save {
  readRun(index:number):{state:State;hint:number;erase:number;hintProgress?:number}|null{
   try{
    const r=JSON.parse(Laya.LocalStorage.getItem(KEY+'-run-'+index)||'null'),initial=Core.make(index);
-   if(!r||r.version!==1||![0,1].includes(r.hint)||![0,1].includes(r.erase)||r.hintProgress!==undefined&&(!Number.isInteger(r.hintProgress)||r.hintProgress<0||r.hintProgress>10000))return null;
+   if(!r||r.version!==1||(r.levelRevision||0)!==(Core.levels[index].revision||0)||![0,1].includes(r.hint)||![0,1].includes(r.erase)||r.hintProgress!==undefined&&(!Number.isInteger(r.hintProgress)||r.hintProgress<0||r.hintProgress>10000))return null;
    const s=r.state as State;
    if(!s||!Number.isFinite(s.steps)||s.steps<0||s.rings?.length!==initial.rings.length||s.rods?.length!==initial.rods.length)return null;
    if(s.rings.some((v,i)=>v.id!==initial.rings[i].id||!Number.isFinite(v.a)||!['active','removed'].includes(v.life)))return null;
@@ -42,7 +42,7 @@ export class Save {
   }catch{return null}
  }
  writeRun(index:number,state:State,hint:number,erase:number,hintProgress=0):void{
-  try{const payload=JSON.stringify({version:1,state,hint,erase,hintProgress});if(this.runCache.get(index)===payload)return;Laya.LocalStorage.setItem(KEY+'-run-'+index,payload);this.runCache.set(index,payload)}catch{}
+  try{const payload=JSON.stringify({version:1,levelRevision:Core.levels[index].revision||0,state,hint,erase,hintProgress});if(this.runCache.get(index)===payload)return;Laya.LocalStorage.setItem(KEY+'-run-'+index,payload);this.runCache.set(index,payload)}catch{}
  }
  clearRun(index:number):void{this.runCache.delete(index);try{Laya.LocalStorage.setItem(KEY+'-run-'+index,'null')}catch{}}
  persist():void {try{Laya.LocalStorage.setItem(KEY,JSON.stringify(this.data))}catch{}}

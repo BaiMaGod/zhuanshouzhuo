@@ -93,9 +93,9 @@ try{
   await button(p,'提示');
   await p.waitForFunction(()=>!!window.jadeDebug.game.guide?.action);
   const action=await p.evaluate(()=>window.jadeDebug.game.guide.action);
-  const before=await p.evaluate(()=>window.jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length);
+  const before=await p.evaluate(id=>window.jadeDebug.Core.ring(window.jadeDebug.game.model.state,id).a,action.id);
   await drag(p,action);
-  assert.ok(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length)<before,'actual level100 gesture removes a ring');
+  assert.ok(await p.evaluate(({id,before})=>{const {Core:C,game:g}=window.jadeDebug,r=C.ring(g.model.state,id);return r.life==='removed'||Math.abs(C.diff(r.a,before))>1},{id:action.id,before}),'actual level100 gesture performs the hinted alignment');
   // On slower desktop software WebGL, the 260ms release animation can
   // outlast the fixed drag delay. A disabled button must not be clicked yet.
   await p.waitForFunction(()=>{

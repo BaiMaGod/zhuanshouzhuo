@@ -1,0 +1,124 @@
+{
+  "version": "0.14.0",
+  "date": "2026-10-16",
+  "engine": "LayaAir 3.4.0",
+  "formalLevels": 100,
+  "rebuiltLevels": 99,
+  "retainedLegacyLevel": 45,
+  "checks": {
+    "fullSuite": {
+      "passed": 82,
+      "failed": 0,
+      "durationMs": 692027.274082
+    },
+    "postHintOptimization": {
+      "passed": 41,
+      "failed": 0,
+      "durationMs": 1859.170613
+    },
+    "allFormalRoutes": true,
+    "initialGeometry": true,
+    "trayContainment": true,
+    "firstTenRemovalOnlySearch": "exhausted; no clearing route",
+    "firstTenHintCompletion": true,
+    "holdReversalAndExpiry": true,
+    "eraseAndResume": true,
+    "oldRunRevisionRejection": true,
+    "buttonPixelRegression": true
+  },
+  "templateSHA256": "3097e0a6ce691f4144c89ff2d3ea9374154b27f6252ca535b81ef981116240d6",
+  "browserCampaign": {
+    "errors": [],
+    "profiles": [
+      {
+        "width": 360,
+        "height": 640,
+        "firstLevelCleared": true,
+        "legacyLevel": 45,
+        "lastLevel": 100,
+        "lastCount": 109,
+        "hintAfterInput": true
+      },
+      {
+        "width": 390,
+        "height": 844,
+        "firstLevelCleared": true,
+        "legacyLevel": 45,
+        "lastLevel": 100,
+        "lastCount": 109,
+        "hintAfterInput": true
+      },
+      {
+        "width": 1280,
+        "height": 720,
+        "firstLevelCleared": true,
+        "legacyLevel": 45,
+        "lastLevel": 100,
+        "lastCount": 109,
+        "hintAfterInput": true
+      }
+    ]
+  },
+  "touchInput": {
+    "errors": [],
+    "profiles": [
+      {
+        "width": 360,
+        "height": 640,
+        "pinch": true,
+        "touchCancel": true,
+        "realTouchClear": [
+          1,
+          5,
+          10
+        ],
+        "holdReload": true,
+        "level100HintMs": 5.300000000745058,
+        "resize": true
+      },
+      {
+        "width": 390,
+        "height": 844,
+        "pinch": true,
+        "touchCancel": true,
+        "realTouchClear": [
+          1,
+          5,
+          10
+        ],
+        "holdReload": true,
+        "level100HintMs": 6,
+        "resize": true
+      }
+    ]
+  },
+  "level100HintSamples": [
+    {
+      "width": 360,
+      "height": 640,
+      "draws": 0,
+      "queryMs": 5,
+      "totalMs": 14.700000000186265
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "draws": 0,
+      "queryMs": 6.7999999998137355,
+      "totalMs": 10.700000000186265
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "draws": 0,
+      "queryMs": 4.5,
+      "totalMs": 8.600000000558794
+    }
+  ],
+  "scope": {
+    "realDevice": false,
+    "nativeExports": false,
+    "humanDifficultyCalibration": false,
+    "previewDeployed": false
+  }
+}

@@ -9,7 +9,7 @@ test('100个正式关卡均预生成依赖元数据，节点及锁扣匹配',()=
  for(let i=FORMAL_INDEX;i<FORMAL_INDEX+FORMAL_COUNT;i++){
   const level=C.levels[i],graph=level.hintGraph;
   assert.ok(graph,'missing graph '+i);
-  if(i===LEGACY_FORMAL_INDEX){
+  if(graph.kind==='stages'){
    assert.equal(graph.kind,'stages');
    assert.equal(graph.stages.length,solutions[i].length);
    for(let j=0;j<graph.stages.length;j++)assert.equal(graph.stages[j].ringId,solutions[i][j].id);

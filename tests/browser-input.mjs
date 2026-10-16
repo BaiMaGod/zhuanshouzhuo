@@ -37,17 +37,40 @@ try{
   await send('touchStart',[touch(3,ringPoint.x,ringPoint.y)]);await send('touchCancel',[]);
   assert.equal(await page.evaluate(()=>jadeDebug.game.drag),null);
   assert.equal(await page.evaluate(()=>jadeDebug.game.pointers.size),0);
-  for(const action of solutions[10]){
+  async function complete(index,reloadHold=false){
+   let reloaded=false;
+   for(const action of solutions[index]){
+   const activeBefore=await page.evaluate(()=>jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length);
    const points=await page.evaluate(a=>{const {game:g,Core:C}=jadeDebug,r=C.ring(g.model.state,a.id),box=document.querySelector('canvas').getBoundingClientRect(),n=Math.ceil(Math.abs(a.delta)/3);return Array.from({length:n+1},(_,i)=>{const p=g.board.toScreen(C.point(r,r.a+50+a.delta*i/n));return{x:box.left+p.x/g.scene.width*box.width,y:box.top+p.y/g.scene.height*box.height}})},action);
    await send('touchStart',[touch(4,points[0].x,points[0].y)]);
    for(const p of points.slice(1))await send('touchMove',[touch(4,p.x,p.y)]);
    await send('touchEnd',[]);await page.waitForTimeout(350);
+   if(reloadHold&&!reloaded&&activeBefore===await page.evaluate(()=>jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length)){
+    const before=await page.evaluate(()=>JSON.stringify(jadeDebug.game.model.state));
+    await page.reload();await page.waitForFunction(()=>globalThis.jadeDebug?.game&&!document.querySelector('#boot')&&!document.querySelector('#splash'));
+    await page.evaluate(index=>jadeDebug.game.load(index),index);
+    assert.equal(await page.evaluate(()=>JSON.stringify(jadeDebug.game.model.state)),before,'reload preserves a real held alignment');reloaded=true;
+   }
+   }
+   await page.waitForFunction(()=>jadeDebug.game.model.cleared&&jadeDebug.game.settled);
+   if(reloadHold)assert.ok(reloaded);
   }
-  await page.waitForFunction(()=>jadeDebug.game.model.cleared&&jadeDebug.game.settled);
+  await complete(10);
+  for(const index of [14,19]){
+   await page.evaluate(index=>jadeDebug.game.load(index,true),index);
+   await page.screenshot({path:resolve(out,width+'-level'+(index-9)+'-start.png')});
+   await complete(index,index===19);
+  }
+  await page.evaluate(()=>{
+   const g=jadeDebug.game;g.load(109,true);
+   const original=g.hint.bind(g);g.hint=async()=>{const start=performance.now();await original();globalThis.measuredHintMs=performance.now()-start};
+  });
+  await click('提示 ×1');await page.waitForFunction(()=>globalThis.measuredHintMs!==undefined&&!!jadeDebug.game.guide?.action);
+  const hintMs=await page.evaluate(()=>globalThis.measuredHintMs);assert.ok(hintMs<=200,'level100 hint exceeds 200ms: '+hintMs);
   await page.setViewportSize({width:height,height:width});await page.waitForTimeout(100);
   assert.equal(await page.evaluate(()=>jadeDebug.game.pointers.size),0);
-  await page.screenshot({path:resolve(out,width+'-touch-cleared.png')});
-  profiles.push({width,height,pinch:true,touchCancel:true,realTouchClear:true,resize:true});await page.close();
+  await page.screenshot({path:resolve(out,width+'-level100-hint.png')});
+  profiles.push({width,height,pinch:true,touchCancel:true,realTouchClear:[1,5,10],holdReload:true,level100HintMs:hintMs,resize:true});await page.close();
   console.log('Touch input passed:',width,height);
  }
  assert.deepEqual(errors,[]);await writeFile(resolve(out,'report.json'),JSON.stringify({errors,profiles},null,2));

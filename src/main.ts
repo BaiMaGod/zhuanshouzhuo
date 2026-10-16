@@ -307,12 +307,12 @@ class Game {
   if(this.model.index===0){this.guideTitle!.text='新手 · 2 / 2  拖动，让缺口对准扣';this.say('手指沿粉色 B 镯转一转，缺口对准藕粉色角标里的空心扣。')}
  }
  say(content:string):void{if(this.message)this.message.text=content}
- sync():void{
+ sync(redraw=true):void{
   if(!this.model||!this.board)return;
   const s=this.model.state,n=s.rings.filter(r=>r.life==='active').length;
   this.status!.text=this.formal?n+' 手镯待解':n+' 镯待解  ·  '+s.steps+' 次转动'+(this.model.selected?'  ·  选中 '+this.model.selected:'');
   if(this.turnStatus)this.turnStatus.text=s.steps+' 次转动';
-  this.board.selected=this.model.selected;this.board.draw(s);this.syncTools();if(!this.drag)this.persistRun();
+  this.board.selected=this.model.selected;if(redraw)this.board.draw(s);this.syncTools();if(!this.drag)this.persistRun();
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.undoButton)this.undoButton.enabled=this.model.history.length>0&&!this.modalOpen;
   if(this.demoButton)this.demoButton.label.text=this.busy?'停止':'演示';
@@ -468,13 +468,13 @@ class Game {
   if(this.busy||this.modalOpen||this.board?.animating||!this.model)return;
   if(this.formal&&this.hintLeft===0){this.toolNotice('本关提示已用完');return}
   if(this.guide?.action&&this.formal)return;
-  this.busy=true;const token=++this.epoch;this.say('正在观察当前扣位…');if(this.hintButton)this.hintButton.label.text='观察…';this.sync();
+  this.busy=true;const token=++this.epoch;this.say('正在观察当前扣位…');if(this.hintButton)this.hintButton.label.text='观察…';this.sync(!this.formal);
   // Formal hint = direct lookup of precomputed DAG/stage data. No Worker.
   const a=this.formal?this.model.hints?.next(this.model.state)||null:(await this.plan())?.[0]||null;
   if(token!==this.epoch)return;
   this.busy=false;if(this.hintButton)this.hintButton.label.text='提示';
-  if(!a){if(this.formal)this.toolNotice('当前暂无可执行提示，未扣次数');this.say('当前没有可执行的提示动作，可以调整扣位后再试。');if(this.hintButton)this.hintButton.label.text='暂无路线';this.sync();return}
-  if(!C.ring(this.model.state,a.id)||!Number.isFinite(a.delta)||!a.delta){this.sync();return}
+  if(!a){if(this.formal)this.toolNotice('当前暂无可执行提示，未扣次数');this.say('当前没有可执行的提示动作，可以调整扣位后再试。');if(this.hintButton)this.hintButton.label.text='暂无路线';this.sync(!this.formal);return}
+  if(!C.ring(this.model.state,a.id)||!Number.isFinite(a.delta)||!a.delta){this.sync(!this.formal);return}
   this.model.selected=a.id;
   if(this.formal){
    this.releasePointers();this.stopGuide(false);
@@ -485,7 +485,9 @@ class Game {
     this.board!.panTo({x:b.x+b.w/2-offset.x*this.board!.zoom,y:b.y+b.h/2-offset.y*this.board!.zoom});
    }
    this.guide=new Guide(this.scene,this.board!,a.id,a);this.guide.phase='turn';
-   this.guide.draw(this.model.state,performance.now(),false);this.hintLeft--;this.sync();return;
+   // The hint owns its graphics. State is unchanged; panTo already redraws if
+   // needed. Rebuilding every static clasp twice made dense-board hints stall.
+   this.guide.draw(this.model.state,performance.now(),false);this.hintLeft--;this.sync(false);return;
   }
   // Same unobtrusive guided hand used for hard levels; never block input.
   this.releasePointers();this.stopGuide(false);this.board!.hint=null;

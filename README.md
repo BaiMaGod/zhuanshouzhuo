@@ -1,5 +1,7 @@
 # 转手镯消除 · 玉环十境
 
+V0.14.0：重做99个生成正式关的机关，保留第45关原模板。前10关使用明确配置的混合机关，后续关使用离线生成的相邻格模板；每关包含手镯固定式与背景固定式锁杆、共享多扣镯及需要保持对齐的中心。阶段提示跟踪尚存的保持约束，转离后恢复提示，相关中心消失后不再要求旧角度。旧通关成绩保留，已改变关卡的旧局内盘面重新开始。详见 [关卡难度整改](docs/关卡难度整改_V0.14.md)。
+
 V0.13.0：补齐官方 LayaAir 工程与 Web／微信／抖音／Android／iOS 构建入口。输入、存档、音频、字体与生命周期统一使用引擎接口，教学求解改为可取消的分帧搜索，正式提示继续直接读取图数据。原始美术保留，运行包筛除历史素材并启用官方资源分包。旧存档键及数据格式保留。详见 [多端发布修复](docs/多端发布修复_V0.13.md) 与 [实际验证记录](docs/多端发布验证_V0.13.md)。小游戏和 App 的导出成功不等于平台真机验收或上架成功。
 
 
@@ -44,6 +46,8 @@ npx http-server dist -p 8080
 | --- | --- |
 | src/core.js | 已确认原型迁入的共享规则、连续旋转、碰撞、连接及求解器 |
 | src/levels.js / src/formal-campaign.js / src/formal-level.js | 10个教学关、100个正式关及原54镯模板配置 |
+| src/formal-mechanisms.js / src/formal-templates.js | 混合锁杆、共享接收镯、保持阶段与预生成模板 |
+| scripts/generate-formal-templates.mjs | 离线选择后续关卡的相邻连接及背景配对；npm run levels:generate 可重建 |
 | src/model.ts | 游戏状态、操作记录、撤销 |
 | src/main.ts | Laya场景、关卡流程、纯手势输入和目标提示 |
 | src/renderer.ts | 玉环精灵、完整锁杆、固定座、空心扣及消除演出 |
@@ -54,6 +58,7 @@ npx http-server dist -p 8080
 | scripts/build-platform.mjs | 官方多端发布与产物检查 |
 | scripts/generate-jade.py | 基于环体几何的玉石曲面材质生成 |
 | tests/rules.test.mjs | 规则、连续通关和保存检查 |
+| tests/difficulty.test.mjs | 多扣/保持约束、前10关消除贪心穷举、提示修复与关卡版本存档 |
 | tests/scene.test.mjs | Node 场景替身中的控制器与输入生命周期检查 |
 | prototype/bracelet-play.html | 已通过的 HTML 原型参考 |
 

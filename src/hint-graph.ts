@@ -1,5 +1,5 @@
 import ImportedCore from './core.js';
-import type {Action,CoreAPI,HintGraph,HintNode,State} from './types.js';
+import type {Action,CoreAPI,HintGraph,HintNode,HintStage,State} from './types.js';
 const C=ImportedCore as unknown as CoreAPI;
 const EPS=.6;
 type Motion={id:string;from:number;done:number};
@@ -11,6 +11,7 @@ export class HintGraphRuntime {
  private remaining=new Map<string,number>();
  private removed=new Set<string>();
  private rods=new Map<string,State['rods'][number]>();
+ private stagesByRing=new Map<string,number[]>();
  private cursor=0;
  constructor(index:number,state:State,savedCursor=0){
   const graph=C.levels[index].hintGraph;
@@ -30,17 +31,39 @@ export class HintGraphRuntime {
    this.advance(state);
   }else{
    this.cursor=Number.isInteger(savedCursor)?Math.max(0,Math.min(savedCursor,graph.stages.length)):0;
+   graph.stages.forEach((stage,i)=>{
+    if(!stage.releaseId)return;
+    const list=this.stagesByRing.get(stage.ringId)||[];list.push(i);this.stagesByRing.set(stage.ringId,list);
+    // A checkpoint is only a hint. Live held constraints remain authoritative.
+    if(i<this.cursor&&!this.satisfied(state,stage))this.cursor=i;
+   });
    this.advance(state);
   }
  }
  get progress():number{return this.graph.kind==='stages'?this.cursor:0}
+ private goal(state:State,stage:HintStage):number{
+  const rod=stage.claspId?this.rods.get(stage.claspId):null,ring=C.ring(state,stage.ringId);
+  const end=rod?C.endpoints(state,rod).find(e=>e.id===stage.ringId):null;
+  return ring&&end?C.angle(ring,end.p):stage.targetAngle;
+ }
+ private satisfied(state:State,stage:HintStage):boolean{
+  const ring=C.ring(state,stage.ringId);
+  if(!ring||ring.life==='removed'||stage.releaseId&&C.ring(state,stage.releaseId)?.life==='removed')return true;
+  const rod=stage.claspId?this.rods.get(stage.claspId):null;
+  if(rod){
+   if(!C.exists(state,rod))return true;
+   const i=C.endpoints(state,rod).findIndex(e=>e.id===ring.id);
+   return i>=0&&state.states[rod.id]?.[i]==='aligned';
+  }
+  return Math.abs(C.diff(ring.a,stage.targetAngle))<=EPS;
+ }
  private advance(state:State):void{
   if(this.graph.kind==='dependency'){
    while(this.cursor<this.graph.order.length&&this.removed.has(this.graph.order[this.cursor]))this.cursor++;
   }else{
    while(this.cursor<this.graph.stages.length){
     const stage=this.graph.stages[this.cursor],ring=C.ring(state,stage.ringId);
-    if(!ring||ring.life==='removed'||Math.abs(C.diff(ring.a,stage.targetAngle))<=EPS)this.cursor++;
+    if(stage.releaseId?this.satisfied(state,stage):!ring||ring.life==='removed'||Math.abs(C.diff(ring.a,stage.targetAngle))<=EPS)this.cursor++;
     else break;
    }
   }
@@ -56,7 +79,12 @@ export class HintGraphRuntime {
    this.removed.add(id);
    for(const dependent of this.dependents.get(id)||[])this.remaining.set(dependent,Math.max(0,(this.remaining.get(dependent)||0)-1));
   }
-  if(this.graph.kind==='stages'&&motion&&this.cursor<this.graph.stages.length){
+  if(this.graph.kind==='stages'&&motion&&this.stagesByRing.size){
+   for(const i of this.stagesByRing.get(motion.id)||[]){
+    if(i>=this.cursor)break;
+    if(!this.satisfied(state,this.graph.stages[i])){this.cursor=i;break}
+   }
+  }else if(this.graph.kind==='stages'&&motion&&this.cursor<this.graph.stages.length){
    const current=this.graph.stages[this.cursor];
    // Manual reversal of the last completed stage invalidates that checkpoint.
    if(current.ringId!==motion.id)for(let i=this.cursor-1;i>=0;i--){
@@ -96,7 +124,7 @@ export class HintGraphRuntime {
   }
   const stage=this.graph.stages[this.cursor];if(!stage)return null;
   const ring=C.ring(state,stage.ringId);if(!ring||ring.life!=='active')return null;
-  const delta=this.chooseDelta(state,ring.id,stage.targetAngle);
-  return Math.abs(delta)>.001?{id:ring.id,delta,rod:'',targetAngle:stage.targetAngle}:null;
+  const goal=this.goal(state,stage),delta=this.chooseDelta(state,ring.id,goal);
+  return Math.abs(delta)>.001?{id:ring.id,delta,rod:stage.claspId||'',targetAngle:goal}:null;
  }
 }

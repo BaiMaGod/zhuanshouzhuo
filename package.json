@@ -1,6 +1,6 @@
 {
   "name": "zhuanshouzhuo-laya",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "test": "npm run build && node --test tests/*.test.mjs",
     "art": "python3 scripts/generate-jade.py",
     "audio:generate": "npm run build && node scripts/generate-audio.mjs",
+    "levels:generate": "node scripts/generate-formal-templates.mjs",
     "laya:prepare": "npm run build && node scripts/prepare-laya.mjs",
     "release:web": "node scripts/build-platform.mjs web",
     "release:wechat": "node scripts/build-platform.mjs wxgame",
