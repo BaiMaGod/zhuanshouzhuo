@@ -246,8 +246,10 @@ class Game {
   }
   if(this.formal){
    const plateH=H-244,plateY=142;
-   const tray=this.image(this.scene,TRAY,360,plateY+plateH/2,710,plateH);tray.name='board-tray';
-   this.board=new Board(this.scene,{x:24,y:plateY+12,w:672,h:plateH-24});this.board.load(this.model.state,{w:710,h:plateH});
+   // Full-width play area; overscan the original tray uniformly.
+   const trayW=W+32,trayH=plateH*trayW/710;
+   const tray=this.image(this.scene,TRAY,W/2,plateY+plateH/2,trayW,trayH);tray.name='board-tray';
+   this.board=new Board(this.scene,{x:0,y:plateY+12,w:W,h:plateH-24});this.board.load(this.model.state,{w:trayW,h:trayH});
    this.board.attachBackdrop([this.garden!,tray]);
    const y=H-84;
    this.hintButton=new Button('提示',28,y,146,62,()=>void this.hint(),false,'hint');this.scene.addChild(this.hintButton);
@@ -646,7 +648,8 @@ async function boot():Promise<void>{
  Laya.Config.useWebGL2=false;
  await Laya.init(W,H);
  const viewportWidth=Laya.Browser.clientWidth,viewportHeight=Laya.Browser.clientHeight;
- H=Math.round(Math.max(1180,Math.min(1600,viewportHeight/Math.min(viewportWidth,720)*720)));
+ // Maintain the true viewport aspect ratio without SHOWALL side letterboxing.
+ H=Math.round(viewportHeight/Math.max(1,viewportWidth)*W);
  RENDER_W=viewportWidth<600?Math.min(W,Math.round(viewportWidth*1.5)):W;RENDER_SCALE=RENDER_W/W;
  Laya.stage.size(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
  Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor=THEME.paper;

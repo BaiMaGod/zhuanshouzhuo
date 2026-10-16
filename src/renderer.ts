@@ -77,7 +77,14 @@ export class Board {
  resetView():void{this.zoom=this.fitZoom;this.screen={x:this.rect.x+this.rect.w/2,y:this.rect.y+this.rect.h/2};this.applyView()}
  clampView():void{
   const mid={x:this.rect.x+this.rect.w/2,y:this.rect.y+this.rect.h/2},extra=this.zoom>this.fitZoom*1.01?.2:0;
-  const dx=Math.max(0,(this.bounds.w*this.zoom-this.rect.w)/2)+this.rect.w*extra,dy=Math.max(0,(this.bounds.h*this.zoom-this.rect.h)/2)+this.rect.h*extra;
+  let dx=Math.max(0,(this.bounds.w*this.zoom-this.rect.w)/2)+this.rect.w*extra;
+  let dy=Math.max(0,(this.bounds.h*this.zoom-this.rect.h)/2)+this.rect.h*extra;
+  if(this.traySize){
+   // Do not expose the rectangular tray edge at extreme zoom and pan.
+   const scale=this.zoom/this.fitZoom;
+   dx=Math.min(dx,Math.max(0,(this.traySize.w*scale-this.rect.w)/2));
+   dy=Math.min(dy,Math.max(0,(this.traySize.h*scale-this.rect.h)/2));
+  }
   this.screen={x:Math.max(mid.x-dx,Math.min(mid.x+dx,this.screen.x)),y:Math.max(mid.y-dy,Math.min(mid.y+dy,this.screen.y))};this.applyView();
  }
  zoomTo(value:number,anchor:Point,world=this.toWorld(anchor)):void{

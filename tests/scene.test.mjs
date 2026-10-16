@@ -453,3 +453,31 @@ test('首页与教学入口恢复上次通关进度，重新读取本地存档�
   g.save.data=original;g.save.persist();g.home();
  }
 });
+
+test('正式关全屏宽视口和玉盘极限平移覆盖',()=>{
+ for(const index of [10,LEGACY_FORMAL_INDEX,C.levels.length-1]){
+  g.load(index);
+  const b=g.board,mid={x:b.rect.x+b.rect.w/2,y:b.rect.y+b.rect.h/2};
+  assert.equal(b.rect.x,0);assert.equal(b.rect.w,g.scene.width);
+  assert.equal(b.viewport.scrollRect.width,b.rect.w);
+  assert.ok(b.contains({x:0,y:mid.y})&&b.contains({x:720,y:mid.y}));
+  const img=b.backdrop.children.find(n=>n.name==='board-tray').graphics.ops.find(op=>op[0]==='image'&&op[1]==='assets/art-rose/tray.png');
+  const width=img[4],height=img[5];
+  assert.ok(width>=b.rect.w&&height>=b.rect.h);
+  assert.ok(Math.abs(width/710-height/(g.scene.height-244))<1e-9,'玉盘保持同比例缩放');
+  for(const factor of [1,1.6,3,8]){
+   b.zoomTo(b.fitZoom*factor,mid);
+   for(const value of [-1e6,1e6]){
+    b.panTo({x:value,y:value});
+    const artW=width*b.zoom/b.fitZoom,artH=height*b.zoom/b.fitZoom;
+    assert.ok(b.screen.x-artW/2<=b.rect.x+1e-6);
+    assert.ok(b.screen.x+artW/2>=b.rect.x+b.rect.w-1e-6);
+    assert.ok(b.screen.y-artH/2<=b.rect.y+1e-6);
+    assert.ok(b.screen.y+artH/2>=b.rect.y+b.rect.h-1e-6);
+    const q=b.toWorld(b.toScreen(b.center));
+    assert.ok(Math.abs(q.x-b.center.x)<1e-6&&Math.abs(q.y-b.center.y)<1e-6);
+   }
+  }
+ }
+ g.home();
+});
