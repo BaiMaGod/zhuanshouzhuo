@@ -229,8 +229,8 @@ class Game {
    const title=text(this.scene,'第'+(i-TEACHING_COUNT+1)+'关',216,26,288,64,43,COLORS.ink,'center',true);
    const sound=new Button('',528,26,76,64,()=>{this.toggleSound();sound.setIcon(this.audio.enabled?'sound':'mute')},false,this.audio.enabled?'sound':'mute');sound.name='button:sound';this.scene.addChild(sound);
    const help=new Button('',616,26,76,64,()=>this.help(),false,'help');help.name='button:help';this.scene.addChild(help);
-   this.status=text(this.scene,'',28,101,290,34,23,COLORS.ink,'left');
-   this.turnStatus=text(this.scene,'',402,101,290,34,23,COLORS.ink,'right');
+   this.status=text(this.scene,'',138,101,204,34,23,COLORS.ink,'center');
+   this.turnStatus=text(this.scene,'',378,101,204,34,23,COLORS.ink,'center');
   }else{
   panel(this.scene,105,105,510,113,22,THEME.white,THEME.faint);
   const practiceHome=new Button('',28,26,76,64,()=>this.home(),false,'home');practiceHome.name='button:home';this.scene.addChild(practiceHome);
@@ -312,8 +312,8 @@ class Game {
  sync(redraw=true):void{
   if(!this.model||!this.board)return;
   const s=this.model.state,n=s.rings.filter(r=>r.life==='active').length;
-  this.status!.text=this.formal?n+' 手镯待解':n+' 镯待解  ·  '+s.steps+' 次转动'+(this.model.selected?'  ·  选中 '+this.model.selected:'');
-  if(this.turnStatus)this.turnStatus.text=s.steps+' 次转动';
+  this.status!.text='剩余 '+n+' 个'+(this.formal?'':'  ·  已转 '+s.steps+' 次'+(this.model.selected?'  ·  选中 '+this.model.selected:''));
+  if(this.turnStatus)this.turnStatus.text='已转 '+s.steps+' 次';
   this.board.selected=this.model.selected;if(redraw)this.board.draw(s);this.syncTools();if(!this.drag)this.persistRun();
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.undoButton)this.undoButton.enabled=this.model.history.length>0&&!this.modalOpen;
