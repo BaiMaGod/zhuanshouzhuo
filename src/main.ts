@@ -34,10 +34,10 @@ class Game {
  toolNotice(message:string):void{if(this.eraseTip){this.eraseTip.text=message;this.eraseTip.visible=true;this.noticeUntil=performance.now()+2200}}
  syncTools():void{
   if(!this.formal)return;
-  if(this.hintButton){this.hintButton.label.text=this.busy?'观察…':'提示 ×'+(this.debugMode?'∞':this.hintLeft);this.hintButton.setIcon('hint')}
-  if(this.eraseButton){this.eraseButton.label.text=this.eraseMode?'取消':'消除 ×'+(this.debugMode?'∞':this.eraseLeft);this.eraseButton.setIcon('erase')}
-  if(this.hintButton)this.hintButton.alpha=!this.debugMode&&this.hintLeft===0?.5:1;
-  if(this.eraseButton)this.eraseButton.alpha=!this.debugMode&&this.eraseLeft===0?.5:1;
+  if(this.hintButton){this.hintButton.label.text=this.busy?'观察…':'提示 ×'+this.hintLeft;this.hintButton.setIcon('hint')}
+  if(this.eraseButton){this.eraseButton.label.text=this.eraseMode?'取消':'消除 ×'+this.eraseLeft;this.eraseButton.setIcon('erase')}
+  if(this.hintButton)this.hintButton.alpha=this.hintLeft===0?.5:1;
+  if(this.eraseButton)this.eraseButton.alpha=this.eraseLeft===0?.5:1;
  }
  get formal():boolean{return this.model!==null&&this.model.index>=TEACHING_COUNT}
  drag:{id:string;pointer:number;last:number;started:boolean}|null=null;
