@@ -648,8 +648,10 @@ async function boot():Promise<void>{
  Laya.Config.useWebGL2=false;
  await Laya.init(W,H);
  const viewportWidth=Laya.Browser.clientWidth,viewportHeight=Laya.Browser.clientHeight;
- // Maintain the true viewport aspect ratio without SHOWALL side letterboxing.
- H=Math.round(viewportHeight/Math.max(1,viewportWidth)*W);
+ // Portrait layouts follow the screen ratio without side gutters.
+ // Landscape keeps the former minimum play height until it has dedicated HUD layout.
+ const fullHeight=viewportHeight/Math.max(1,viewportWidth)*W;
+ H=Math.round(viewportHeight>=viewportWidth?fullHeight:Math.max(1180,fullHeight));
  RENDER_W=viewportWidth<600?Math.min(W,Math.round(viewportWidth*1.5)):W;RENDER_SCALE=RENDER_W/W;
  Laya.stage.size(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
  Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor=THEME.paper;
