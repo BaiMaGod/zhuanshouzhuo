@@ -21,7 +21,7 @@ for(let i=0;i<10;i++){
    }
   }
   assert.ok(s.rings.every(r=>r.life==='removed'));
-  assert.ok(s.rods.filter(z=>z.kind==='b').every(z=>C.exists(s,z)),'背景杆完整保留');
+  assert.ok(s.rods.filter(z=>z.kind==='b').every(z=>!C.exists(s,z)),'清空玉环后不应残留背景固定扣');
   assert.ok(s.rods.filter(z=>z.kind==='m').every(z=>!C.exists(s,z)),'所属杆随镯消除');
   assert.deepEqual(C.settle(s),[],'清空不能重复产生消除事件');
  });
@@ -42,6 +42,19 @@ test('背景双端独立判断；一端消除不删除本体和另一端',()=>{
  assert.deepEqual(C.pose(s,z),p);
  assert.equal(s.states[z.id][0],'inactive');assert.equal(s.states[z.id][1],'latched');
  assert.ok(C.exists(s,z));assert.equal(C.ring(s,'B').life,'active');
+});
+test('背景固定扣只在两端玉环都消失后移除，并且消除道具同样生效',()=>{
+ const s=C.make(1),z=s.rods.find(z=>z.kind==='b');
+ assert.ok(z);assert.equal(C.exists(s,z),true,'开局存在背景固定扣');
+ C.ring(s,z.targets[0]).life='removed';C.update(s);
+ assert.equal(C.exists(s,z),true,'仅一端消除时保留固定扣');
+ C.ring(s,z.targets[1]).life='removed';C.update(s);
+ assert.equal(C.exists(s,z),false,'两端都消除时固定扣不再存在');
+ assert.deepEqual(s.states[z.id],['inactive','inactive']);
+ assert.equal(C.candidates(s).some(a=>a.rod===z.id),false,'移除后的固定扣不再参与提示候选');
+ const model=new GameModel(1),fixed=model.state.rods.find(z=>z.kind==='b');
+ model.removeWithTool(fixed.targets[0]);model.removeWithTool(fixed.targets[1]);
+ assert.equal(C.exists(model.state,fixed),false,'道具消除后也不残留固定扣');
 });
 test('三镯顺序，B 消除后保留 A 的完整杆，再随 A 正常旋转',()=>{
  const s=C.make(2);const first=solutions[2][0];C.request(s,first.id,first.delta);
