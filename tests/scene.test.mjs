@@ -7,21 +7,19 @@ await import('../dist/js/main.js');
 await new Promise(r=>setImmediate(r));
 const g=window.jadeDebug.game,C=window.jadeDebug.Core;
 g.audio.enabled=false;
-test('游戏页剩余数与转动次数文案居中，并随状态更新',()=>{
+test('游戏页剩余数与转动次数固定为单行居中且实时更新',()=>{
  g.load(10,true);
  const count=g.model.state.rings.filter(r=>r.life==='active').length;
- assert.equal(g.status.text,'剩余 '+count+' 个');
- assert.equal(g.turnStatus.text,'已转 0 次');
+ assert.equal(g.status.text,'剩余 '+count+' 个  ·  已转 0 次');
  assert.equal(g.status.align,'center');
- assert.equal(g.turnStatus.align,'center');
- const leftCenter=g.status.x+g.status.width/2,rightCenter=g.turnStatus.x+g.turnStatus.width/2;
- assert.ok(rightCenter-leftCenter>=200,'两个计数区域需要留出间隔');
- assert.equal((leftCenter+rightCenter)/2,360,'两组计数整体水平居中');
+ assert.equal(g.status.wordWrap,false,'计数器禁止自动换行');
+ assert.equal(g.status.x+g.status.width/2,360,'整行文本水平居中');
+ assert.equal(g.scene.children.filter(n=>n===g.status).length,1,'游戏统计使用单个文本节点');
  g.model.state.steps=7;g.sync(false);
- assert.equal(g.turnStatus.text,'已转 7 次');
- g.load(10,true); // Do not leave modified steps in the persisted formal run.
+ assert.equal(g.status.text,'剩余 '+count+' 个  ·  已转 7 次');
+ g.load(10,true); // Restore the run before moving on.
  g.load(0);
- assert.match(g.status.text,/^剩余 \d+ 个  ·  已转 \d+ 次/);
+ assert.match(g.status.text,/^剩余 \\d+ 个  ·  已转 \\d+ 次/);
  g.home();
 });
 test('正式场景导航、点击只选中、真实手势路径与逐关解锁',()=>{
