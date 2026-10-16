@@ -19,6 +19,7 @@ test('游戏页剩余数与转动次数文案居中，并随状态更新',()=>{
  assert.equal((leftCenter+rightCenter)/2,360,'两组计数整体水平居中');
  g.model.state.steps=7;g.sync(false);
  assert.equal(g.turnStatus.text,'已转 7 次');
+ g.load(10,true); // Do not leave modified steps in the persisted formal run.
  g.load(0);
  assert.match(g.status.text,/^剩余 \d+ 个  ·  已转 \d+ 次/);
  g.home();
