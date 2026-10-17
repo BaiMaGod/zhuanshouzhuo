@@ -7,11 +7,11 @@ export class Audio {
  private rotationVoices=new Set<Laya.SoundChannel>();
  private voices=new Set<Laya.SoundChannel>();
  private fading=new Set<Laya.SoundChannel>();
- private motionAt=0;private velocity=0;private lastTickAt=-Infinity;private lastAt=-Infinity;private contact:string|null=null;
+ private motionAt=0;private velocity=0;private lastTickAt=-Infinity;private lastAt=-Infinity;private lastCollisionAt=-Infinity;private contact:string|null=null;
  get enabled():boolean{return this.enabled_}
  set enabled(v:boolean){this.enabled_=v;if(!v)this.stopAll()}
  async load():Promise<void>{
-  await Laya.loader.load(['ratchet_tick','collision','button','align','clear','tool','win'].map(n=>'assets/audio/'+n+'.wav'));
+  await Laya.loader.load(['ratchet_tick.wav','crystal_block.mp3','button.wav','align.wav','clear.wav','tool.wav','win.wav'].map(n=>'assets/audio/'+n));
  }
  wake():void{/* Laya handles platform gesture unlock. */}
  motion(delta:number):void{
@@ -61,23 +61,25 @@ export class Audio {
  resetContact():void{this.contact=null}
  collision(key:string,strength=1):void{
   this.stopMotion();if(this.contact===key)return;this.contact=key;
-  this.sample('collision',.24+Math.max(0,Math.min(1,strength))*.12,.94+Math.random()*.06);
+  // Do not stack the recorded crystal impact across rapidly changing contact points.
+  const now=performance.now();if(now-this.lastCollisionAt<150)return;this.lastCollisionAt=now;
+  this.sample('crystal_block.mp3',.24+Math.max(0,Math.min(1,strength))*.12);
  }
  private sample(name:string,gain:number,rate=1):void{
   if(!this.enabled)return;
   for(const v of this.voices)if(v.isStopped)this.voices.delete(v);
   if(this.voices.size>=4)return;
   let channel:Laya.SoundChannel;
-  channel=Laya.SoundManager.playSound('assets/audio/'+name+'.wav',1,()=>this.voices.delete(channel));
+  channel=Laya.SoundManager.playSound('assets/audio/'+name,1,()=>this.voices.delete(channel));
   if(channel){channel.volume=gain*.65;channel.playbackRate=rate;this.voices.add(channel)}
  }
  play(kind:Kind):void{
   if(kind==='select')return;if(kind==='block'){this.collision('legacy');return}
   const now=performance.now();if(kind==='align'&&now-this.lastAt<160)return;if(kind==='align')this.lastAt=now;
-  this.sample(kind,kind==='button'?.12:kind==='align'?.10:kind==='win'?.24:.19);
+  this.sample(kind+'.wav',kind==='button'?.12:kind==='align'?.10:kind==='win'?.24:.19);
  }
  stopAll():void{
   this.stopMotion();for(const v of this.fading){Laya.Tween?.clearAll(v);v.stop()}this.fading.clear();
-  for(const v of this.voices)v.stop();this.voices.clear();this.contact=null;
+  for(const v of this.voices)v.stop();this.voices.clear();this.contact=null;this.lastCollisionAt=-Infinity;
  }
 }

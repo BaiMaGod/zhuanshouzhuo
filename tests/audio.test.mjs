@@ -28,10 +28,13 @@ test('motion follows actual rotation, decays when stationary and never starts fo
  advance(120);a.tick(now+120);assert.equal(sources[0].stops,1);
 });
 test('one contact hit per sustained collision, reverse motion permits a new hit',()=>{
- const {a,sources}=fixture();a.motion(3);a.collision('A:L1:B');
+ const {a,sources,advance}=fixture();a.motion(3);a.collision('A:L1:B');
  assert.equal(sources[0].stops,1);assert.equal(sources.length,2);
+ assert.equal(sources[1].url,'assets/audio/crystal_block.mp3');
+ assert.equal(sources[1].playbackRate,1,'the uploaded crystal impact keeps its original pitch');
  a.collision('A:L1:B');assert.equal(sources.length,2);
- a.resetContact();a.collision('A:L1:B');assert.equal(sources.length,3);
+ a.resetContact();advance(100);a.collision('A:L2:C');assert.equal(sources.length,2,'rapid contact change must not layer impacts');
+ a.resetContact();advance(160);a.collision('A:L1:B');assert.equal(sources.length,3);
 });
 test('mute immediately silences master, stops all voices and prevents playback until enabled',()=>{
  const {a,sources}=fixture();a.motion(3);a.play('clear');a.enabled=false;
@@ -95,5 +98,7 @@ test('buttons sound, selection stays silent, win uses one bounded voice',()=>{
 });
 test('load uses the engine asset loader without starting playback',async()=>{
  const {a,sources}=fixture();let loaded;Laya.loader.load=async urls=>{loaded=urls};
- await a.load();assert.equal(loaded.length,7);assert.ok(loaded.every(u=>u.endsWith('.wav')));assert.equal(sources.length,0);
+ await a.load();assert.equal(loaded.length,7);
+ assert.deepEqual(loaded.filter(u=>u.endsWith('.mp3')),['assets/audio/crystal_block.mp3']);
+ assert.equal(loaded.filter(u=>u.endsWith('.wav')).length,6);assert.equal(sources.length,0);
 });
