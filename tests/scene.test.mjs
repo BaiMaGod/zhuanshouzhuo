@@ -497,7 +497,7 @@ test('正式关全屏宽视口和玉盘极限平移覆盖',()=>{
  g.home();
 });
 
-test('玩家丝巾手指锚定触点，桌面替代光标并随玉镯真实旋转，移动端抬起隐藏',()=>{
+test('玩家丝巾手指锚定触点，桌面替代光标但不随玉镯旋转，移动端抬起隐藏',()=>{
  Laya.Browser.onMobile=false;
  g.load(0);
  assert.equal(h.canvas.style.cursor,'none','桌面进入局内时隐藏系统箭头');
@@ -517,8 +517,8 @@ test('玩家丝巾手指锚定触点，桌面替代光标并随玉镯真实旋�
  g.move(evt(next)); // Include the requested end point: the 3-degree loop stops at 90°, not 92°.
  near(g.cursorHand.sprite.x,next.x);
  near(g.cursorHand.sprite.y,next.y);
- assert.ok(Math.abs(g.cursorHand.sprite.rotation-(r.a-angle))<1e-5,
-  '视觉手势旋转采用实际执行的玉镯角度，不绕手腕转');
+ assert.notEqual(r.a,angle,'拖动必须实际旋转玉镯，才能验证手势解耦');
+ assert.equal(g.cursorHand.sprite.rotation,0,'视觉手势始终保持原始朝向，不随玉镯旋转');
  g.up(evt(next));
  assert.equal(g.cursorHand.sprite.visible,true,'桌面松开恢复悬停手型');
  assert.equal(g.cursorHand.sprite.rotation,0);
