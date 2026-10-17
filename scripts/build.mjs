@@ -15,6 +15,7 @@ const p=JSON.parse(readFileSync('package.json','utf8'));
 for(const file of readdirSync('dist/js').filter(f=>f.endsWith('.js'))){
  const path='dist/js/'+file;
  const text=readFileSync(path,'utf8')
+  .replace(/__GAME_VERSION__/g,p.version)
   .replace(/(from\s+|import\s*)(['"])(\.\/[^'"]+\.js)\2/g,(_,prefix,q,url)=>prefix+q+url+'?v='+p.version+q);
  writeFileSync(path,text);
 }
