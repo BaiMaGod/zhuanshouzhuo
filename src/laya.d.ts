@@ -1,7 +1,7 @@
 /* Minimal declarations for the bundled LayaAir 3.4 API used by this project. */
 declare namespace Laya {
  const Config:{useWebGL2:boolean};
- const Browser:{width:number;height:number;clientWidth:number;clientHeight:number};
+ const Browser:{width:number;height:number;clientWidth:number;clientHeight:number;onMobile:boolean;mainCanvas?:{source?:{style?:{cursor:string}}}};
  const InputManager:{multiTouchEnabled:boolean};
  const LocalStorage:{getItem(key:string):string|null;setItem(key:string,value:string):void};
  class Event {
