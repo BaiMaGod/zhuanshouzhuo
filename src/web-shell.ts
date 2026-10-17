@@ -13,3 +13,9 @@ export function exposeDebug(value:unknown):void{
  if(debug.game&&typeof document!=='undefined')Object.defineProperty(debug.game,'canvas',{get:()=>document.querySelector('canvas')});
  (globalThis as {jadeDebug?:unknown}).jadeDebug=value;
 }
+
+/** Browser-only mouse cursor adapter; native/mini-game canvases have no CSS style. */
+export function setGameCursorHidden(hidden:boolean):void{
+ const canvas=Laya.Browser.mainCanvas?.source;
+ if(canvas?.style)canvas.style.cursor=hidden?'none':'auto';
+}
