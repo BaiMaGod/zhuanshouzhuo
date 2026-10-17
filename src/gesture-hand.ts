@@ -15,11 +15,11 @@ export class GestureHand {
   hand.visible=false;
   parent.addChild(hand);
  }
- place(p:Point,angle?:number):void{
+ place(p:Point):void{
+  // The fingertip follows the contact point, but the artwork stays upright.
+  this.sprite.rotation=0;
   this.sprite.pos(p.x,p.y);
-  if(angle!==undefined)this.sprite.rotation=angle;
   this.sprite.visible=true;
  }
- rotate(delta:number):void{if(this.sprite.visible)this.sprite.rotation+=delta}
  hide():void{this.sprite.visible=false;this.sprite.rotation=0}
 }
