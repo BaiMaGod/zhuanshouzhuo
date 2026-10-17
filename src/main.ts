@@ -365,7 +365,7 @@ class Game {
   }
   // Desktop hover replaces the arrow even before clicking the jade ring.
   if(!Laya.Browser.onMobile){
-   if(p.x>=0&&p.x<=W&&p.y>=0&&p.y<=H)this.cursorHand.place(p,0);
+   if(p.x>=0&&p.x<=W&&p.y>=0&&p.y<=H)this.cursorHand.place(p);
    else this.cursorHand.hide();
   }
  }
@@ -391,7 +391,7 @@ class Game {
    this.eraseTap=null;this.releaseDrag(false);const [a,b]=[...this.pointers.values()];const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
    this.viewGesture={kind:'pinch',start:mid,screen:{...this.board.screen},zoom:this.board.zoom,distance:Math.max(1,C.dist(a,b)),anchor:this.board.toWorld(mid)};return;
   }
-  this.activeHandPointer=e.pointerId;this.cursorHand.place(p,0);
+  this.activeHandPointer=e.pointerId;this.cursorHand.place(p);
   if(this.eraseMode){
    // Select only on pointerup: moving or pinching must not consume the item.
    const target=this.board.pick(p,this.model.state);
@@ -426,7 +426,6 @@ class Game {
   if(Math.abs(delta)<.08)return;
   if(!d.started){this.model.begin();d.started=true}
   const result=this.perform(d.id,delta);
-  if(this.activeHandPointer===e.pointerId)this.cursorHand.rotate(result.done);
   // Preserve the last physical contact result until pointer-up. A blocked drag
   // must not be magnetically moved to a *different* legal gap on release.
   d.blocked=!!result.blocked;
@@ -442,7 +441,7 @@ class Game {
   if(this.activeHandPointer===e.pointerId){
    this.activeHandPointer=null;
    if(Laya.Browser.onMobile)this.cursorHand.hide();
-   else this.cursorHand.place(this.point(e),0);
+   else this.cursorHand.place(this.point(e));
   }
 
   if(!this.pointers.size)this.viewGesture=null;
