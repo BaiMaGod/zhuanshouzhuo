@@ -2,11 +2,12 @@ import {Core as C,GameModel} from './model.js';
 import {Board} from './renderer.js';
 import {text,panel,Button,ornament,COLORS,THEME,icon,flower} from './ui.js';
 import {Guide,HINT_HAND_ASSET} from './guide.js';
+import {GestureHand} from './gesture-hand.js';
 import {Audio} from './audio.js';
 import {Haptics} from './haptics.js';
 import {snapDelta} from './snap.js';
 import {Save} from './storage.js';
-import {finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug} from './web-shell.js';
+import {finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug,setGameCursorHidden} from './web-shell.js';
 import {search,nextFrame} from './solver.js';
 interface GamePointer {pointerId:number;stageX:number;stageY:number;button?:number}
 import {JADE_ASSETS,jadeSprite} from './jade.js';
@@ -24,6 +25,7 @@ const ASSETS=[HINT_HAND_ASSET,...JADE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,'a
 class Game {
  readonly debugMode=debugHintEnabled();
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
+ cursorHand:GestureHand;activeHandPointer:number|null=null;
  garden:Laya.Sprite|null=null;wallpaper:Laya.Sprite|null=null;
  save=new Save();audio=new Audio();haptics=new Haptics();model:GameModel|null=null;board:Board|null=null;
  mode:'home'|'levels'|'game'='home';message:Laya.Text|null=null;status:Laya.Text|null=null
@@ -49,6 +51,7 @@ class Game {
  constructor(){
   this.root.scale(RENDER_SCALE,RENDER_SCALE);
   Laya.stage.addChild(this.root);this.root.addChild(this.scene);this.root.addChild(this.overlay);
+  this.cursorHand=new GestureHand(this.root);
   this.audio.enabled=this.save.data.sound;Button.feedback=()=>{this.audio.wake();this.audio.play('button')};
   const pointer=(e:Laya.Event):GamePointer=>({pointerId:e.touchId,stageX:e.stageX,stageY:e.stageY,button:e.button});
   Laya.InputManager.multiTouchEnabled=true;
@@ -58,6 +61,12 @@ class Game {
    // Laya normalizes touchcancel to MOUSE_UP. A cancelled touch must never use a tool.
    if(e.nativeEvent?.type==='touchcancel'){this.atlasDrag=null;this.releasePointers();return}
    const p=pointer(e);this.atlasUp(p);this.up(p);
+  });
+  Laya.stage.on(Laya.Event.MOUSE_OUT,this,(e:Laya.Event)=>{
+   if(!Laya.Browser.onMobile&&!this.activeHandPointer&&this.mode==='game'){
+    const p=this.point(pointer(e));
+    if(p.x<0||p.x>W||p.y<0||p.y>H)this.cursorHand.hide();
+   }
   });
   Laya.stage.on(Laya.Event.MOUSE_WHEEL,this,(e:Laya.Event)=>{
    const delta=e.delta*40; // LayaAir 3.4 normalizes WheelEvent.deltaY by 0.025; keep native scroll direction.
@@ -98,7 +107,7 @@ class Game {
   this.scene.size(W,H);this.scene.cacheAs='none';
   // The camera also moves the artwork. Clip its expanded bounds to the screen.
   if(mode==='game')this.scene.scrollRect=new Laya.Rectangle(0,0,W,H);
-  this.mode=mode;this.background();
+  this.mode=mode;this.setSystemCursor();this.background();
  }
  image(parent:Laya.Sprite,url:string,x:number,y:number,w:number,h:number,rotation=0):Laya.Sprite{
   const s=new Laya.Sprite();s.pos(x,y);s.graphics.drawImage(Laya.loader.getRes(url),-w/2,-h/2,w,h);s.rotation=rotation;s.mouseEnabled=false;parent.addChild(s);return s;
@@ -343,9 +352,25 @@ class Game {
  point(e:GamePointer):Point{
   return{x:e.stageX/RENDER_SCALE,y:e.stageY/RENDER_SCALE};
  }
+ setSystemCursor():void{
+  setGameCursorHidden(!Laya.Browser.onMobile&&this.mode==='game'&&!this.modalOpen);
+ }
+ moveHand(e:GamePointer):void{
+  if(this.mode!=='game'||this.modalOpen||this.busy)return;
+  const p=this.point(e);
+  if(this.activeHandPointer===e.pointerId){
+   // The pivot is already the fingertip: the image follows the real contact.
+   this.cursorHand.place(p);return;
+  }
+  // Desktop hover replaces the arrow even before clicking the jade ring.
+  if(!Laya.Browser.onMobile){
+   if(p.x>=0&&p.x<=W&&p.y>=0&&p.y<=H)this.cursorHand.place(p,0);
+   else this.cursorHand.hide();
+  }
+ }
  releasePointers():void{
   this.releaseDrag();this.eraseTap=null;this.pointers.clear();this.viewGesture=null;
-
+  this.activeHandPointer=null;this.cursorHand.hide();
  }
  syncView():void{
   if(!this.board)return;
@@ -361,9 +386,11 @@ class Game {
   const p=this.point(e);if(!this.board.contains(p))return;
   this.pointers.set(e.pointerId,p);
   if(this.pointers.size>=2){
+   this.activeHandPointer=null;this.cursorHand.hide();
    this.eraseTap=null;this.releaseDrag(false);const [a,b]=[...this.pointers.values()];const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
    this.viewGesture={kind:'pinch',start:mid,screen:{...this.board.screen},zoom:this.board.zoom,distance:Math.max(1,C.dist(a,b)),anchor:this.board.toWorld(mid)};return;
   }
+  this.activeHandPointer=e.pointerId;this.cursorHand.place(p,0);
   if(this.eraseMode){
    // Select only on pointerup: moving or pinching must not consume the item.
    const target=this.board.pick(p,this.model.state);
@@ -377,6 +404,7 @@ class Game {
   this.audio.play('select');this.sync();
  }
  move(e:GamePointer):void{
+  this.moveHand(e);
   if(!this.pointers.has(e.pointerId)||!this.model||!this.board||this.busy||this.modalOpen)return;
   const point=this.point(e);this.pointers.set(e.pointerId,point);
   if(this.eraseTap?.pointer===e.pointerId){
@@ -397,6 +425,7 @@ class Game {
   if(Math.abs(delta)<.08)return;
   if(!d.started){this.model.begin();d.started=true}
   const result=this.perform(d.id,delta);
+  if(this.activeHandPointer===e.pointerId)this.cursorHand.rotate(result.done);
   // Preserve the last physical contact result until pointer-up. A blocked drag
   // must not be magnetically moved to a *different* legal gap on release.
   d.blocked=!!result.blocked;
@@ -409,6 +438,11 @@ class Game {
   const erase=this.eraseTap?.pointer===e.pointerId?this.eraseTap:null;
   if(erase)this.eraseTap=null;
   this.pointers.delete(e.pointerId);if(d)this.releaseDrag();
+  if(this.activeHandPointer===e.pointerId){
+   this.activeHandPointer=null;
+   if(Laya.Browser.onMobile)this.cursorHand.hide();
+   else this.cursorHand.place(this.point(e),0);
+  }
 
   if(!this.pointers.size)this.viewGesture=null;
   if(d?.started&&!d.blocked&&!this.busy&&!this.board?.animating)this.snap(d.id);
@@ -651,7 +685,7 @@ class Game {
   ]);
  }
  modal(title:string,lines:string[],actions:{label:string;action:()=>void;primary:boolean}[]):void{
-  this.hideModal();this.modalOpen=true;this.releasePointers();
+  this.hideModal();this.modalOpen=true;this.releasePointers();this.setSystemCursor();
   this.guide?.clear();const shade=new Laya.Sprite();shade.size(W,H);shade.graphics.drawRect(0,0,W,H,'rgba(81,57,69,0.28)');shade.mouseEnabled=true;
   shade.on(Laya.Event.CLICK,this,()=>{});this.overlay.addChild(shade);this.modalShade=shade;
   const height=Math.min(H-150,250+lines.length*85+actions.length*84),card=panel(this.overlay,50,(H-height)/2,620,height,28,THEME.white,THEME.line);
@@ -672,7 +706,7 @@ class Game {
   // button and its parents synchronously can leave stale render/hit state.
   // Hide both layers now, then release them after the current input frame.
   const card=this.modalCard,shade=this.modalShade;
-  this.modalCard=null;this.modalShade=null;this.modalOpen=false;
+  this.modalCard=null;this.modalShade=null;this.modalOpen=false;this.setSystemCursor();
   if(card){Laya.Tween?.clearAll(card);card.visible=false;card.mouseEnabled=false}
   if(shade){shade.visible=false;shade.mouseEnabled=false}
   if(card||shade)Laya.timer.frameOnce(1,this,()=>{card?.destroy(true);shade?.destroy(true)});
