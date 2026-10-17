@@ -63,7 +63,7 @@ class Game {
    const p=pointer(e);this.atlasUp(p);this.up(p);
   });
   Laya.stage.on(Laya.Event.MOUSE_OUT,this,(e:Laya.Event)=>{
-   if(!Laya.Browser.onMobile&&!this.activeHandPointer&&this.mode==='game'){
+   if(!Laya.Browser.onMobile&&this.activeHandPointer===null){
     const p=this.point(pointer(e));
     if(p.x<0||p.x>W||p.y<0||p.y>H)this.cursorHand.hide();
    }
@@ -353,11 +353,12 @@ class Game {
   return{x:e.stageX/RENDER_SCALE,y:e.stageY/RENDER_SCALE};
  }
  setSystemCursor():void{
-  setGameCursorHidden(!Laya.Browser.onMobile&&this.mode==='game'&&!this.modalOpen);
+  setGameCursorHidden(!Laya.Browser.onMobile&&!this.modalOpen);
  }
  moveHand(e:GamePointer):void{
-  if(this.mode!=='game'||this.modalOpen||this.busy)return;
+  if(this.modalOpen||this.busy)return;
   const p=this.point(e);
+  if(this.mode!=='game'&&Laya.Browser.onMobile)return;
   if(this.activeHandPointer===e.pointerId){
    // The pivot is already the fingertip: the image follows the real contact.
    this.cursorHand.place(p);return;
