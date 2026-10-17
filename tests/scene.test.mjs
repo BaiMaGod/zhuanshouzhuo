@@ -512,8 +512,9 @@ test('玩家丝巾手指锚定触点，桌面替代光标并随玉镯真实旋�
  assert.equal(g.cursorHand.sprite.pivotY,118*.175);
  assert.equal(g.cursorHand.sprite.mouseEnabled,false,'手指画面不可吞掉操作事件');
  g.down(evt(first));
- for(let a=75;a<=92;a+=3)g.move(evt(g.board.toScreen(C.point(r,a))));
+ for(let a=75;a<=90;a+=3)g.move(evt(g.board.toScreen(C.point(r,a))));
  const next=g.board.toScreen(C.point(r,92));
+ g.move(evt(next)); // Include the requested end point: the 3-degree loop stops at 90°, not 92°.
  near(g.cursorHand.sprite.x,next.x);
  near(g.cursorHand.sprite.y,next.y);
  assert.ok(Math.abs(g.cursorHand.sprite.rotation-(r.a-angle))<1e-5,
