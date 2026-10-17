@@ -99,6 +99,15 @@ test('buttons sound, selection stays silent, win uses one bounded voice',()=>{
 test('load uses the engine asset loader without starting playback',async()=>{
  const {a,sources}=fixture();let loaded;Laya.loader.load=async urls=>{loaded=urls};
  await a.load();assert.equal(loaded.length,7);
- assert.deepEqual(loaded.filter(u=>u.endsWith('.mp3')),['assets/audio/crystal_block.mp3']);
- assert.equal(loaded.filter(u=>u.endsWith('.wav')).length,6);assert.equal(sources.length,0);
+ assert.deepEqual(loaded.filter(u=>u.endsWith('.mp3')),['assets/audio/crystal_block.mp3','assets/audio/align_glass_tink.mp3']);
+ assert.equal(loaded.filter(u=>u.endsWith('.wav')).length,5);assert.equal(sources.length,0);
+});
+
+test('Glass Tink replaces the generated alignment cue and preserves the 160ms debounce',()=>{
+ const {a,sources,advance}=fixture();
+ a.play('align');a.play('align');
+ assert.equal(sources.length,1);
+ assert.equal(sources[0].url,'assets/audio/align_glass_tink.mp3');
+ assert.equal(sources[0].playbackRate,1);
+ advance(160);a.play('align');assert.equal(sources.length,2);
 });

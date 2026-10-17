@@ -19,4 +19,6 @@ function write(name,b){const bytes=b.length*b.numberOfChannels*2,out=Buffer.allo
 // The selected ratchet_tick.wav is a mastered user-approved recording.
 // Do not regenerate or overwrite it with synthetic/ceramic friction.
 write('collision',lowpass(read('ceramic_place_1'),3400));
-for(const n of ['button','align','clear','tool','win'])write(n,lowpass(cueBuffer(ctx,n),6200));
+// Alignment uses a mastered Glass Tink recording (align_glass_tink.mp3).
+// Never synthesize or overwrite that asset during audio:generate.
+for(const n of ['button','clear','tool','win'])write(n,lowpass(cueBuffer(ctx,n),6200));

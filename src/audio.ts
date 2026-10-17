@@ -11,7 +11,7 @@ export class Audio {
  get enabled():boolean{return this.enabled_}
  set enabled(v:boolean){this.enabled_=v;if(!v)this.stopAll()}
  async load():Promise<void>{
-  await Laya.loader.load(['ratchet_tick.wav','crystal_block.mp3','button.wav','align.wav','clear.wav','tool.wav','win.wav'].map(n=>'assets/audio/'+n));
+  await Laya.loader.load(['ratchet_tick.wav','crystal_block.mp3','button.wav','align_glass_tink.mp3','clear.wav','tool.wav','win.wav'].map(n=>'assets/audio/'+n));
  }
  wake():void{/* Laya handles platform gesture unlock. */}
  motion(delta:number):void{
@@ -76,7 +76,7 @@ export class Audio {
  play(kind:Kind):void{
   if(kind==='select')return;if(kind==='block'){this.collision('legacy');return}
   const now=performance.now();if(kind==='align'&&now-this.lastAt<160)return;if(kind==='align')this.lastAt=now;
-  this.sample(kind+'.wav',kind==='button'?.12:kind==='align'?.10:kind==='win'?.24:.19);
+  this.sample(kind==='align'?'align_glass_tink.mp3':kind+'.wav',kind==='button'?.12:kind==='align'?.10:kind==='win'?.24:.19);
  }
  stopAll():void{
   this.stopMotion();for(const v of this.fading){Laya.Tween?.clearAll(v);v.stop()}this.fading.clear();
