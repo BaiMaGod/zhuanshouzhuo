@@ -18,6 +18,8 @@ const W=720;
 let H=1280,RENDER_W=720,RENDER_SCALE=1;
 const TRAY='assets/art-rose/tray.png';
 const HOME_BG='assets/art-rose/home-bg.jpg';
+// Build pipeline injects package.json's current version for every target.
+const GAME_VERSION='__GAME_VERSION__';
 const ASSETS=[HINT_HAND_ASSET,...JADE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,'assets/art-v3/clasp.png'];
 class Game {
  readonly debugMode=debugHintEnabled();
@@ -118,6 +120,8 @@ class Game {
   this.scene.addChild(new Button('第'+(current-TEACHING_COUNT+1)+'关',112,H-375,496,88,()=>this.load(current),true,'play'));
   this.scene.addChild(new Button('关卡图谱',116,H-251,234,68,()=>this.levels(),false,'map'));
   this.scene.addChild(new Button('新手练习',370,H-251,234,68,()=>this.practice(),false,'help'));
+  // Small, centered attribution below the home actions; avoid overlap on short screens.
+  text(this.scene,'v'+GAME_VERSION+' @雨过天青',70,H-91,580,36,20,THEME.muted,'center');
  }
  practice():void{this.load(this.teachingCurrent())}
  settings():void{
