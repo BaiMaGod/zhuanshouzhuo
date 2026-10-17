@@ -526,8 +526,10 @@ test('玩家丝巾手指锚定触点，桌面替代光标并随玉镯真实旋�
  g.hideModal();
  assert.equal(h.canvas.style.cursor,'none');
  g.home();
- assert.equal(h.canvas.style.cursor,'auto','离开局内应恢复系统光标');
- assert.equal(g.cursorHand.sprite.visible,false);
+ assert.equal(h.canvas.style.cursor,'none','电脑端菜单也使用丝巾手势代替箭头');
+ assert.equal(g.cursorHand.sprite.visible,false,'页面切换不保留旧的手指位置');
+ g.move(evt({x:340,y:360}));
+ assert.equal(g.cursorHand.sprite.visible,true,'首页悬停也显示自定义手势');
  Laya.Browser.onMobile=true;
  g.load(0);
  assert.equal(h.canvas.style.cursor,'auto','移动端绝不能隐藏原生鼠标');
