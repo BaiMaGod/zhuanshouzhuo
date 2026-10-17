@@ -496,3 +496,50 @@ test('正式关全屏宽视口和玉盘极限平移覆盖',()=>{
  }
  g.home();
 });
+
+test('玩家丝巾手指锚定触点，桌面替代光标并随玉镯真实旋转，移动端抬起隐藏',()=>{
+ Laya.Browser.onMobile=false;
+ g.load(0);
+ assert.equal(h.canvas.style.cursor,'none','桌面进入局内时隐藏系统箭头');
+ const r=C.ring(g.model.state,'B'),angle=r.a,first=g.board.toScreen(C.point(r,70));
+ const evt=(p,id=881)=>({stageX:p.x*.75,stageY:p.y*.75,pointerId:id,button:0});
+ g.move(evt(first));
+ assert.equal(g.cursorHand.sprite.visible,true,'PC 鼠标悬停即显示丝巾手指');
+ assert.equal(g.cursorHand.sprite.x,first.x);
+ assert.equal(g.cursorHand.sprite.y,first.y);
+ assert.equal(g.cursorHand.sprite.pivotX,118*.245);
+ assert.equal(g.cursorHand.sprite.pivotY,118*.175);
+ assert.equal(g.cursorHand.sprite.mouseEnabled,false,'手指画面不可吞掉操作事件');
+ g.down(evt(first));
+ for(let a=75;a<=92;a+=3)g.move(evt(g.board.toScreen(C.point(r,a))));
+ const next=g.board.toScreen(C.point(r,92));
+ assert.equal(g.cursorHand.sprite.x,next.x);
+ assert.equal(g.cursorHand.sprite.y,next.y);
+ assert.ok(Math.abs(g.cursorHand.sprite.rotation-(r.a-angle))<1e-5,
+  '视觉手势旋转采用实际执行的玉镯角度，不绕手腕转');
+ g.up(evt(next));
+ assert.equal(g.cursorHand.sprite.visible,true,'桌面松开恢复悬停手型');
+ assert.equal(g.cursorHand.sprite.rotation,0);
+ g.modal('测试光标',[],[{label:'确定',action:()=>g.hideModal(),primary:true}]);
+ assert.equal(h.canvas.style.cursor,'auto','弹窗中恢复系统光标');
+ assert.equal(g.cursorHand.sprite.visible,false);
+ g.hideModal();
+ assert.equal(h.canvas.style.cursor,'none');
+ g.home();
+ assert.equal(h.canvas.style.cursor,'auto','离开局内应恢复系统光标');
+ assert.equal(g.cursorHand.sprite.visible,false);
+ Laya.Browser.onMobile=true;
+ g.load(0);
+ assert.equal(h.canvas.style.cursor,'auto','移动端绝不能隐藏原生鼠标');
+ const ring=C.ring(g.model.state,'B'),p=g.board.toScreen(C.point(ring,70)),q=g.board.toScreen(C.point(ring,78));
+ g.down(evt(p,882));
+ assert.equal(g.cursorHand.sprite.visible,true);
+ g.move(evt(q,882));
+ assert.equal(g.cursorHand.sprite.x,q.x);
+ assert.equal(g.cursorHand.sprite.y,q.y);
+ g.up(evt(q,882));
+ assert.equal(g.cursorHand.sprite.visible,false,'触屏松手立即隐藏');
+ g.down(evt(p,883));g.cancel();
+ assert.equal(g.cursorHand.sprite.visible,false,'取消及失焦应清理临时手势');
+ g.home();Laya.Browser.onMobile=false;
+});
