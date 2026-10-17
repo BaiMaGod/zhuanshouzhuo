@@ -18,7 +18,7 @@ function harness() {
  }
  assert.equal(depth,0,'Game.hideModal must have a complete body');
  const method=source.slice(start,end);
- const js=ts.transpileModule('class ModalHarness {'+method+'}',{
+ const js=ts.transpileModule('class ModalHarness { setSystemCursor(){ this.cursorUpdates=(this.cursorUpdates||0)+1 } '+method+'}',{
   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}
  }).outputText;
  const pending=[];

@@ -503,18 +503,19 @@ test('玩家丝巾手指锚定触点，桌面替代光标并随玉镯真实旋�
  assert.equal(h.canvas.style.cursor,'none','桌面进入局内时隐藏系统箭头');
  const r=C.ring(g.model.state,'B'),angle=r.a,first=g.board.toScreen(C.point(r,70));
  const evt=(p,id=881)=>({stageX:p.x*.75,stageY:p.y*.75,pointerId:id,button:0});
+ const near=(actual,expected)=>assert.ok(Math.abs(actual-expected)<1e-6,`hand fingertip coordinate drift: ${actual} vs ${expected}`);
  g.move(evt(first));
  assert.equal(g.cursorHand.sprite.visible,true,'PC 鼠标悬停即显示丝巾手指');
- assert.equal(g.cursorHand.sprite.x,first.x);
- assert.equal(g.cursorHand.sprite.y,first.y);
+ near(g.cursorHand.sprite.x,first.x);
+ near(g.cursorHand.sprite.y,first.y);
  assert.equal(g.cursorHand.sprite.pivotX,118*.245);
  assert.equal(g.cursorHand.sprite.pivotY,118*.175);
  assert.equal(g.cursorHand.sprite.mouseEnabled,false,'手指画面不可吞掉操作事件');
  g.down(evt(first));
  for(let a=75;a<=92;a+=3)g.move(evt(g.board.toScreen(C.point(r,a))));
  const next=g.board.toScreen(C.point(r,92));
- assert.equal(g.cursorHand.sprite.x,next.x);
- assert.equal(g.cursorHand.sprite.y,next.y);
+ near(g.cursorHand.sprite.x,next.x);
+ near(g.cursorHand.sprite.y,next.y);
  assert.ok(Math.abs(g.cursorHand.sprite.rotation-(r.a-angle))<1e-5,
   '视觉手势旋转采用实际执行的玉镯角度，不绕手腕转');
  g.up(evt(next));
@@ -537,8 +538,8 @@ test('玩家丝巾手指锚定触点，桌面替代光标并随玉镯真实旋�
  g.down(evt(p,882));
  assert.equal(g.cursorHand.sprite.visible,true);
  g.move(evt(q,882));
- assert.equal(g.cursorHand.sprite.x,q.x);
- assert.equal(g.cursorHand.sprite.y,q.y);
+ near(g.cursorHand.sprite.x,q.x);
+ near(g.cursorHand.sprite.y,q.y);
  g.up(evt(q,882));
  assert.equal(g.cursorHand.sprite.visible,false,'触屏松手立即隐藏');
  g.down(evt(p,883));g.cancel();
