@@ -4,6 +4,7 @@ type Kind='button'|'tool'|'select'|'align'|'clear'|'block'|'win';
 export class Audio {
  private enabled_=true;
  private rotation:Laya.SoundChannel|null=null;
+ private rotationVoices=new Set<Laya.SoundChannel>();
  private voices=new Set<Laya.SoundChannel>();
  private fading=new Set<Laya.SoundChannel>();
  private motionAt=0;private velocity=0;private lastTickAt=-Infinity;private lastAt=-Infinity;private contact:string|null=null;
@@ -23,28 +24,39 @@ export class Audio {
   this.motionAt=now;
   if(!continuous)this.lastTickAt=-Infinity;
   // Keep the sample's crisp natural pitch. Faster angular motion causes closer
-  // ticks; the 200ms floor avoids a harsh buzz on a very fast swipe.
-  const interval=Math.max(200,900/(1+this.velocity/85));
+  // ticks; halve the old delay, capped at 10 clicks per second.
+  const interval=Math.max(100,450/(1+this.velocity/85));
   if(now-this.lastTickAt<interval)return;
-  const previous=this.rotation;
-  if(previous&&!previous.isStopped)previous.stop();
-  const voice=Laya.SoundManager.playSound('assets/audio/ratchet_tick.wav',1);
+  // The 116ms click can naturally overlap the next click at high speed.
+  // Do not truncate its tail; keep at most three concurrent rotation channels.
+  for(const v of this.rotationVoices)if(v.isStopped)this.rotationVoices.delete(v);
+  if(this.rotationVoices.size>=3){
+   const oldest=this.rotationVoices.values().next().value;
+   if(oldest){oldest.stop();this.rotationVoices.delete(oldest)}
+  }
+  let voice:Laya.SoundChannel;
+  voice=Laya.SoundManager.playSound('assets/audio/ratchet_tick.wav',1,()=>this.rotationVoices.delete(voice));
   if(voice){
    voice.playbackRate=1;
    voice.volume=(.12+.08*Math.min(1,this.velocity/360))*.65;
+   this.rotationVoices.add(voice);
    this.rotation=voice;
    this.lastTickAt=now;
   }
  }
  tick(now:number):void{
   if(this.motionAt&&now-this.motionAt>110)this.stopMotion();
+  for(const v of this.rotationVoices)if(v.isStopped)this.rotationVoices.delete(v);
   for(const v of this.voices)if(v.isStopped)this.voices.delete(v);
  }
  stopMotion():void{
-  const v=this.rotation;this.rotation=null;this.velocity=0;this.motionAt=0;this.lastTickAt=-Infinity;
-  if(!v||v.isStopped)return;
-  if(Laya.Tween&&Laya.Handler){this.fading.add(v);Laya.Tween.to(v,{volume:0},45,undefined,Laya.Handler.create(this,()=>{this.fading.delete(v);v.stop()}))}
-  else v.stop();
+  const current=[...this.rotationVoices];this.rotationVoices.clear();
+  this.rotation=null;this.velocity=0;this.motionAt=0;this.lastTickAt=-Infinity;
+  for(const v of current){
+   if(v.isStopped)continue;
+   if(Laya.Tween&&Laya.Handler){this.fading.add(v);Laya.Tween.to(v,{volume:0},45,undefined,Laya.Handler.create(this,()=>{this.fading.delete(v);v.stop()}))}
+   else v.stop();
+  }
  }
  resetContact():void{this.contact=null}
  collision(key:string,strength=1):void{

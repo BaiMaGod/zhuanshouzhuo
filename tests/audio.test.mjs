@@ -46,11 +46,19 @@ function runRotation(speed,step=16){
 }
 test('recorded ratchet cadence follows angular speed without high-frequency chatter',()=>{
  const slow=runRotation(25),normal=runRotation(90),fast=runRotation(360);
- assert.ok(slow.sources.length>=2&&slow.sources.length<=4);
+ assert.ok(slow.sources.length>=4&&slow.sources.length<=8);
  assert.ok(slow.sources.length<normal.sources.length);
  assert.ok(normal.sources.length<fast.sources.length);
- assert.ok(fast.sources.length<=10,'caps at five clicks per second');
+ assert.ok(fast.sources.length<=21,'caps at ten clicks per second');
  assert.ok(fast.sources.every(v=>!v.loop&&v.playbackRate===1));
+});
+test('half-length cadence and high speed do not cut off the earlier click',()=>{
+ const s=fixture();const {a,sources,advance}=s;
+ for(let i=0;i<23;i++){advance(10);a.motion(3.6)}
+ assert.ok(sources.length>=3,'100ms cadence starts at least three clicks in 230ms');
+ assert.equal(sources[0].stops,0,'the first click is not truncated at the next onset');
+ a.stopMotion();
+ assert.ok(sources.every(v=>v.stops===1),'stopping the ring silences every overlapping tick');
 });
 test('same physical speed yields same click cadence across touch event rates',()=>{
  const fast=runRotation(90,16),slow=runRotation(90,32);
