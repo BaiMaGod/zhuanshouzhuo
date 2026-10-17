@@ -3,6 +3,8 @@ import type {State,Action,Point} from './types.js';
 import type {Board} from './renderer.js';
 import {THEME} from './ui.js';
 export const HINT_HAND_ASSET='assets/art-rose/hint-hand.png';
+export const HINT_HAND_TIP_X=.245;
+export const HINT_HAND_TIP_Y=.175;
 // Presentation only: Game owns debug rotation through the normal rule API.
 export class Guide {
  root=new Laya.Sprite();hand=new Laya.Sprite();phase:'choose'|'turn'='choose';lastDraw=0;followRotation=false;
@@ -11,7 +13,7 @@ export class Guide {
   // The artwork points upper-left. Anchor its fingertip (24.5%, 17.5%)
   // at the traced ring position; preserve its natural orientation and aspect ratio.
   this.hand.texture=Laya.loader.getRes(HINT_HAND_ASSET);
-  this.hand.size(144,144);this.hand.pivot(144*.245,144*.175)}
+  this.hand.size(144,144);this.hand.pivot(144*HINT_HAND_TIP_X,144*HINT_HAND_TIP_Y)}
 
  draw(state:State,now:number,dragging:boolean):void{
   // During debug auto-rotation the hand must follow the moving gap each frame.
