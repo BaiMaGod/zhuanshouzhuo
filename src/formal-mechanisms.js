@@ -1,5 +1,6 @@
 import {campaignLayout} from './campaign-layout.js';
 import campaignTemplates from './formal-templates.js';
+import diverseMotifs from './formal-motifs.js';
 
 // Offline-selected adjacent cells. No random search or solver runs on a device.
 // Centers own the rods; receivers can be shared by centers. Background pairs
@@ -19,31 +20,36 @@ const templates=[
 const norm=a=>((a%360)+360)%360;
 const diff=(a,b)=>((a-b+540)%360)-180;
 export function mechanismFormal(number){
- const template=templates[number-1]||campaignTemplates[number];
- if(!template)return null;
+ const seed=templates[number-1]||campaignTemplates[number];
+ if(!seed)return null;
+ const motif=diverseMotifs[number];
  const nodes=campaignLayout(number+9),id=i=>nodes[i].id;
  const adjacent=(a,b)=>Math.abs(Math.hypot(nodes[a].x-nodes[b].x,nodes[a].y-nodes[b].y)-92.0001)<.01;
  const angle=(a,b)=>norm(Math.atan2(nodes[b].y-nodes[a].y,nodes[b].x-nodes[a].x)*180/Math.PI);
- const protectedIds=new Set(template.pairs.flat());
- const mounts=template.centers.flatMap(c=>nodes.map((_,r)=>r).filter(r=>adjacent(c,r)).map(r=>[c,r]));
- const links=[...mounts.map(([c,r])=>['m',id(c),id(r)]),...template.pairs.map(([a,b])=>['b',id(a),id(b)])];
+ const allMounts=seed.centers.flatMap(c=>nodes.map((_,r)=>r).filter(r=>adjacent(c,r)).map(r=>[c,r]));
+ if(motif&&(motif.mounts.length!==allMounts.length||motif.pairs.length!==seed.pairs.length))
+  throw Error('Outdated offline motif '+number+'; regenerate src/formal-motifs.js');
+ const mounts=motif?allMounts.filter((_,i)=>motif.mounts[i]==='1'):allMounts;
+ const pairs=motif?seed.pairs.filter((_,i)=>motif.pairs[i]==='1'):seed.pairs;
+ const protectedIds=new Set(pairs.flat());
+ const links=[...mounts.map(([c,r])=>['m',id(c),id(r)]),...pairs.map(([a,b])=>['b',id(a),id(b)])];
  const points=nodes.map((p,i)=>{
-  const cuffs=[...mounts.filter(([,r])=>r===i).map(([c])=>angle(i,c)),...template.pairs.filter(pair=>pair.includes(i)).map(pair=>angle(i,pair.find(r=>r!==i)))];
+  const cuffs=[...mounts.filter(([,r])=>r===i).map(([c])=>angle(i,c)),...pairs.filter(pair=>pair.includes(i)).map(pair=>angle(i,pair.find(r=>r!==i)))];
   let a=norm(37+number*43+i*71);
   while(cuffs.some(goal=>Math.abs(diff(a,goal))<12))a=norm(a+17);
   return [p.id,p.x,p.y,a];
  });
  const stages=[];
  const add=(r,goal,claspId,releaseId)=>stages.push({id:'S'+(stages.length+1),ringId:id(r),targetAngle:goal,claspId,releaseId,requires:stages.length?['S'+stages.length]:[]});
- const order=[...template.centers].sort((a,b)=>mounts.filter(([c,r])=>c===a&&protectedIds.has(r)).length-mounts.filter(([c,r])=>c===b&&protectedIds.has(r)).length||a-b);
+ const order=[...seed.centers].sort((a,b)=>mounts.filter(([c,r])=>c===a&&protectedIds.has(r)).length-mounts.filter(([c,r])=>c===b&&protectedIds.has(r)).length||a-b);
  for(const c of order){
   const own=mounts.map(([owner,r],i)=>({owner,r,i})).filter(x=>x.owner===c);
   // Clear simple entry rings, then retain the protected receivers together.
   own.sort((a,b)=>Number(protectedIds.has(a.r))-Number(protectedIds.has(b.r))||a.r-b.r);
   for(const {r,i} of own)add(r,angle(r,c),'L'+(i+1),id(c));
  }
- for(let i=0;i<template.pairs.length;i++){
-  const [a,b]=template.pairs[i],claspId='L'+(mounts.length+i+1);
+ for(let i=0;i<pairs.length;i++){
+  const [a,b]=pairs[i],claspId='L'+(mounts.length+i+1);
   add(a,angle(a,b),claspId,id(a));add(b,angle(b,a),claspId,id(b));
  }
  const angles=new Map(points.map(p=>[p[0],p[3]]));
@@ -51,5 +57,5 @@ export function mechanismFormal(number){
   const delta=diff(stage.targetAngle,angles.get(stage.ringId));angles.set(stage.ringId,stage.targetAngle);
   return {id:stage.ringId,delta,rod:stage.claspId};
  });
- return {level:{name:'第'+number+'关',kind:'formal',revision:1,tip:'观察两类锁扣，保持相关玉镯的缺口对齐，再释放中心机关。',points,links,hintGraph:{kind:'stages',stages},difficulty:{centers:order.map(id),protectedReceivers:[...protectedIds].map(id)}},solution};
+ return {level:{name:'第'+number+'关',kind:'formal',revision:motif?2:1,tip:'观察两类锁扣，保持相关玉镯的缺口对齐，再释放中心机关。',points,links,hintGraph:{kind:'stages',stages},difficulty:{centers:order.map(id),protectedReceivers:[...protectedIds].map(id),motif:motif?.family||'legacy-hold'}},solution};
 }
