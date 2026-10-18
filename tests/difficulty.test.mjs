@@ -5,6 +5,8 @@ import solutions from '../dist/js/solutions.js';
 import {HintGraphRuntime} from '../dist/js/hint-graph.js';
 import {GameModel} from '../dist/js/model.js';
 import {Save} from '../dist/js/storage.js';
+import {VERIFIED_SWITCHES} from '../dist/js/formal-archetypes.js';
+import {INTRO_SWITCHES} from '../dist/js/formal-switch-campaign.js';
 import {VERIFIED_RELAYS} from '../dist/js/formal-relays.js';
 
 test('第1关恢复十镯九扣的简单入门，每次对齐都能消除并完整通关',()=>{
@@ -23,8 +25,14 @@ test('后续混合机关有真实多扣和保持约束，固定扣不将单缺�
   if(index===54)continue;
   const l=C.levels[index],s=C.make(index),background=s.rods.filter(z=>z.kind==='b');
   const number=index-9;
-  assert.equal(l.revision,VERIFIED_RELAYS[number]?3:number>=11?2:1,'level revision '+number);
+  assert.equal(l.revision,INTRO_SWITCHES[number]?5:VERIFIED_SWITCHES[number]?4:VERIFIED_RELAYS[number]?3:number>=11?2:1,'level revision '+number);
   assert.equal(l.hintGraph.kind,'stages');
+  if(INTRO_SWITCHES[number]){
+   assert.equal(background.length,0,'intro switch uses reverse moving clasps');
+   assert.equal(l.difficulty.archetype,'intro-two-key');
+   assert.equal(l.difficulty.keyOwners.length,2);
+   continue;
+  }
   assert.ok(background.length>=2,'background pairs '+index);
   const fixed=new Map(s.rings.map(r=>[r.id,0]));
   for(const z of background)for(const id of z.targets)fixed.set(id,fixed.get(id)+1);
@@ -37,6 +45,7 @@ test('后续混合机关有真实多扣和保持约束，固定扣不将单缺�
 
 test('第2—10关穷举仅产生消除的合法目标操作，不能一路贪心清空',()=>{
  for(let index=11;index<20;index++){
+  if(INTRO_SWITCHES[index-9])continue;
   const visited=new Set();
   function greedy(s){
    if(s.rings.every(r=>r.life==='removed'))return true;
@@ -57,6 +66,7 @@ test('第2—10关穷举仅产生消除的合法目标操作，不能一路贪�
 
 test('第2—10关完整图提示可通关；保持被转离后修复，已消失的中心不再要求旧角度',()=>{
  for(let index=11;index<20;index++){
+  if(INTRO_SWITCHES[index-9])continue;
   const s=C.make(index),graph=new HintGraphRuntime(index,s);let moves=0,setups=0,reversed=false;
   while(!s.rings.every(r=>r.life==='removed')){
    const before=JSON.stringify(s),a=graph.next(s);assert.equal(JSON.stringify(s),before,'query is read only');assert.ok(a,index+'/'+moves);
