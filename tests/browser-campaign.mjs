@@ -52,6 +52,8 @@ try{
   p.on('response',r=>{if(r.status()>=400)report.errors.push(r.status()+' '+r.url())});
   await p.goto('http://127.0.0.1:'+server.address().port+'/?debug');
   await p.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot')&&(!document.querySelector('#splash')||getComputedStyle(document.querySelector('#splash')).display==='none'));
+  assert.equal(await p.evaluate(()=>window.jadeDebug.game.model?.index),0,'First visit opens the first tutorial');
+  await p.evaluate(()=>window.jadeDebug.game.home());
   await button(p,'第1关');
   assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.length),10);
   const route=solutions[10];
