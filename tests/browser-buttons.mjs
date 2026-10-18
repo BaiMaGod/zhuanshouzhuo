@@ -30,6 +30,7 @@ try{
  page.on('pageerror',err=>console.error('Browser page error:',err.message));
  await page.goto('http://127.0.0.1:'+server.address().port+'/?debug',{waitUntil:'load'});
  await page.waitForFunction(()=>!!window.jadeDebug?.game,{timeout:60000});
+ await page.evaluate(()=>window.jadeDebug.game.home()); // First launch now opens tutorial.
  const point=(x,y)=>({x:Math.round(x*scale),y:Math.round(y*scale)});
  async function pixelRatio(rect){
   // Sample the stable light-pink interior, away from rounded corners.
