@@ -11,6 +11,18 @@ test('nearby sleeve snaps legally without mutating the probe state',()=>{
  assert.equal(snapDelta(s,'B',-1),null);
  const res=C.request(s,'B',d);assert.equal(res.blocked,null);assert.ok(res.removed.includes('B'));
 });
+test('magnetic angle assistance includes ten degrees but excludes larger gaps',()=>{
+ for(const distance of [8,9.9,10]){
+  const s=C.make(0),r=C.ring(s,'B'),e=C.endpoints(s,s.rods[0]).find(e=>e.id==='B');
+  r.a=C.norm(C.angle(r,e.p)-distance);C.update(s);
+  const d=snapDelta(s,'B',1);
+  assert.ok(d!==null,`missing legal snap at ${distance} degrees`);
+  assert.ok(Math.abs(d-distance)<.01);
+ }
+ const s=C.make(0),r=C.ring(s,'B'),e=C.endpoints(s,s.rods[0]).find(e=>e.id==='B');
+ r.a=C.norm(C.angle(r,e.p)-10.1);C.update(s);
+ assert.equal(snapDelta(s,'B',1),null);
+});
 test('distant gaps and captive owners are not pulled through obstacles',()=>{
  const s=C.make(0);assert.equal(snapDelta(s,'B'),null);
  for(let i=0;i<10;i++){
