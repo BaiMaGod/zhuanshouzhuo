@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "images:optimize": "python3 scripts/optimize-images.py",
+    "images:audit": "node scripts/runtime-images.mjs",
     "build": "node scripts/build.mjs",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
     "test": "npm run test:full",

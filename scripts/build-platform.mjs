@@ -2,6 +2,7 @@ import {spawnSync} from 'node:child_process';
 import {rmSync,existsSync,readFileSync,writeFileSync,readdirSync,statSync} from 'node:fs';
 import {resolve,relative} from 'node:path';
 import {createHash} from 'node:crypto';
+import {verifyPackagedImages} from './runtime-images.mjs';
 const target=process.argv[2]||'web';
 if(!['web','wxgame','bytedancegame','android','ios'].includes(target))throw Error('Unsupported target '+target);
 const run=(cmd,args)=>{const r=spawnSync(cmd,args,{stdio:'inherit'});if(r.status!==0)process.exit(r.status||1)};
@@ -12,6 +13,7 @@ const built=spawnSync(process.env.LAYAAIR_CLI||'layaair',['--version=3.4.0','bui
 process.stdout.write(built.stdout||'');process.stderr.write(built.stderr||'');
 if(built.status!==0||!/Build end, result=Success/.test(built.stdout||''))throw Error('Official '+target+' build failed; no verified artifact was produced');
 if(!existsSync(output))throw Error('Official output missing');
+if(target==='web'||target==='wxgame'||target==='bytedancegame')verifyPackagedImages(output+'/assets');
 const entry=target==='web'?'index.html':target==='wxgame'||target==='bytedancegame'?'game.js':null;
 if(entry&&!existsSync(output+'/'+entry))throw Error('Missing platform entry');
 for(const p of ['assets/jade-v2/amber.png','assets/art-rose/tray.png','assets/art-v3/clasp.png','assets/fonts/jade-text.woff','assets/audio/ratchet_tick.wav','assets/audio/crystal_block.mp3','assets/audio/win.wav']){
