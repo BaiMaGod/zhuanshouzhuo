@@ -5,6 +5,7 @@ import solutions from '../dist/js/solutions.js';
 import {HintGraphRuntime} from '../dist/js/hint-graph.js';
 import {VERIFIED_RELAYS} from '../dist/js/formal-relays.js';
 import {VERIFIED_SWITCHES} from '../dist/js/formal-archetypes.js';
+import {INTRO_SWITCHES} from '../dist/js/formal-switch-campaign.js';
 
 test('30 verified two-tier relays create an actual receiver-owned moving clasp',()=>{
  const ids=Object.keys(VERIFIED_RELAYS).map(Number).sort((a,b)=>a-b);
@@ -65,6 +66,6 @@ test('relay levels perform real continuous rotation, and their hints recover on 
 test('non-relay intro and restored level 45 keep previous revisions',()=>{
  for(const n of [1,2,10,11,12,45,100]){
   const l=C.levels[n+9];
-  assert.equal(l.revision||0,n===1?2:n===45?0:n<=10?1:2);
+  assert.equal(l.revision||0,n===1?2:n===45?0:INTRO_SWITCHES[n]?5:VERIFIED_SWITCHES[n]?4:n<=10?1:2);
  }
 });
