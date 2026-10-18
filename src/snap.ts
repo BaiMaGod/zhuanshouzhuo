@@ -7,7 +7,7 @@ export function snapDelta(s:State,id:string,motion=0):number|null{
  for(const z of s.rods)if(C.exists(s,z))for(const e of C.endpoints(s,z)){
   if(e.id!==id||Math.abs(C.dist(r,e.p)-C.R)>.025)continue;
   const d=C.diff(C.angle(r,e.p),r.a);
-  if(Math.abs(d)<.01||Math.abs(d)>7||motion&&d*motion<=0)continue;
+  if(Math.abs(d)<.01||Math.abs(d)>10||motion&&d*motion<=0)continue;
   candidates.push(d);
  }
  for(const d of candidates.sort((a,b)=>Math.abs(a)-Math.abs(b))){
