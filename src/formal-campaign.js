@@ -1,6 +1,7 @@
 import legacyLevel from './formal-level.js';
 import legacySolution from './legacy-formal-solution.js';
 import {mechanismFormal} from './formal-mechanisms.js';
+import {introSwitchFormal} from './formal-switch-campaign.js';
 import {campaignLayout,peelOrder,incomingAngle} from './campaign-layout.js';
 
 // Hint dependency metadata is generated ONCE with the level definition.
@@ -25,6 +26,8 @@ for(let number=1;number<=100;number++){
   formalSolutions.push(order.map(i=>({id:nodes[i].id,delta:-20})));continue;
  }
  if(number===45){formalLevels.push({...legacyLevel,hintGraph:legacyGraph()});formalSolutions.push(legacySolution);continue}
+ const authored=introSwitchFormal(number);
+ if(authored){formalLevels.push(authored.level);formalSolutions.push(authored.solution);continue}
  const mixed=mechanismFormal(number);
  if(!mixed)throw Error('Missing mixed-clasp campaign level '+number);
  formalLevels.push(mixed.level);formalSolutions.push(mixed.solution);
