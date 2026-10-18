@@ -57,6 +57,22 @@ export class Save {
  }
  clearRun(index:number):void{this.runCache.delete(index);try{Laya.LocalStorage.setItem(this.key+'-run-'+index,'null');this.changed()}catch{}}
  persist():void {try{Laya.LocalStorage.setItem(this.key,JSON.stringify(this.data));this.changed()}catch{}}
+ // Device/account-scoped onboarding gate; do not change the versioned cloud save.
+ shouldAutoStartTutorial():boolean{
+  try{
+   if(Laya.LocalStorage.getItem(this.key+'-tutorial-opened')==='1')return false;
+   if(this.data.unlocked>0||this.data.tutorial>0||Object.keys(this.data.records).length>0)return false;
+   // Older saves might contain an unfinished formal board without a completed level.
+   for(let i=TEACHING_COUNT;i<Core.levels.length;i++){
+    const run=Laya.LocalStorage.getItem(this.key+'-run-'+i);
+    if(run&&run!=='null')return false;
+   }
+   return true;
+  }catch{return false}
+ }
+ markTutorialOpened():void{
+  try{Laya.LocalStorage.setItem(this.key+'-tutorial-opened','1')}catch{}
+ }
  bindAccount(owner:string):void{
   if(owner===this.owner)return;
   if(!owner||owner.length>256)throw Error('Invalid account');
