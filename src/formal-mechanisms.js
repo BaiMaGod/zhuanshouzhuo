@@ -2,6 +2,7 @@ import {campaignLayout} from './campaign-layout.js';
 import campaignTemplates from './formal-templates.js';
 import diverseMotifs from './formal-motifs.js';
 import {applyVerifiedRelay} from './formal-relays.js';
+import {applyVerifiedSwitch} from './formal-archetypes.js';
 
 // Offline-selected adjacent cells. No random search or solver runs on a device.
 // Centers own the rods; receivers can be shared by centers. Background pairs
@@ -58,5 +59,5 @@ export function mechanismFormal(number){
   const delta=diff(stage.targetAngle,angles.get(stage.ringId));angles.set(stage.ringId,stage.targetAngle);
   return {id:stage.ringId,delta,rod:stage.claspId};
  });
- return applyVerifiedRelay({level:{name:'第'+number+'关',kind:'formal',revision:motif?2:1,tip:'观察两类锁扣，保持相关玉镯的缺口对齐，再释放中心机关。',points,links,hintGraph:{kind:'stages',stages},difficulty:{centers:order.map(id),protectedReceivers:[...protectedIds].map(id),motif:motif?.family||'legacy-hold'}},solution},number);
+ return applyVerifiedSwitch(applyVerifiedRelay({level:{name:'第'+number+'关',kind:'formal',revision:motif?2:1,tip:'观察两类锁扣，保持相关玉镯的缺口对齐，再释放中心机关。',points,links,hintGraph:{kind:'stages',stages},difficulty:{centers:order.map(id),protectedReceivers:[...protectedIds].map(id),motif:motif?.family||'legacy-hold'}},solution},number),number);
 }
