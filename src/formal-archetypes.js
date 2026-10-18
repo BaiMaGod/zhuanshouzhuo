@@ -4,26 +4,237 @@
 // movable-clasp owners, so the shared receiver must rotate to two different cuffs.
 // See tests/archetypes.test.mjs and tests/full/campaign-route.test.mjs.
 export const VERIFIED_SWITCHES={
-  15:['R22','R9','R16','R23'],
-  16:['R22','R9','R16','R23'],
-  20:['R15','R25','R11','R29'],
-  26:['R4','R5','R1','R9'],
-  30:['R36','R21','R20','R39'],
-  35:['R12','R4','R6','R16'],
-  36:['R18','R32','R10','R42'],
-  38:['R3','R2','R1','R8'],
-  40:['R5','R13','R7','R17'],
-  41:['R48','R24','R32','R44'],
-  42:['R48','R24','R32','R44'],
-  54:['R7','R1','R3','R5'],
-  68:['R43','R75','R61','R63']
+ "15": [
+  "R22",
+  "R9",
+  "R16",
+  "R23"
+ ],
+ "20": [
+  "R15",
+  "R25",
+  "R11",
+  "R29"
+ ],
+ "25": [
+  "R32",
+  "R10",
+  "R18",
+  "R24"
+ ],
+ "30": [
+  "R36",
+  "R21",
+  "R20",
+  "R39"
+ ],
+ "35": [
+  "R12",
+  "R4",
+  "R6",
+  "R16"
+ ],
+ "38": [
+  "R3",
+  "R2",
+  "R1",
+  "R8"
+ ],
+ "41": [
+  "R48",
+  "R24",
+  "R32",
+  "R44"
+ ],
+ "46": [
+  "R8",
+  "R3",
+  "R2",
+  "R15"
+ ],
+ "49": [
+  "R7",
+  "R5",
+  "R1",
+  "R13"
+ ],
+ "50": [
+  [
+   "R22",
+   "R9",
+   "R16",
+   "R23"
+  ],
+  [
+   "R15",
+   "R3",
+   "R8",
+   "R11"
+  ]
+ ],
+ "54": [
+  "R7",
+  "R1",
+  "R3",
+  "R5"
+ ],
+ "56": [
+  [
+   "R60",
+   "R32",
+   "R42",
+   "R48"
+  ],
+  [
+   "R2",
+   "R14",
+   "R8",
+   "R10"
+  ]
+ ],
+ "58": [
+  "R9",
+  "R16",
+  "R4",
+  "R22"
+ ],
+ "61": [
+  "R51",
+  "R35",
+  "R27",
+  "R63"
+ ],
+ "64": [
+  "R50",
+  "R34",
+  "R26",
+  "R62"
+ ],
+ "68": [
+  "R43",
+  "R75",
+  "R61",
+  "R63"
+ ],
+ "70": [
+  "R50",
+  "R26",
+  "R34",
+  "R46"
+ ],
+ "73": [
+  "R42",
+  "R32",
+  "R18",
+  "R60"
+ ],
+ "75": [
+  [
+   "R67",
+   "R59",
+   "R41",
+   "R83"
+  ],
+  [
+   "R70",
+   "R44",
+   "R52",
+   "R76"
+  ],
+  [
+   "R64",
+   "R56",
+   "R38",
+   "R80"
+  ]
+ ],
+ "76": [
+  "R69",
+  "R59",
+  "R58",
+  "R83"
+ ],
+ "79": [
+  "R53",
+  "R45",
+  "R29",
+  "R71"
+ ],
+ "83": [
+  "R18",
+  "R34",
+  "R12",
+  "R42"
+ ],
+ "84": [
+  [
+   "R92",
+   "R64",
+   "R80",
+   "R84"
+  ],
+  [
+   "R18",
+   "R34",
+   "R12",
+   "R42"
+  ]
+ ],
+ "88": [
+  "R62",
+  "R42",
+  "R34",
+  "R74"
+ ],
+ "91": [
+  "R15",
+  "R29",
+  "R21",
+  "R25"
+ ],
+ "94": [
+  "R15",
+  "R25",
+  "R11",
+  "R29"
+ ],
+ "98": [
+  "R17",
+  "R27",
+  "R13",
+  "R31"
+ ],
+ "100": [
+  [
+   "R20",
+   "R8",
+   "R14",
+   "R21"
+  ],
+  [
+   "R54",
+   "R86",
+   "R66",
+   "R72"
+  ],
+  [
+   "R2",
+   "R1",
+   "R3",
+   "R6"
+  ]
+ ]
 };
 const norm=a=>((a%360)+360)%360;
 const diff=(a,b)=>((a-b+540)%360)-180;
 const angle=(a,b)=>norm(Math.atan2(b[2]-a[2],b[1]-a[1])*180/Math.PI);
 
 export function applyVerifiedSwitch(input,number){
- const entry=VERIFIED_SWITCHES[number];if(!entry)return input;
+ const data=VERIFIED_SWITCHES[number];if(!data)return input;
+ const entries=typeof data[0]==='string'?[data]:data;
+ return entries.reduce((current,entry)=>applyOneSwitch(current,number,entry),input);
+}
+function applyOneSwitch(input,number,entry){
  const [center,pivot,leafA,leafB]=entry,leaves=[leafA,leafB];
  const {level}=input,points=new Map(level.points.map(p=>[p[0],p]));
  if(![center,pivot,...leaves].every(id=>points.has(id)))throw Error('Switch missing ring on '+number);
@@ -73,6 +284,7 @@ export function applyVerifiedSwitch(input,number){
  level.revision=4;
  level.difficulty.archetype='double-key-switch';
  level.difficulty.switch={center,pivot,leaves};
+ (level.difficulty.switches??=[]).push({center,pivot,leaves});
  const angles=new Map(level.points.map(p=>[p[0],p[3]]));
  const solution=stages.map(stage=>{
   const delta=diff(stage.targetAngle,angles.get(stage.ringId));
