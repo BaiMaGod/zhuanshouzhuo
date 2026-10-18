@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import Core from '../dist/js/core.js';
 import seeds from '../dist/js/formal-templates.js';
 import motifs from '../dist/js/formal-motifs.js';
+import {VERIFIED_RELAYS} from '../dist/js/formal-relays.js';
 import {campaignLayout} from '../dist/js/campaign-layout.js';
 
 // Structural safeguards. Continuous collision and route correctness are
@@ -26,11 +27,12 @@ test('five offline motif families really change 89 campaign levels',()=>{
   const kept=allMounts.filter((_,i)=>mask.mounts[i]==='1');
   const pairs=seed.pairs.filter((_,i)=>mask.pairs[i]==='1');
   const level=Core.levels[n+9],state=Core.make(n+9);
-  assert.equal(level.revision,2,n+' saved game revision');
+  const extra=VERIFIED_RELAYS[n]?1:0;
+  assert.equal(level.revision,extra?3:2,n+' saved game revision');
   assert.equal(level.difficulty.motif,mask.family);
-  assert.equal(state.rods.filter(r=>r.kind==='m').length,kept.length);
+  assert.equal(state.rods.filter(r=>r.kind==='m').length,kept.length+extra);
   assert.equal(state.rods.filter(r=>r.kind==='b').length,pairs.length);
-  assert.equal(state.rods.length,kept.length+pairs.length);
+  assert.equal(state.rods.length,kept.length+pairs.length+extra);
   assert.ok(kept.length<allMounts.length,n+' must not reuse full hub neighborhood');
   const outDegree=seed.centers.map(c=>kept.filter(([owner])=>owner===c).length);
   largeHubs+=outDegree.filter(x=>x>=5).length;
