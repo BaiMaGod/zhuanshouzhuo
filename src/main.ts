@@ -7,6 +7,8 @@ import {Audio} from './audio.js';
 import {Haptics} from './haptics.js';
 import {snapDelta} from './snap.js';
 import {Save} from './storage.js';
+import type {RewardKind} from './storage.js';
+import {TapPlatform} from './taptap.js';
 import {finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug,setGameCursorHidden} from './web-shell.js';
 import {search,nextFrame} from './solver.js';
 interface GamePointer {pointerId:number;stageX:number;stageY:number;button?:number}
@@ -27,21 +29,72 @@ class Game {
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
  cursorHand:GestureHand;activeHandPointer:number|null=null;
  garden:Laya.Sprite|null=null;wallpaper:Laya.Sprite|null=null;
- save=new Save();audio=new Audio();haptics=new Haptics();model:GameModel|null=null;board:Board|null=null;
+ save=new Save();platform=new TapPlatform(this.save,debugEnabled());accountStatus:Laya.Text|null=null;audio=new Audio();haptics=new Haptics();model:GameModel|null=null;board:Board|null=null;
  mode:'home'|'levels'|'game'='home';message:Laya.Text|null=null;status:Laya.Text|null=null
  controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;eraseButton:Button|null=null;eraseTip:Laya.Text|null=null;eraseMode=false;eraseTap:{id:string;pointer:number;start:Point}|null=null;
  pointers=new Map<number,Point>();panMode=false;viewLabel:Laya.Text|null=null;panButton:Button|null=null;
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
  atlas:Laya.Sprite|null=null;atlasOffset=0;atlasHeight=0;atlasPage=-1;atlasDrag:{id:number;y:number;offset:number;moved:boolean}|null=null;atlasClickAfter=0;
- hintLeft=1;eraseLeft=1;noticeUntil=0;
+ hintLeft=1;eraseLeft=1;noticeUntil=0;nextCloudCheck=0;
+ toolLeft(kind:RewardKind):number{return (kind==='hint'?this.hintLeft:this.eraseLeft)+(this.model?this.save.rewardLeft(this.model.index,kind):0)}
+ consumeTool(kind:RewardKind):void{
+  if(kind==='hint'&&this.hintLeft>0)this.hintLeft--;
+  else if(kind==='erase'&&this.eraseLeft>0)this.eraseLeft--;
+  else if(this.model)this.save.consumeReward(this.model.index,kind);
+ }
+ async loginTap():Promise<void>{
+  if(this.mode!=='home')return;
+  this.modal('连接 TapTap',['正在登录并读取云存档…'],[]);
+  await this.platform.login();this.hideModal();this.audio.enabled=this.save.data.sound;this.home();
+  if(this.platform.pendingCloud)this.modal('选择局内存档',['本地和云端的盘面不同，请选择继续哪份。','通关成绩会合并，已领取广告不会重置。'],[
+   {label:'继续本地盘面',action:()=>{this.platform.resolveConflict(false);this.home()},primary:false},
+   {label:'继续云端盘面',action:()=>{this.platform.resolveConflict(true);this.home()},primary:true}
+  ]);
+ }
+ tapMenu():void{
+  this.modal('TapTap',[this.platform.status],[
+   {label:'登录 / 同步',action:()=>{this.hideModal();void this.loginTap()},primary:true},
+   {label:'关卡榜',action:()=>void this.showRank(false),primary:false},
+   {label:'星数榜',action:()=>void this.showRank(true),primary:false},
+   ...(this.platform.ready&&this.save.hasGuestProgress()?[{label:'导入本地进度',action:()=>this.modal('导入本地进度？',['将本机试玩进度合并到当前账号。','导入的试玩进度不参与排行榜。'],[
+    {label:'确认导入',action:()=>{this.save.importGuest();void this.platform.sync();this.home()},primary:true},
+    {label:'取消',action:()=>this.tapMenu(),primary:false}
+   ]),primary:false}]:[]),
+   {label:'关闭',action:()=>this.hideModal(),primary:false}
+  ]);
+ }
+ async showRank(stars:boolean):Promise<void>{
+  try{await this.platform.openBoard(stars)}catch{this.modal('排行榜暂不可用',['请先登录并同步存档，或稍后重试。'],[{label:'返回',action:()=>this.tapMenu(),primary:true}])}
+ }
+ offerReward(kind:RewardKind):void{
+  if(!this.model||!this.platform.available){this.toolNotice(kind==='hint'?'本关提示已用完':'本关消除已用完');return}
+  const index=this.model.index,name=kind==='hint'?'提示':'消除';
+  if(!this.save.canClaim(index,kind)){this.toolNotice('本关广告'+name+'已领取');return}
+  this.modal('获取1次'+name,['完整观看视频，获得1次'+name+'。','本局仅可领取一次，重开后重置。'],[
+   {label:'观看视频',action:()=>{this.hideModal();void this.watchReward(index,kind)},primary:true},
+   {label:'取消',action:()=>this.hideModal(),primary:false}
+  ]);
+ }
+ async watchReward(index:number,kind:RewardKind):Promise<void>{
+  if(this.platform.adBusy||!this.save.canClaim(index,kind))return;
+  const owner=this.save.owner;this.releasePointers();this.stopGuide(false);this.audio.stopAll();this.busy=true;
+  try{
+   const completed=await this.platform.rewarded();
+   if(completed&&this.save.owner===owner&&this.save.claim(index,kind)){
+    this.persistRun();this.toolNotice('已获得1次'+(kind==='hint'?'提示':'消除'));void this.platform.sync();
+   }else if(!completed)this.toolNotice('未完整观看，未领取奖励');
+  }catch{this.toolNotice(this.platform.ready?'广告暂不可用，请稍后再试':'请先在首页登录 TapTap')}
+  finally{this.busy=false;this.syncTools()}
+ }
+
  persistRun():void{if(this.formal&&this.model)this.save.writeRun(this.model.index,this.model.state,this.hintLeft,this.eraseLeft,this.model.hints?.progress||0)}
  toolNotice(message:string):void{if(this.eraseTip){this.eraseTip.text=message;this.eraseTip.visible=true;this.noticeUntil=performance.now()+2200}}
  syncTools():void{
   if(!this.formal)return;
-  if(this.hintButton){this.hintButton.label.text=this.busy?'观察…':'提示 ×'+this.hintLeft;this.hintButton.setIcon('hint')}
-  if(this.eraseButton){this.eraseButton.label.text=this.eraseMode?'取消':'消除 ×'+this.eraseLeft;this.eraseButton.setIcon('erase')}
-  if(this.hintButton)this.hintButton.alpha=this.hintLeft===0?.5:1;
-  if(this.eraseButton)this.eraseButton.alpha=this.eraseLeft===0?.5:1;
+  if(this.hintButton){this.hintButton.label.text=this.busy?'观察…':(this.toolLeft('hint')?'提示 ×'+this.toolLeft('hint'):this.platform.available&&this.model&&this.save.canClaim(this.model.index,'hint')?'视频 +1提示':'提示 ×0');this.hintButton.setIcon('hint')}
+  if(this.eraseButton){this.eraseButton.label.text=this.eraseMode?'取消':(this.toolLeft('erase')?'消除 ×'+this.toolLeft('erase'):this.platform.available&&this.model&&this.save.canClaim(this.model.index,'erase')?'视频 +1消除':'消除 ×0');this.eraseButton.setIcon('erase')}
+  if(this.hintButton)this.hintButton.alpha=this.toolLeft('hint')===0&&!this.platform.available?.5:1;
+  if(this.eraseButton)this.eraseButton.alpha=this.toolLeft('erase')===0&&!this.platform.available?.5:1;
  }
  get formal():boolean{return this.model!==null&&this.model.index>=TEACHING_COUNT}
  drag:{id:string;pointer:number;last:number;started:boolean;blocked:boolean}|null=null;
@@ -82,7 +135,10 @@ class Game {
   Laya.stage.on(Laya.Event.KEY_DOWN,this,(e:Laya.Event)=>{
    if(this.mode==='game'&&!this.modalOpen&&e.keyCode===27){this.eraseMode=false;this.syncEraseUI();this.cancel();this.hideModal()}
   });
+  this.save.onChange=()=>this.platform.localChanged();
+  this.platform.onChange=()=>{if(this.accountStatus)this.accountStatus.text=this.platform.status};
   Laya.timer.frameLoop(1,this,this.tick);this.home();
+  if(this.platform.available)void this.loginTap();
  }
  background():void{
   // A quiet solid matte remains the same colour outside the moving camera.
@@ -94,7 +150,7 @@ class Game {
   if(this.mode!=='game')this.image(this.scene,HOME_BG,W/2,H/2,W,H);
  }
  clear(mode:Game['mode']):void{
-  this.atlas=null;this.atlasDrag=null;this.atlasPage=-1;
+  this.accountStatus=null;this.atlas=null;this.atlasDrag=null;this.atlasPage=-1;
   this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.board?.destroy();this.board=null;this.model=null;
   // Dispose the fixed decorative wallpaper separately: it lives under the
   // gameplay scene, never inside the tray/ring rendering pass.
@@ -129,8 +185,12 @@ class Game {
   this.scene.addChild(new Button('第'+(current-TEACHING_COUNT+1)+'关',112,H-375,496,88,()=>this.load(current),true,'play'));
   this.scene.addChild(new Button('关卡图谱',116,H-251,234,68,()=>this.levels(),false,'map'));
   this.scene.addChild(new Button('新手练习',370,H-251,234,68,()=>this.practice(),false,'help'));
+  if(this.platform.available){
+   this.scene.addChild(new Button('TapTap',244,H-164,232,56,()=>this.tapMenu(),false));
+   this.accountStatus=text(this.scene,this.platform.status,70,H-108,580,28,18,THEME.muted,'center');
+  }
   // Small, centered attribution below the home actions; avoid overlap on short screens.
-  text(this.scene,'v'+GAME_VERSION+' @雨过天青',70,H-91,580,36,20,THEME.muted,'center');
+  text(this.scene,'v'+GAME_VERSION+' @雨过天青',70,this.platform.available?H-65:H-91,580,36,20,THEME.muted,'center');
  }
  practice():void{this.load(this.teachingCurrent())}
  settings():void{
@@ -224,12 +284,12 @@ class Game {
  }
  load(i:number,restart=false):void{
   if(i<0||i>=C.levels.length||(i<TEACHING_COUNT&&i>this.save.data.unlocked))return;
-  this.clear('game');this.settled=false;this.model=new GameModel(i);
+  this.clear('game');this.settled=false;this.model=new GameModel(i);if(debugEnabled())this.save.taint();
   this.hintLeft=1;this.eraseLeft=1;
   if(this.formal){
    const saved=this.save.readRun(i);
    if(!restart&&saved){this.model.state=saved.state;this.model.selected=null;this.model.resetHint(saved.hintProgress||0);this.hintLeft=saved.hint;this.eraseLeft=saved.erase}
-   if(restart)this.save.clearRun(i);
+   if(restart){this.save.clearRun(i);this.save.resetRewards(i)}
   }
   if(this.formal){
    // The wallpaper must be behind the *entire cached gameplay scene*, not
@@ -332,8 +392,8 @@ class Game {
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.undoButton)this.undoButton.enabled=this.model.history.length>0&&!this.modalOpen;
   if(this.demoButton)this.demoButton.label.text=this.busy?'停止':'演示';
-  if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.board.animating&&!this.modalOpen;
-  if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.board.animating&&!this.modalOpen;
+  if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.platform.adBusy&&!this.board.animating&&!this.modalOpen;
+  if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.platform.adBusy&&!this.board.animating&&!this.modalOpen;
  }
  releaseDrag(releaseCapture=true):void{
   this.audio.stopMotion();this.audio.resetContact();
@@ -382,6 +442,7 @@ class Game {
   this.board.zoomTo(this.board.zoom*factor,{x:r.x+r.w/2,y:r.y+r.h/2});this.syncView();
  }
  down(e:GamePointer):void{
+  if(this.platform.adBusy)return;
   this.audio.wake();
   if(this.mode!=='game'||!this.model||!this.board||this.busy||this.board.animating||this.modalOpen||(e.button!==undefined&&e.button!==0))return;
   const p=this.point(e);if(!this.board.contains(p))return;
@@ -513,7 +574,7 @@ class Game {
  }
  async hint():Promise<void>{
   if(this.busy||this.modalOpen||this.board?.animating||!this.model)return;
-  if(!this.debugMode&&this.formal&&this.hintLeft===0){this.toolNotice('本关提示已用完');return}
+  if(!this.debugMode&&this.formal&&this.toolLeft('hint')===0){this.offerReward('hint');return}
   if(this.guide?.action&&this.formal)return;
   this.busy=true;const token=++this.epoch;this.say('正在观察当前扣位…');if(this.hintButton)this.hintButton.label.text='观察…';this.sync(!this.formal);
   // Formal hint = direct lookup of precomputed DAG/stage data. No Worker.
@@ -534,7 +595,7 @@ class Game {
    this.guide=new Guide(this.scene,this.board!,a.id,a);this.guide.phase='turn';
    // The hint owns its graphics. State is unchanged; panTo already redraws if
    // needed. Rebuilding every static clasp twice made dense-board hints stall.
-   if(!this.debugMode)this.hintLeft--;
+   if(!this.debugMode)this.consumeTool('hint');
    if(this.debugMode){await this.rotateHint(a,token);return}
    this.guide.draw(this.model.state,performance.now(),false);this.sync(false);return;
   }
@@ -595,6 +656,8 @@ class Game {
   if(token!==this.epoch)return;this.busy=false;this.sync();
  }
  tick():void{
+  if(Date.now()>=this.nextCloudCheck){this.nextCloudCheck=Date.now()+1000;void this.platform.sync()}
+  if(this.platform.adBusy)return;
   this.audio.tick(performance.now());
   const now=performance.now();
   if(this.board?.blockedRing&&now>=this.board.blockUntil){this.board.blockedRing=null;if(this.model)this.board.draw(this.model.state)}
@@ -603,22 +666,23 @@ class Game {
   if(this.guide&&!this.modalOpen)this.guide.draw(this.model.state,now,!!this.drag);
   if(this.board.animating||this.board.sparks.length||this.board.hint||performance.now()<this.board.blockUntil)this.board.draw(this.model.state);
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
-  if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.board.animating&&!this.modalOpen;
-  if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.board.animating&&!this.modalOpen;
+  if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.platform.adBusy&&!this.board.animating&&!this.modalOpen;
+  if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.platform.adBusy&&!this.board.animating&&!this.modalOpen;
   if(this.model.cleared&&!this.board.animating&&!this.busy&&!this.settled){this.settled=true;this.win()}
  }
  win():void{
   if(!this.model)return;const i=this.model.index,steps=this.model.state.steps;
+  this.save.clearRun(i);
   if(this.formal){
-   const stars=this.save.win(i,steps,solutions[i].length),last=i===C.levels.length-1,level='第'+(i-TEACHING_COUNT+1)+'关';
-   this.audio.play('win');
+   const stars=this.save.win(i,steps,solutions[i].length,!debugEnabled()),last=i===C.levels.length-1,level='第'+(i-TEACHING_COUNT+1)+'关';
+   void this.platform.sync();void this.platform.submitScores().catch(()=>{});this.audio.play('win');
    this.modal(level+' · 全部解开',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].points.length+' 只玉镯全部解开 · '+steps+' 次转动',last?'最后一关已解开，随时回来再挑战。':'通关成绩已记录，下一关再多一只玉镯。'],[
     {label:last?'关卡图谱':'下一关',action:()=>last?this.levels():this.load(i+1),primary:true},
     {label:'回到首页',action:()=>this.home(),primary:false},
     {label:'再挑战一次',action:()=>this.load(i,true),primary:false}
    ]);return;
   }
-  const stars=this.save.win(i,steps,solutions[i].length);if(i<3){this.save.data.tutorial=Math.max(this.save.data.tutorial,i+1);this.save.persist()}this.stopGuide(false);this.audio.play('win');
+  const stars=this.save.win(i,steps,solutions[i].length,!debugEnabled());if(i<3){this.save.data.tutorial=Math.max(this.save.data.tutorial,i+1);this.save.persist()}this.stopGuide(false);this.audio.play('win');
   this.modal(i===9?'十境皆通':'这一境，解开了',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].name+' · '+steps+' 次转动',i===9?'玉环十境全部完成，随时回来再解。':'下一境已开启，机关会再多一点变化。'],[
    {label:i===9?'进入正式关卡':'进入第 '+(i+2)+' 境',action:()=>i===9?this.levels():this.load(i+1),primary:true},
    {label:'再解一次',action:()=>this.load(i,true),primary:false}
@@ -634,14 +698,14 @@ class Game {
  confirmRestart():void{
   if(!this.formal||!this.model||this.modalOpen)return;
   const index=this.model.index;
-  this.modal('重新开始？',['当前盘面将重置，提示和消除各恢复1次。'],[
+  this.modal('重新开始？',['当前盘面将重置，免费提示和消除各恢复1次。','广告提示和消除的领取次数也会重置。'],[
    {label:'继续解镯',action:()=>this.hideModal(),primary:true},
    {label:'确认重开',action:()=>this.load(index,true),primary:false}
   ]);
  }
  toggleErase():void{
   if(!this.formal||!this.model||!this.board||this.modalOpen||this.busy||this.board.animating)return;
-  if(!this.debugMode&&this.eraseLeft===0){this.toolNotice('本关消除已用完');return}
+  if(!this.debugMode&&this.toolLeft('erase')===0){this.offerReward('erase');return}
   this.releasePointers();this.stopGuide(false);
   this.eraseMode=!this.eraseMode;
   this.syncEraseUI();
@@ -663,12 +727,12 @@ class Game {
   ]);
  }
  eraseRing(id:string):void{
-  if(!this.formal||!this.model||!this.board||!this.debugMode&&this.eraseLeft===0)return;
+  if(!this.formal||!this.model||!this.board||!this.debugMode&&this.toolLeft('erase')===0)return;
   const before=C.clone(this.model.state);
   const removed=this.model.removeWithTool(id);
   this.hideModal();
   if(!removed.length)return;
-  if(!this.debugMode)this.eraseLeft--;
+  if(!this.debugMode)this.consumeTool('erase');
   this.releasePointers();this.stopGuide(false);this.board.hint=null;
   this.board.release(before,this.model.state,removed);
   this.audio.play('tool');
