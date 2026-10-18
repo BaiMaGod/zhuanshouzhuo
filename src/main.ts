@@ -201,7 +201,7 @@ class Game {
   if(this.save.owner&&this.save.hasGuestProgress())return;
   this.load(0);
   // The prompt will not reappear after leaving the tutorial or reopening the game.
-  if(this.mode==='game'&&this.model?.index===0)this.save.markTutorialOpened();
+  if(this.model?.index===0)this.save.markTutorialOpened();
  }
  practice():void{this.load(this.teachingCurrent())}
  settings():void{
