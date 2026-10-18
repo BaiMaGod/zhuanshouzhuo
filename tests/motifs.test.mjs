@@ -4,6 +4,8 @@ import Core from '../dist/js/core.js';
 import seeds from '../dist/js/formal-templates.js';
 import motifs from '../dist/js/formal-motifs.js';
 import {VERIFIED_RELAYS} from '../dist/js/formal-relays.js';
+import {VERIFIED_SWITCHES} from '../dist/js/formal-archetypes.js';
+import {INTRO_SWITCHES} from '../dist/js/formal-switch-campaign.js';
 import {campaignLayout} from '../dist/js/campaign-layout.js';
 
 // Structural safeguards. Continuous collision and route correctness are
@@ -28,11 +30,17 @@ test('five offline motif families really change 89 campaign levels',()=>{
   const pairs=seed.pairs.filter((_,i)=>mask.pairs[i]==='1');
   const level=Core.levels[n+9],state=Core.make(n+9);
   const extra=VERIFIED_RELAYS[n]?1:0;
-  assert.equal(level.revision,extra?3:2,n+' saved game revision');
+  assert.equal(level.revision,VERIFIED_SWITCHES[n]?4:extra?3:2,n+' saved game revision');
   assert.equal(level.difficulty.motif,mask.family);
-  assert.equal(state.rods.filter(r=>r.kind==='m').length,kept.length+extra);
+  const switchEntries=VERIFIED_SWITCHES[n]?(typeof VERIFIED_SWITCHES[n][0]==='string'?[VERIFIED_SWITCHES[n]]:VERIFIED_SWITCHES[n]):[];
+  const newLinks=switchEntries.reduce((links,[center,pivot,leafA,leafB])=>[
+   ...links.filter(e=>e[0]!=='m'||![leafA,leafB].includes(e[2])),
+   ['m',leafA,pivot],['m',leafB,pivot]
+  ],[...kept.map(([c,r])=>['m',layout[c].id,layout[r].id]),...(VERIFIED_RELAYS[n]?[['m',VERIFIED_RELAYS[n][0],VERIFIED_RELAYS[n][1]]]:[])]);
+  const movable=newLinks.filter(e=>e[0]==='m').length;
+  assert.equal(state.rods.filter(r=>r.kind==='m').length,movable);
   assert.equal(state.rods.filter(r=>r.kind==='b').length,pairs.length);
-  assert.equal(state.rods.length,kept.length+pairs.length+extra);
+  assert.equal(state.rods.length,movable+pairs.length);
   assert.ok(kept.length<allMounts.length,n+' must not reuse full hub neighborhood');
   const outDegree=seed.centers.map(c=>kept.filter(([owner])=>owner===c).length);
   largeHubs+=outDegree.filter(x=>x>=5).length;
@@ -72,7 +80,7 @@ test('intro and special 45 stay unchanged',()=>{
  assert.equal(Core.levels[10].revision,2);
  assert.equal(Core.make(10).rods.length,9);
  assert.equal(Core.make(54).rods.length,62);
- for(let n=2;n<=10;n++)assert.equal(Core.levels[n+9].revision,1);
+ for(let n=2;n<=10;n++)assert.equal(Core.levels[n+9].revision,INTRO_SWITCHES[n]?5:1);
 });
 
 
