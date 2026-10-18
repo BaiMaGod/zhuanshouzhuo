@@ -90,7 +90,9 @@ test('第2—10关完整图提示可通关；保持被转离后修复，已消�
 });
 
 test('偏离、部分拖动及消除任意镯后，阶段提示仍能合法收尾',()=>{
- for(const index of [11,14,19])for(const tool of ['center','receiver']){
+ // These cases intentionally exercise the still-present fixed-cuff hold archetype.
+ // Intro two-key puzzles are covered separately in tests/archetypes.test.mjs.
+ for(const index of [13,16,19])for(const tool of ['center','receiver']){
   const m=new GameModel(index),stages=C.levels[index].hintGraph.stages;
   // Move several receivers off the recommended sequence before erasing a ring.
   for(const stage of stages.slice(0,6))m.turn(stage.ringId,13);
