@@ -21,7 +21,7 @@ test('后续混合机关有真实多扣和保持约束，固定扣不将单缺�
  for(let index=11;index<110;index++){
   if(index===54)continue;
   const l=C.levels[index],s=C.make(index),background=s.rods.filter(z=>z.kind==='b');
-  assert.equal(l.revision,1);assert.equal(l.hintGraph.kind,'stages');
+  assert.equal(l.revision,index>=20?2:1);assert.equal(l.hintGraph.kind,'stages');
   assert.ok(background.length>=2,'background pairs '+index);
   const fixed=new Map(s.rings.map(r=>[r.id,0]));
   for(const z of background)for(const id of z.targets)fixed.set(id,fixed.get(id)+1);
