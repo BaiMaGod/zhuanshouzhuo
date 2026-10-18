@@ -15,6 +15,7 @@ try{
   page.on('pageerror',e=>errors.push(e.message));page.on('response',r=>{if(r.status()>=400)errors.push(r.status()+' '+r.url())});
   await page.goto('http://127.0.0.1:'+server.address().port+'/?debug');
   await page.waitForFunction(()=>globalThis.jadeDebug?.game&&!document.querySelector('#boot')&&!document.querySelector('#splash'));
+  await page.evaluate(()=>jadeDebug.game.home()); // Start formal smoke test on the homepage.
   const cdp=await page.context().newCDPSession(page);
   const click=async label=>{
    const p=await page.evaluate(label=>{const g=jadeDebug.game,walk=(n,x=0,y=0)=>{x+=n.x;y+=n.y;if(n.name===label||n.label?.text===label)return{x:x+n.width/2,y:y+n.height/2};for(let i=0;i<n.numChildren;i++){const p=walk(n.getChildAt(i),x,y);if(p)return p}};const p=walk(g.modalOpen?g.overlay:g.scene),r=document.querySelector('canvas').getBoundingClientRect();return{x:r.left+p.x/g.scene.width*r.width,y:r.top+p.y/g.scene.height*r.height}},label);

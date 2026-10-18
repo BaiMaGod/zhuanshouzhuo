@@ -7,6 +7,14 @@ await import('../dist/js/main.js');
 await new Promise(r=>setImmediate(r));
 const g=window.jadeDebug.game,C=window.jadeDebug.Core;
 g.audio.enabled=false;
+test('首次启动直接展示教学第一关及手指引导，不阻塞返回首页',()=>{
+ assert.equal(g.mode,'game');
+ assert.equal(g.model.index,0);
+ assert.ok(g.guide,'新玩家进入即看到操作手势');
+ assert.equal(g.save.shouldAutoStartTutorial(),false,'成功打开教学后标记首次体验');
+ g.home();
+ assert.equal(g.mode,'home','手动返回正常显示首页');
+});
 test('游戏页剩余数与转动次数固定为单行居中且实时更新',()=>{
  g.load(10,true);
  const count=g.model.state.rings.filter(r=>r.life==='active').length;
