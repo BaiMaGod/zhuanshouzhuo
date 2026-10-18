@@ -5,6 +5,7 @@ import solutions from '../dist/js/solutions.js';
 import {HintGraphRuntime} from '../dist/js/hint-graph.js';
 import {GameModel} from '../dist/js/model.js';
 import {Save} from '../dist/js/storage.js';
+import {VERIFIED_RELAYS} from '../dist/js/formal-relays.js';
 
 test('第1关恢复十镯九扣的简单入门，每次对齐都能消除并完整通关',()=>{
  const s=C.make(10),graph=new HintGraphRuntime(10,s);
@@ -21,7 +22,9 @@ test('后续混合机关有真实多扣和保持约束，固定扣不将单缺�
  for(let index=11;index<110;index++){
   if(index===54)continue;
   const l=C.levels[index],s=C.make(index),background=s.rods.filter(z=>z.kind==='b');
-  assert.equal(l.revision,index>=20?2:1);assert.equal(l.hintGraph.kind,'stages');
+  const number=index-9;
+  assert.equal(l.revision,VERIFIED_RELAYS[number]?3:number>=11?2:1,'level revision '+number);
+  assert.equal(l.hintGraph.kind,'stages');
   assert.ok(background.length>=2,'background pairs '+index);
   const fixed=new Map(s.rings.map(r=>[r.id,0]));
   for(const z of background)for(const id of z.targets)fixed.set(id,fixed.get(id)+1);
