@@ -42,14 +42,15 @@ class Game {
   else if(kind==='erase'&&this.eraseLeft>0)this.eraseLeft--;
   else if(this.model)this.save.consumeReward(this.model.index,kind);
  }
- async loginTap():Promise<void>{
+ async loginTap(autoTutorial=false):Promise<void>{
   if(this.mode!=='home')return;
   this.modal('连接 TapTap',['正在登录并读取云存档…'],[]);
   await this.platform.login();this.hideModal();this.audio.enabled=this.save.data.sound;this.home();
   if(this.platform.pendingCloud)this.modal('选择局内存档',['本地和云端的盘面不同，请选择继续哪份。','通关成绩会合并，已领取广告不会重置。'],[
-   {label:'继续本地盘面',action:()=>{this.platform.resolveConflict(false);this.home()},primary:false},
-   {label:'继续云端盘面',action:()=>{this.platform.resolveConflict(true);this.home()},primary:true}
+   {label:'继续本地盘面',action:()=>{this.platform.resolveConflict(false);this.home();if(autoTutorial)this.beginFirstVisit()},primary:false},
+   {label:'继续云端盘面',action:()=>{this.platform.resolveConflict(true);this.home();if(autoTutorial)this.beginFirstVisit()},primary:true}
   ]);
+  else if(autoTutorial)this.beginFirstVisit();
  }
  tapMenu():void{
   this.modal('TapTap',[this.platform.status],[
@@ -138,7 +139,9 @@ class Game {
   this.save.onChange=()=>this.platform.localChanged();
   this.platform.onChange=()=>{if(this.accountStatus)this.accountStatus.text=this.platform.status};
   Laya.timer.frameLoop(1,this,this.tick);this.home();
-  if(this.platform.available)void this.loginTap();
+  // Wait for TapTap account and cloud progress before checking onboarding.
+  if(this.platform.available)void this.loginTap(true);
+  else this.beginFirstVisit();
  }
  background():void{
   // A quiet solid matte remains the same colour outside the moving camera.
@@ -191,6 +194,14 @@ class Game {
   }
   // Small, centered attribution below the home actions; avoid overlap on short screens.
   text(this.scene,'v'+GAME_VERSION+' @雨过天青',70,this.platform.available?H-65:H-91,580,36,20,THEME.muted,'center');
+ }
+ beginFirstVisit():void{
+  if(this.mode!=='home'||!this.save.shouldAutoStartTutorial())return;
+  // A returning guest linking an account should not be treated as a new player.
+  if(this.save.owner&&this.save.hasGuestProgress())return;
+  this.load(0);
+  // The prompt will not reappear after leaving the tutorial or reopening the game.
+  if(this.mode==='game'&&this.model?.index===0)this.save.markTutorialOpened();
  }
  practice():void{this.load(this.teachingCurrent())}
  settings():void{
