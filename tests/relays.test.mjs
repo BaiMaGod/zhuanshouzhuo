@@ -4,6 +4,7 @@ import C from '../dist/js/core.js';
 import solutions from '../dist/js/solutions.js';
 import {HintGraphRuntime} from '../dist/js/hint-graph.js';
 import {VERIFIED_RELAYS} from '../dist/js/formal-relays.js';
+import {VERIFIED_SWITCHES} from '../dist/js/formal-archetypes.js';
 
 test('30 verified two-tier relays create an actual receiver-owned moving clasp',()=>{
  const ids=Object.keys(VERIFIED_RELAYS).map(Number).sort((a,b)=>a-b);
@@ -11,7 +12,7 @@ test('30 verified two-tier relays create an actual receiver-owned moving clasp',
  for(const number of ids){
   const index=number+9,level=C.levels[index],s=C.make(index);
   const [owner,receiver,firstHub,lateHub]=VERIFIED_RELAYS[number];
-  assert.equal(level.revision,3,'relay revision '+number);
+  assert.equal(level.revision,VERIFIED_SWITCHES[number]?4:3,'relay revision '+number);
   assert.deepEqual(level.difficulty.relay,{owner,receiver,firstHub,lateHub});
   assert.ok(!level.difficulty.centers.includes(owner),'relay owner is not another full hub');
   const relay=s.rods.find(z=>z.owner===owner&&z.targets[0]===receiver);
