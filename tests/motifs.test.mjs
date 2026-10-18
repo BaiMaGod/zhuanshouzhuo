@@ -72,3 +72,13 @@ test('intro and special 45 stay unchanged',()=>{
  assert.equal(Core.make(54).rods.length,62);
  for(let n=2;n<=10;n++)assert.equal(Core.levels[n+9].revision,1);
 });
+
+
+test('offline motif regeneration is byte-for-byte deterministic',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const {spawnSync}=await import('node:child_process');
+ const before=readFileSync('src/formal-motifs.js','utf8');
+ const run=spawnSync(process.execPath,['scripts/generate-formal-motifs.mjs'],{encoding:'utf8',timeout:90_000});
+ assert.equal(run.status,0,run.stderr||run.stdout);
+ assert.equal(readFileSync('src/formal-motifs.js','utf8'),before,'committed masks must match generator');
+});
