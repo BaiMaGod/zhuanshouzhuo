@@ -29,5 +29,10 @@ test('ad playback blocks input even when backgrounding cancels other interaction
  const pending=g.watchReward(12,'hint');g.cancel();
  g.down({pointerId:1,stageX:300,stageY:400});assert.equal(g.drag,null);
  assert.equal(JSON.stringify(g.model.state),state);close({isEnded:true});await pending;
- assert.equal(g.busy,false);assert.equal(g.platform.adBusy,false);
+ assert.equal(g.busy,false);assert.equal(g.platform.adBusy,false);assert.equal(g.save.rewardLeft(12,'hint'),1);
+});
+
+test('an old advertisement callback cannot grant a restarted board a reward',async()=>{
+ g.load(13,true);const pending=g.watchReward(13,'hint');g.load(13,true);
+ close({isEnded:true});await pending;assert.equal(g.save.canClaim(13,'hint'),true);assert.equal(g.save.rewardLeft(13,'hint'),0);
 });

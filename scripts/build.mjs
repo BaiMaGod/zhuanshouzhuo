@@ -2,6 +2,8 @@ import {spawnSync} from 'node:child_process';
 import {levels,TEACHING_COUNT} from '../src/levels.js';
 import {rmSync,mkdirSync,cpSync,readFileSync,writeFileSync,readdirSync} from 'node:fs';
 import {auditImages,verifyPackagedImages} from './runtime-images.mjs';
+import {tapBuildConfig} from './taptap-build-config.mjs';
+const tapConfig=tapBuildConfig();
 auditImages();
 rmSync('dist',{recursive:true,force:true});
 mkdirSync('dist',{recursive:true});
@@ -16,21 +18,19 @@ const imageAudit=verifyPackagedImages('dist/assets');
 console.log('Runtime images:',imageAudit.count,imageAudit.bytes,'bytes (budget',imageAudit.budget+')');
 rmSync('dist/js/solver-worker.js',{force:true});
 const p=JSON.parse(readFileSync('package.json','utf8'));
-const loginUrl=process.env.TAP_LOGIN_URL||'',adUnit=process.env.TAP_REWARDED_AD_UNIT_ID||'';
-if(loginUrl&&!/^https:\/\/[^\s]+$/.test(loginUrl))throw Error('TAP_LOGIN_URL must use HTTPS');
-if(adUnit&&!/^[A-Za-z0-9_-]+$/.test(adUnit))throw Error('Invalid public ad unit ID');
-if(process.env.TAP_RELEASE==='1'&&(!loginUrl||!adUnit))throw Error('TapTap release requires verified login URL and platform ad config');
 for(const file of readdirSync('dist/js').filter(f=>f.endsWith('.js'))){
  const path='dist/js/'+file;
  const text=readFileSync(path,'utf8')
   .replace(/__GAME_VERSION__/g,p.version)
-  .replace(/(['"])__TAP_LOGIN_URL__\1/g,()=>JSON.stringify(loginUrl))
-  .replace(/(['"])__TAP_REWARDED_AD_UNIT_ID__\1/g,()=>JSON.stringify(adUnit))
+  .replace(/(['"])__TAP_STARS_BOARD_ID__\1/g,()=>JSON.stringify(tapConfig.starsBoard))
+  .replace(/(['"])__TAP_LEVELS_BOARD_ID__\1/g,()=>JSON.stringify(tapConfig.levelsBoard))
+  .replace(/(['"])__TAP_REWARDED_AD_UNIT_ID__\1/g,()=>JSON.stringify(tapConfig.rewardedAdUnitId))
   .replace(/(from\s+|import\s*)(['"])(\.\/[^'"]+\.js)\2/g,(_,prefix,q,url)=>prefix+q+url+'?v='+p.version+q);
  writeFileSync(path,text);
 }
 const html=readFileSync('dist/index.html','utf8').replace('src="js/main.js"','src="js/main.js?v='+p.version+'"');
 writeFileSync('dist/index.html',html);
 writeFileSync('dist/version.json',JSON.stringify({version:p.version,engine:'LayaAir 3.4.0',rules:'V3.2',levels:levels.length,teachingLevels:TEACHING_COUNT,formalLevels:levels.length-TEACHING_COUNT})+'\n');
+writeFileSync('dist/taptap-build.json',JSON.stringify({...tapConfig,version:p.version})+'\n');
 console.log('Built 玉环十境 '+p.version);
 

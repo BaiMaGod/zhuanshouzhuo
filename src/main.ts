@@ -17,6 +17,7 @@ import solutions from './solutions.js';
 import {TEACHING_COUNT,FORMAL_INDEX} from './levels.js';
 import type {Action,Point,State,Result} from './types.js';
 
+const BOOT_STARTED=performance.now();
 const W=720;
 let H=1280,RENDER_W=720,RENDER_SCALE=1;
 const TRAY='assets/art-rose/tray.png';
@@ -44,8 +45,8 @@ class Game {
  }
  async loginTap(autoTutorial=false):Promise<void>{
   if(this.mode!=='home')return;
-  this.modal('连接 TapTap',['正在登录并读取云存档…'],[]);
-  await this.platform.login();this.hideModal();this.audio.enabled=this.save.data.sound;this.home();
+  if(!autoTutorial)this.modal('连接 TapTap',['正在登录并读取云存档…'],[]);
+  await this.platform.login();if(this.mode!=='home'||autoTutorial&&this.modalOpen)return;this.hideModal();this.audio.enabled=this.save.data.sound;this.home();
   if(this.platform.pendingCloud)this.modal('选择局内存档',['本地和云端的盘面不同，请选择继续哪份。','通关成绩会合并，已领取广告不会重置。'],[
    {label:'继续本地盘面',action:()=>{this.platform.resolveConflict(false);this.home();if(autoTutorial)this.beginFirstVisit()},primary:false},
    {label:'继续云端盘面',action:()=>{this.platform.resolveConflict(true);this.home();if(autoTutorial)this.beginFirstVisit()},primary:true}
@@ -55,20 +56,22 @@ class Game {
  tapMenu():void{
   this.modal('TapTap',[this.platform.status],[
    {label:'登录 / 同步',action:()=>{this.hideModal();void this.loginTap()},primary:true},
-   {label:'关卡榜',action:()=>void this.showRank(false),primary:false},
-   {label:'星数榜',action:()=>void this.showRank(true),primary:false},
-   ...(this.platform.ready&&this.save.hasGuestProgress()?[{label:'导入本地进度',action:()=>this.modal('导入本地进度？',['将本机试玩进度合并到当前账号。','导入的试玩进度不参与排行榜。'],[
+   ...(this.platform.boardAvailable()?[{label:'关卡榜',action:()=>void this.showRank(false),primary:false}]:[]),
+   ...(this.platform.boardAvailable(true)?[{label:'星数榜',action:()=>void this.showRank(true),primary:false}]:[]),
+   ...(this.platform.debug?[{label:'平台检查',action:()=>this.modal('平台检查',this.platform.diagnosticLines(),[{label:'返回',action:()=>this.tapMenu(),primary:true}]),primary:false}]:[]),
+   ...(this.save.hasGuestProgress()?[{label:'导入本地进度',action:()=>this.modal('导入本地进度？',['将本机试玩进度合并到当前账号。','导入的试玩进度不参与排行榜。'],[
     {label:'确认导入',action:()=>{this.save.importGuest();void this.platform.sync();this.home()},primary:true},
     {label:'取消',action:()=>this.tapMenu(),primary:false}
    ]),primary:false}]:[]),
+   ...(this.save.hasRecoveryProgress()?[{label:'恢复本机进度',action:()=>this.modal('恢复本机进度？',['可能来自本机的其他账号，请确认后恢复。','恢复的进度不参与排行榜。'],[{label:'确认恢复',action:()=>{this.save.importRecovery();void this.platform.sync();this.home()},primary:true},{label:'取消',action:()=>this.tapMenu(),primary:false}]),primary:false}]:[]),
    {label:'关闭',action:()=>this.hideModal(),primary:false}
   ]);
  }
  async showRank(stars:boolean):Promise<void>{
-  try{await this.platform.openBoard(stars)}catch{this.modal('排行榜暂不可用',['请先登录并同步存档，或稍后重试。'],[{label:'返回',action:()=>this.tapMenu(),primary:true}])}
+  if(!await this.platform.openBoard(stars))this.modal('排行榜暂不可用',[this.platform.errorMessage('leaderboard')],[{label:'返回',action:()=>this.tapMenu(),primary:true}])
  }
  offerReward(kind:RewardKind):void{
-  if(!this.model||!this.platform.available){this.toolNotice(kind==='hint'?'本关提示已用完':'本关消除已用完');return}
+  if(!this.model||!this.platform.adsAvailable){this.toolNotice(kind==='hint'?'本关提示已用完':'本关消除已用完');return}
   const index=this.model.index,name=kind==='hint'?'提示':'消除';
   if(!this.save.canClaim(index,kind)){this.toolNotice('本关广告'+name+'已领取');return}
   this.modal('获取1次'+name,['完整观看视频，获得1次'+name+'。','本局仅可领取一次，重开后重置。'],[
@@ -78,13 +81,14 @@ class Game {
  }
  async watchReward(index:number,kind:RewardKind):Promise<void>{
   if(this.platform.adBusy||!this.save.canClaim(index,kind))return;
-  const owner=this.save.owner;this.releasePointers();this.stopGuide(false);this.audio.stopAll();this.busy=true;
+  const model=this.model;this.releasePointers();this.stopGuide(false);this.audio.stopAll();this.busy=true;
   try{
    const completed=await this.platform.rewarded();
-   if(completed&&this.save.owner===owner&&this.save.claim(index,kind)){
+   if(completed&&this.model===model&&this.model?.index===index&&this.save.claim(index,kind)){
     this.persistRun();this.toolNotice('已获得1次'+(kind==='hint'?'提示':'消除'));void this.platform.sync();
-   }else if(!completed)this.toolNotice('未完整观看，未领取奖励');
-  }catch{this.toolNotice(this.platform.ready?'广告暂不可用，请稍后再试':'请先在首页登录 TapTap')}
+   }else if(completed===false)this.toolNotice('未完整观看，未领取奖励');
+   else if(completed===null)this.toolNotice(this.platform.errorMessage('ads'));
+  }catch{this.toolNotice(this.platform.errorMessage('ads'))}
   finally{this.busy=false;this.syncTools()}
  }
 
@@ -92,10 +96,10 @@ class Game {
  toolNotice(message:string):void{if(this.eraseTip){this.eraseTip.text=message;this.eraseTip.visible=true;this.noticeUntil=performance.now()+2200}}
  syncTools():void{
   if(!this.formal)return;
-  if(this.hintButton){this.hintButton.label.text=this.busy?'观察…':(this.toolLeft('hint')?'提示 ×'+this.toolLeft('hint'):this.platform.available&&this.model&&this.save.canClaim(this.model.index,'hint')?'视频 +1提示':'提示 ×0');this.hintButton.setIcon('hint')}
-  if(this.eraseButton){this.eraseButton.label.text=this.eraseMode?'取消':(this.toolLeft('erase')?'消除 ×'+this.toolLeft('erase'):this.platform.available&&this.model&&this.save.canClaim(this.model.index,'erase')?'视频 +1消除':'消除 ×0');this.eraseButton.setIcon('erase')}
-  if(this.hintButton)this.hintButton.alpha=this.toolLeft('hint')===0&&!this.platform.available?.5:1;
-  if(this.eraseButton)this.eraseButton.alpha=this.toolLeft('erase')===0&&!this.platform.available?.5:1;
+  if(this.hintButton){this.hintButton.label.text=this.busy?'观察…':(this.toolLeft('hint')?'提示 ×'+this.toolLeft('hint'):this.platform.adsAvailable&&this.model&&this.save.canClaim(this.model.index,'hint')?'视频 +1提示':'提示 ×0');this.hintButton.setIcon('hint')}
+  if(this.eraseButton){this.eraseButton.label.text=this.eraseMode?'取消':(this.toolLeft('erase')?'消除 ×'+this.toolLeft('erase'):this.platform.adsAvailable&&this.model&&this.save.canClaim(this.model.index,'erase')?'视频 +1消除':'消除 ×0');this.eraseButton.setIcon('erase')}
+  if(this.hintButton)this.hintButton.alpha=this.toolLeft('hint')===0&&!this.platform.adsAvailable?.5:1;
+  if(this.eraseButton)this.eraseButton.alpha=this.toolLeft('erase')===0&&!this.platform.adsAvailable?.5:1;
  }
  get formal():boolean{return this.model!==null&&this.model.index>=TEACHING_COUNT}
  drag:{id:string;pointer:number;last:number;started:boolean;blocked:boolean}|null=null;
@@ -136,10 +140,11 @@ class Game {
   Laya.stage.on(Laya.Event.KEY_DOWN,this,(e:Laya.Event)=>{
    if(this.mode==='game'&&!this.modalOpen&&e.keyCode===27){this.eraseMode=false;this.syncEraseUI();this.cancel();this.hideModal()}
   });
+  this.platform.canRestore=()=>this.mode==='home'&&!this.platform.adBusy;
   this.save.onChange=()=>this.platform.localChanged();
   this.platform.onChange=()=>{if(this.accountStatus)this.accountStatus.text=this.platform.status};
   Laya.timer.frameLoop(1,this,this.tick);this.home();
-  // Wait for TapTap account and cloud progress before checking onboarding.
+  // Restore in the background; applying an archive is deferred while playing.
   if(this.platform.available)void this.loginTap(true);
   else this.beginFirstVisit();
  }
@@ -810,7 +815,7 @@ async function boot():Promise<void>{
  Laya.stage.size(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
  Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor=THEME.paper;
  await Laya.loader.load(['assets/fonts/jade-song.woff','assets/fonts/jade-text.woff']);
- await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load().catch(e=>console.warn('Recorded audio unavailable',e));finishWebShell();
+ await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load().catch(e=>console.warn('Recorded audio unavailable',e));finishWebShell();void g.platform.reportReady(performance.now()-BOOT_STARTED);
  if(debugEnabled()){
   exposeDebug({game:g,Core:C,getState:()=>g.model?C.clone(g.model.state):null});
  }
