@@ -28,6 +28,70 @@ function mockRuntime(){
   createRewardedVideoAd:()=>({load:async()=>{},show:async()=>{shows++},onClose:f=>{close=f},offClose:f=>{if(close===f)close=null},onError:f=>{error=f},offError:f=>{if(error===f)error=null}})};
  return {api,files,archives,submissions,get shows(){return shows},get close(){return close},get error(){return error}};
 }
+const settle=()=>new Promise(resolve=>setImmediate(resolve));
+test('automatic startup waits for native login longer than 15 seconds before reading cloud',async t=>{
+ t.mock.timers.enable({apis:['Date','setTimeout'],now:3000000});
+ const m=mockRuntime();let loginOptions,authenticated=false,reads=0;
+ m.api.login=o=>{loginOptions=o};
+ const cloud=m.api.getCloudSaveManager;
+ m.api.getCloudSaveManager=()=>({...cloud(),getArchiveList:o=>{reads++;assert.equal(authenticated,true);cloud().getArchiveList(o)}});
+ const p=new TapPlatform(new Save(),false,m.api,config),pending=p.start();
+ assert.equal(loginOptions.timeout,120000);assert.equal(reads,0);
+ t.mock.timers.tick(16000);await settle();
+ assert.equal(p.states.login,'busy');assert.equal(reads,0);assert.equal(p.diagnostics.length,0);
+ authenticated=true;loginOptions.success({code:'do-not-store-this'});await pending;
+ assert.equal(p.states.login,'ready');assert.equal(p.ready,true);assert.equal(reads,1);p.dispose();
+});
+test('failed automatic login and cloud read retry themselves and later progress uploads automatically',async t=>{
+ t.mock.timers.enable({apis:['Date','setTimeout'],now:4000000});
+ const m=mockRuntime();let attempts=0,reads=0;
+ m.api.login=o=>++attempts===1?o.fail({errno:1040029,errMsg:'temporary login error'}):o.success({code:'once'});
+ const cloud=m.api.getCloudSaveManager;
+ m.api.getCloudSaveManager=()=>({...cloud(),getArchiveList:o=>++reads===1?o.fail({errCode:503}):cloud().getArchiveList(o)});
+ const save=new Save(),p=new TapPlatform(save,false,m.api,config);save.onChange=()=>p.localChanged();
+ await p.start();assert.equal(p.states.login,'error');assert.equal(p.ready,false);
+ assert.equal(p.diagnostics.find(d=>d.capability==='login').code,'1040029');
+ t.mock.timers.tick(4999);await settle();assert.equal(attempts,1);
+ t.mock.timers.tick(1);await settle();assert.equal(attempts,2);assert.equal(reads,2);assert.equal(p.ready,true);
+ save.win(34,2,3);t.mock.timers.tick(0);await settle();
+ assert.equal(save.cloudDirty,false);assert.equal(m.archives.length,1);assert.equal(save.owner,'archive:slot');p.dispose();
+});
+test('late global bridge and late cloud capability are discovered without a manual click',async t=>{
+ t.mock.timers.enable({apis:['Date','setTimeout'],now:5000000});
+ const previous=globalThis.tap;delete globalThis.tap;
+ const p=new TapPlatform(new Save());
+ try{
+  await p.start();assert.equal(p.available,false);
+  const m=mockRuntime();let logins=0;m.api.login=o=>{logins++;o.success({code:'once'})};delete m.api.env.USER_DATA_PATH;
+  globalThis.tap=m.api;t.mock.timers.tick(500);await settle();
+  assert.equal(p.states.login,'ready');assert.equal(p.ready,false);assert.equal(logins,1);
+  m.api.env.USER_DATA_PATH='tapfile://usr';t.mock.timers.tick(500);await settle();
+  assert.equal(p.ready,true);assert.equal(logins,1);assert.match(p.save.owner,/^session:/);
+ }finally{p.dispose();if(previous===undefined)delete globalThis.tap;else globalThis.tap=previous}
+});
+test('deferred automatic restore resumes on home without repeated cloud reads during gameplay',async t=>{
+ t.mock.timers.enable({apis:['Date','setTimeout'],now:6000000});
+ const m=mockRuntime(),remote=saveFor('auto-restore');remote.win(35,2,4);
+ m.archives.push({name:'jade_save_v1',uuid:'auto-slot',fileId:'file'});m.files.set('cloud',JSON.stringify(remote.exportCloud()));
+ const cloud=m.api.getCloudSaveManager;let reads=0;
+ m.api.getCloudSaveManager=()=>({...cloud(),getArchiveList:o=>{reads++;cloud().getArchiveList(o)}});
+ const p=new TapPlatform(new Save(),false,m.api,config);p.canRestore=()=>false;
+ await p.start();t.mock.timers.tick(1000);await settle();
+ assert.equal(reads,0);assert.equal(p.ready,false);assert.equal(p.save.data.records[35],undefined);
+ p.canRestore=()=>true;t.mock.timers.tick(1000);await settle();
+ assert.equal(reads,1);assert.equal(p.ready,true);assert.equal(p.save.data.records[35].stars,3);p.dispose();
+});
+test('foreground reconnect is deduplicated and successful login is not repeated',async t=>{
+ t.mock.timers.enable({apis:['Date','setTimeout'],now:7000000});
+ const m=mockRuntime();let logins=0,reads=0,recover;
+ m.api.login=o=>{logins++;o.success({code:'once'})};
+ const cloud=m.api.getCloudSaveManager;
+ m.api.getCloudSaveManager=()=>({...cloud(),getArchiveList:o=>{reads++;if(reads===1)o.fail({errCode:503});else recover=()=>cloud().getArchiveList(o)}});
+ const p=new TapPlatform(new Save(),false,m.api,config);await p.start();
+ const a=p.resume(),b=p.resume();assert.equal(a,b);await settle();assert.equal(logins,1);assert.equal(reads,2);
+ recover();await a;assert.equal(p.ready,true);p.dispose();
+ t.mock.timers.tick(120000);await settle();assert.equal(reads,2);
+});
 test('account keys isolate guest and different TapTap players',()=>{
  const s=new Save();s.win(10,1,2);s.bindAccount('a');assert.equal(s.data.records[10],undefined);
  s.win(11,2,2);s.bindAccount('b');assert.equal(s.data.records[11],undefined);

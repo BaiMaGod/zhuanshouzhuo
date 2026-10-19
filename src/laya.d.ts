@@ -5,7 +5,7 @@ declare namespace Laya {
  const InputManager:{multiTouchEnabled:boolean};
  const LocalStorage:{getItem(key:string):string|null;setItem(key:string,value:string):void};
  class Event {
-  static CLICK:string;static MOUSE_DOWN:string;static MOUSE_MOVE:string;static MOUSE_UP:string;static MOUSE_OUT:string;static MOUSE_WHEEL:string;static RESIZE:string;static BLUR:string;static VISIBILITY_CHANGE:string;static KEY_DOWN:string;
+  static CLICK:string;static MOUSE_DOWN:string;static MOUSE_MOVE:string;static MOUSE_UP:string;static MOUSE_OUT:string;static MOUSE_WHEEL:string;static RESIZE:string;static BLUR:string;static FOCUS:string;static VISIBILITY_CHANGE:string;static KEY_DOWN:string;
   touchId:number;stageX:number;stageY:number;button:number;delta:number;keyCode:number;nativeEvent?:{type:string};
  }
  class Handler {static create(caller:unknown,fn:Function):Handler}

@@ -37,6 +37,7 @@ class Game {
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
  atlas:Laya.Sprite|null=null;atlasOffset=0;atlasHeight=0;atlasPage=-1;atlasDrag:{id:number;y:number;offset:number;moved:boolean}|null=null;atlasClickAfter=0;
  hintLeft=1;eraseLeft=1;noticeUntil=0;nextCloudCheck=0;
+ private platformViewPending=false;
  toolLeft(kind:RewardKind):number{return (kind==='hint'?this.hintLeft:this.eraseLeft)+(this.model?this.save.rewardLeft(this.model.index,kind):0)}
  consumeTool(kind:RewardKind):void{
   if(kind==='hint'&&this.hintLeft>0)this.hintLeft--;
@@ -45,20 +46,26 @@ class Game {
  }
  async loginTap(autoTutorial=false):Promise<void>{
   if(this.mode!=='home')return;
-  if(!autoTutorial)this.modal('连接 TapTap',['正在登录并读取云存档…'],[]);
-  await this.platform.login();if(this.mode!=='home'||autoTutorial&&this.modalOpen)return;this.hideModal();this.audio.enabled=this.save.data.sound;this.home();
-  if(this.platform.pendingCloud)this.modal('选择局内存档',['本地和云端的盘面不同，请选择继续哪份。','通关成绩会合并，已领取广告不会重置。'],[
+  if(!autoTutorial)this.modal('连接 TapTap',['正在登录并读取云存档…'],[{label:'关闭',action:()=>this.hideModal(),primary:false}]);
+  const waiting=this.modalCard;
+  await (autoTutorial?this.platform.start():this.platform.login());
+  if(this.mode!=='home'||autoTutorial&&this.modalOpen||!autoTutorial&&this.modalOpen&&this.modalCard!==waiting)return;
+  this.hideModal();this.audio.enabled=this.save.data.sound;this.home();
+  if(this.platform.pendingCloud)this.showCloudConflict(autoTutorial);
+  else if(autoTutorial)this.beginFirstVisit();
+ }
+ private showCloudConflict(autoTutorial=false):void{
+  this.modal('选择局内存档',['本地和云端的盘面不同，请选择继续哪份。','通关成绩会合并，已领取广告不会重置。'],[
    {label:'继续本地盘面',action:()=>{this.platform.resolveConflict(false);this.home();if(autoTutorial)this.beginFirstVisit()},primary:false},
    {label:'继续云端盘面',action:()=>{this.platform.resolveConflict(true);this.home();if(autoTutorial)this.beginFirstVisit()},primary:true}
   ]);
-  else if(autoTutorial)this.beginFirstVisit();
  }
  tapMenu():void{
   this.modal('TapTap',[this.platform.status],[
-   {label:'登录 / 同步',action:()=>{this.hideModal();void this.loginTap()},primary:true},
+   {label:'重试连接',action:()=>{this.hideModal();void this.loginTap()},primary:true},
+   {label:'平台检查',action:()=>this.modal('平台检查',[...this.platform.connectionLines(),...(this.platform.debug?this.platform.diagnosticLines():[])],[{label:'返回',action:()=>this.tapMenu(),primary:true}]),primary:false},
    ...(this.platform.boardAvailable()?[{label:'关卡榜',action:()=>void this.showRank(false),primary:false}]:[]),
    ...(this.platform.boardAvailable(true)?[{label:'星数榜',action:()=>void this.showRank(true),primary:false}]:[]),
-   ...(this.platform.debug?[{label:'平台检查',action:()=>this.modal('平台检查',this.platform.diagnosticLines(),[{label:'返回',action:()=>this.tapMenu(),primary:true}]),primary:false}]:[]),
    ...(this.save.hasGuestProgress()?[{label:'导入本地进度',action:()=>this.modal('导入本地进度？',['将本机试玩进度合并到当前账号。','导入的试玩进度不参与排行榜。'],[
     {label:'确认导入',action:()=>{this.save.importGuest();void this.platform.sync();this.home()},primary:true},
     {label:'取消',action:()=>this.tapMenu(),primary:false}
@@ -135,18 +142,18 @@ class Game {
   });
   const suspend=()=>{this.atlasDrag=null;this.cancel();this.persistRun();this.audio.stopAll()};
   Laya.stage.on(Laya.Event.BLUR,this,suspend);
-  Laya.stage.on(Laya.Event.VISIBILITY_CHANGE,this,()=>{if(!Laya.stage.isVisibility)suspend()});
+  Laya.stage.on(Laya.Event.FOCUS,this,()=>void this.platform.resume());
+  Laya.stage.on(Laya.Event.VISIBILITY_CHANGE,this,()=>{if(!Laya.stage.isVisibility)suspend();else void this.platform.resume()});
   Laya.stage.on(Laya.Event.RESIZE,this,()=>{this.atlasDrag=null;this.releasePointers()});
   Laya.stage.on(Laya.Event.KEY_DOWN,this,(e:Laya.Event)=>{
    if(this.mode==='game'&&!this.modalOpen&&e.keyCode===27){this.eraseMode=false;this.syncEraseUI();this.cancel();this.hideModal()}
   });
   this.platform.canRestore=()=>this.mode==='home'&&!this.platform.adBusy;
   this.save.onChange=()=>this.platform.localChanged();
-  this.platform.onChange=()=>{if(this.accountStatus)this.accountStatus.text=this.platform.status};
+  this.platform.onChange=()=>{this.platformViewPending=true;if(this.accountStatus)this.accountStatus.text=this.platform.status};
   Laya.timer.frameLoop(1,this,this.tick);this.home();
   // Restore in the background; applying an archive is deferred while playing.
-  if(this.platform.available)void this.loginTap(true);
-  else this.beginFirstVisit();
+  void this.loginTap(true);
  }
  background():void{
   // A quiet solid matte remains the same colour outside the moving camera.
@@ -672,6 +679,10 @@ class Game {
   if(token!==this.epoch)return;this.busy=false;this.sync();
  }
  tick():void{
+  if(this.platformViewPending&&this.mode==='home'&&!this.modalOpen&&this.platform.states.login!=='busy'&&this.platform.states.cloud!=='busy'){
+   this.platformViewPending=false;this.audio.enabled=this.save.data.sound;this.home();
+   if(this.platform.pendingCloud)this.showCloudConflict();
+  }
   if(Date.now()>=this.nextCloudCheck){this.nextCloudCheck=Date.now()+1000;void this.platform.sync()}
   if(this.platform.adBusy)return;
   this.audio.tick(performance.now());

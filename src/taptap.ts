@@ -12,14 +12,14 @@ const WINDOW=65000,SLOT='jade_save_v1';
 function runtime():TapAPI|undefined{return (globalThis as {tap?:TapAPI}).tap}
 function configured(value?:string):boolean{return !!value?.trim()&&!value.startsWith('__')}
 function detail(error:unknown):{code:string;message:string}{
- const e=error as {errCode?:unknown;code?:unknown;errMsg?:unknown;message?:unknown};
+ const e=error as {errCode?:unknown;errno?:unknown;code?:unknown;errMsg?:unknown;message?:unknown};
  // Only retain the platform error fields; never log login responses or codes.
- return {code:String(e?.errCode??e?.code??'UNKNOWN').slice(0,40),message:String(e?.errMsg??e?.message??'平台调用失败').slice(0,240)};
+ return {code:String(e?.errCode??e?.errno??e?.code??'UNKNOWN').slice(0,40),message:String(e?.errMsg??e?.message??(typeof error==='string'?error:'平台调用失败')).replace(/([?&](?:code|token|secret|session_key)=)[^&\s]+/gi,'$1[redacted]').slice(0,240)};
 }
 // The low-level wrapper rejects internally. Public platform methods catch failures.
-export function tapCall<T>(manager:Manager,method:string,options:Options={},board=false):Promise<T>{
+export function tapCall<T>(manager:Manager,method:string,options:Options={},board=false,timeoutMs=30000):Promise<T>{
  return new Promise((resolve,reject)=>{
-  let finished=false;const timer=setTimeout(()=>end(false,Error('平台响应超时，请重试')),15000);
+  let finished=false;const timer=setTimeout(()=>end(false,{code:'CLIENT_TIMEOUT',message:'平台响应超时，请重试'}),timeoutMs);
   const end=(ok:boolean,value:unknown)=>{if(finished)return;finished=true;clearTimeout(timer);ok?resolve(value as T):reject(value)};
   const success=(r:unknown)=>end(true,r),fail=(r:unknown)=>end(false,r);
   try{const call=manager[method];if(typeof call!=='function')throw Error('当前客户端不支持此功能');
@@ -40,9 +40,20 @@ export class TapPlatform {
  private ranked={levels:0,stars:0};private rankAt=-Infinity;private rankBusy=false;
  private retryTimer:ReturnType<typeof setTimeout>|null=null;private reportSent=false;private disposed=false;
  private sessionOwner='';
- constructor(readonly save:Save,readonly debug=false,readonly api=runtime(),readonly config=TAP_CONFIG){
-  if(this.capabilities.login||this.capabilities.cloud||this.capabilities.leaderboard||this.capabilities.ads){this.save.beginContainerSession();this.sessionOwner=save.owner}
+ private autoEnabled=false;private discoveryUntil=0;private reconnectAttempt=0;
+ private reconnectTimer:ReturnType<typeof setTimeout>|null=null;private readyCostTime:number|null=null;
+ constructor(readonly save:Save,readonly debug=false,private readonly suppliedAPI?:TapAPI,readonly config=TAP_CONFIG){
+  this.ensureSession();
   this.refreshCapabilities();
+ }
+ // Re-read an injected bridge: the object/methods can become available after boot.
+ get api():TapAPI|undefined{return this.suppliedAPI??runtime()}
+ private ensureSession():boolean{
+  if(this.sessionOwner)return true;
+  const c=this.capabilities;
+  if(!c.login&&!c.cloud&&!c.leaderboard&&!c.ads)return true;
+  if(!this.canRestore())return false;
+  this.save.beginContainerSession();this.sessionOwner=this.save.owner;return true;
  }
  get available():boolean{return Object.values(this.capabilities).some(Boolean)}
  get capabilities():Record<Capability,boolean>{return {
@@ -66,26 +77,58 @@ export class TapPlatform {
   return capability==='leaderboard'?'排行榜暂不可用，请稍后再试':'云同步失败，稍后重试';
  }
  diagnosticLines():string[]{return (Object.keys(this.states) as Capability[]).map(k=>k+': '+this.states[k]+(this.diagnostics.filter(d=>d.capability===k).at(-1)?' ['+this.diagnostics.filter(d=>d.capability===k).at(-1)!.code+']':''))}
+ connectionLines():string[]{
+  const names={login:'登录',cloud:'云存档'},states={unsupported:'当前客户端不支持',idle:'待连接',busy:'连接中',ready:'已连接',error:'失败，自动重试'};
+  return (['login','cloud'] as const).flatMap(k=>{
+   const error=this.diagnostics.filter(d=>d.capability===k).at(-1);
+   return [names[k]+'：'+states[this.states[k]],...(this.states[k]==='error'&&error?[error.code+': '+error.message.slice(0,48)]:[])];
+  });
+ }
+ start():Promise<void>{this.autoEnabled=true;this.discoveryUntil=Date.now()+10000;return this.login()}
+ resume():Promise<void>{
+  if(!this.autoEnabled||this.disposed||this.adBusy)return Promise.resolve();
+  this.discoveryUntil=Date.now()+10000;return this.login();
+ }
+ private scheduleReconnect():void{
+  if(!this.autoEnabled||this.disposed||this.reconnectTimer)return;
+  const missingLogin=this.capabilities.login&&this.states.login!=='ready';
+  const missingCloud=this.capabilities.cloud&&!this.ready&&!this.pendingCloud;
+  let delay:number;
+  if((!this.sessionOwner||!missingLogin&&missingCloud)&&!this.canRestore())delay=1000;
+  else if(missingLogin||missingCloud)delay=[5000,15000,30000,60000][Math.min(this.reconnectAttempt++,3)]!;
+  else if(Date.now()<this.discoveryUntil)delay=500;
+  else{this.reconnectAttempt=0;return}
+  this.reconnectTimer=setTimeout(()=>{this.reconnectTimer=null;void this.login()},delay);
+  (this.reconnectTimer as unknown as {unref?:()=>void}).unref?.();
+ }
  localChanged():void{if(this.ready&&!this.syncing){this.state('待同步');this.scheduleSync()}}
  login():Promise<void>{
   if(this.loginTask)return this.loginTask;
-  this.loginTask=this.connect().finally(()=>{this.loginTask=null});return this.loginTask;
+  if(this.reconnectTimer)clearTimeout(this.reconnectTimer);this.reconnectTimer=null;
+  this.loginTask=this.connect().finally(()=>{this.loginTask=null;this.scheduleReconnect()});return this.loginTask;
  }
  private async connect():Promise<void>{
   if(!this.api||this.disposed)return;
   this.refreshCapabilities();
-  // These tasks are independent. A failed login must not lock cloud, boards or ads.
-  await Promise.allSettled([this.loginOnly(),this.restore()]);
+  if(!this.ensureSession()){this.state('回首页后同步');return}
+  // Let native authentication finish before asking for the user's cloud list.
+  // Other capabilities remain usable, even if this login attempt fails.
+  await this.loginOnly();
+  if(this.disposed)return;
+  if(!this.ready&&!this.pendingCloud)await this.restore();else await this.sync();
+  if(this.readyCostTime!==null)void this.reportReady(this.readyCostTime);
  }
  private async loginOnly():Promise<void>{
-  if(!this.capabilities.login)return;
-  this.states.login='busy';this.onChange();
-  try{await tapCall(this.api as unknown as Manager,'login',{timeout:12000});this.states.login='ready';if(!this.capabilities.cloud)this.state('已登录 · 本地存档');else this.onChange()}
-  catch(e){this.failure('login','login',e)}
+  if(!this.capabilities.login||this.states.login==='ready')return;
+  this.states.login='busy';this.state('正在连接 TapTap…');
+  // Native authorization / returning from the TapTap app can exceed 12 seconds.
+  try{await tapCall(this.api as unknown as Manager,'login',{timeout:120000},false,125000);this.states.login='ready';if(!this.capabilities.cloud)this.state('已登录 · 本地存档');else this.onChange()}
+  catch(e){this.failure('login','login',e);this.state('登录失败，自动重试')}
  }
  pendingCloud:unknown=null;
  private async restore():Promise<void>{
   if(!this.capabilities.cloud)return;
+  if(!this.canRestore()){this.states.cloud='idle';this.state('回首页后同步');return}
   if(this.syncTask)await this.syncTask;
   this.ready=false;this.states.cloud='busy';this.state('正在读取云存档…');
   try{
@@ -100,7 +143,7 @@ export class TapPlatform {
    if(remote&&this.save.hasRunConflict(remote)){this.pendingCloud=remote;this.states.cloud='idle';this.state('存档冲突待选择');return}
    if(remote)this.save.mergeCloud(remote);
    this.pendingCloud=null;this.ready=true;this.states.cloud='ready';this.state('云存档已连接');await this.sync();
-  }catch(e){this.failure('cloud','restore',e);this.state('云档读取失败，点击重试')}
+  }catch(e){this.failure('cloud','restore',e);this.state('云档读取失败，自动重试')}
  }
  resolveConflict(useCloud:boolean):void{
   if(!this.pendingCloud)return;
@@ -115,7 +158,7 @@ export class TapPlatform {
   const slot=candidates[0];if(!slot)return {slot:null,value:null};
   if(!slot.uuid||!slot.fileId)throw Error('云档标识缺失');
   const targetFilePath=api.env!.USER_DATA_PATH+'/jade_download.json';
-  const file=await tapCall<{filePath:string}>(cloud,'getArchiveData',{archiveUUID:slot.uuid,archiveFileId:slot.fileId,targetFilePath});
+  const file=await tapCall<{filePath:string}>(cloud,'getArchiveData',{archiveUUID:slot.uuid,archiveFileId:slot.fileId,targetFilePath},false,60000);
   const {data}=await tapCall<{data:string}>(fs,'readFile',{filePath:file.filePath,encoding:'utf8'});
   return {slot,value:JSON.parse(data)};
  }
@@ -171,6 +214,7 @@ export class TapPlatform {
   catch(e){this.failure('leaderboard','openLeaderboard',e);return false}
  }
  async reportReady(costTime:number):Promise<void>{
+  this.readyCostTime=costTime;
   if(this.reportSent||!this.capabilities.report)return;this.reportSent=true;
   try{await tapCall(this.api as unknown as Manager,'reportScene',{sceneId:7,costTime:Number.isFinite(costTime)?Math.max(0,Math.round(costTime)):0});this.states.report='ready'}
   catch(e){this.failure('report','reportScene',e)}
@@ -196,5 +240,5 @@ export class TapPlatform {
   }catch(e){this.failure('ads','createRewardedVideoAd',e);return null}
   finally{this.adBusy=false;this.onChange()}
  }
- dispose():void{this.disposed=true;if(this.retryTimer)clearTimeout(this.retryTimer);this.retryTimer=null}
+ dispose():void{this.disposed=true;if(this.retryTimer)clearTimeout(this.retryTimer);this.retryTimer=null;if(this.reconnectTimer)clearTimeout(this.reconnectTimer);this.reconnectTimer=null}
 }
