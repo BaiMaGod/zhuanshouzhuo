@@ -10,7 +10,7 @@ let authorize,authenticated=false,reads=0;
 globalThis.tap={env:{USER_DATA_PATH:'tapfile://usr'},
  login:o=>{authorize=()=>{authenticated=true;o.success({code:'native-one-time-code'})}},
  getCloudSaveManager:()=>({
-  getArchiveList:o=>{assert.equal(authenticated,true);reads++;o.success({saves:[{name:'jade_save_v1',uuid:'startup-slot',fileId:'file'}]})},
+  getArchiveList:o=>{reads++;o.success({saves:[{name:'jade_save_v1',uuid:'startup-slot',fileId:'file'}]})},
   getArchiveData:o=>o.success({filePath:o.targetFilePath}),
   updateArchive:o=>o.success({fileId:'updated'})
  }),
@@ -20,7 +20,7 @@ await import('../dist/js/main.js');await new Promise(r=>setImmediate(r));
 const game=window.jadeDebug.game;
 
 test('entering the game automatically logs in, restores cloud and refreshes home progress',async()=>{
- assert.equal(typeof authorize,'function');assert.equal(reads,0);assert.equal(game.platform.states.login,'busy');
+ assert.equal(typeof authorize,'function');assert.equal(reads,1);assert.equal(game.platform.ready,true);assert.equal(game.platform.states.login,'busy');
  authorize();await new Promise(r=>setImmediate(r));harness.tick();
  assert.equal(reads,1);assert.equal(game.platform.ready,true);assert.equal(game.platform.states.login,'ready');
  assert.equal(game.save.owner,'archive:startup-slot');assert.equal(game.save.data.records[11].stars,3);

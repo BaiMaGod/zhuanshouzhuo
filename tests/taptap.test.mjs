@@ -29,28 +29,28 @@ function mockRuntime(){
  return {api,files,archives,submissions,get shows(){return shows},get close(){return close},get error(){return error}};
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-test('automatic startup waits for native login longer than 15 seconds before reading cloud',async t=>{
+test('H5 cloud restore finishes while native login has no callback',async t=>{
  t.mock.timers.enable({apis:['Date','setTimeout'],now:3000000});
- const m=mockRuntime();let loginOptions,authenticated=false,reads=0;
+ const m=mockRuntime();let loginOptions,reads=0;
  m.api.login=o=>{loginOptions=o};
  const cloud=m.api.getCloudSaveManager;
- m.api.getCloudSaveManager=()=>({...cloud(),getArchiveList:o=>{reads++;assert.equal(authenticated,true);cloud().getArchiveList(o)}});
- const p=new TapPlatform(new Save(),false,m.api,config),pending=p.start();
- assert.equal(loginOptions.timeout,120000);assert.equal(reads,0);
+ m.api.getCloudSaveManager=()=>({...cloud(),getArchiveList:o=>{reads++;cloud().getArchiveList(o)}});
+ const p=new TapPlatform(new Save(),false,m.api,config);await p.start();
+ assert.equal(loginOptions.timeout,120000);assert.equal(reads,1);assert.equal(p.ready,true);
  t.mock.timers.tick(16000);await settle();
- assert.equal(p.states.login,'busy');assert.equal(reads,0);assert.equal(p.diagnostics.length,0);
- authenticated=true;loginOptions.success({code:'do-not-store-this'});await pending;
- assert.equal(p.states.login,'ready');assert.equal(p.ready,true);assert.equal(reads,1);p.dispose();
+ assert.equal(p.states.login,'busy');assert.equal(reads,1);assert.equal(p.diagnostics.length,0);
+ loginOptions.success({code:'do-not-store-this'});await settle();
+ assert.equal(p.states.login,'ready');assert.equal(reads,1);p.dispose();
 });
 test('failed automatic login and cloud read retry themselves and later progress uploads automatically',async t=>{
  t.mock.timers.enable({apis:['Date','setTimeout'],now:4000000});
  const m=mockRuntime();let attempts=0,reads=0;
- m.api.login=o=>++attempts===1?o.fail({errno:1040029,errMsg:'temporary login error'}):o.success({code:'once'});
+ m.api.login=o=>++attempts===1?o.fail({errno:503,errMsg:'temporary login error'}):o.success({code:'once'});
  const cloud=m.api.getCloudSaveManager;
  m.api.getCloudSaveManager=()=>({...cloud(),getArchiveList:o=>++reads===1?o.fail({errCode:503}):cloud().getArchiveList(o)});
  const save=new Save(),p=new TapPlatform(save,false,m.api,config);save.onChange=()=>p.localChanged();
  await p.start();assert.equal(p.states.login,'error');assert.equal(p.ready,false);
- assert.equal(p.diagnostics.find(d=>d.capability==='login').code,'1040029');
+ assert.equal(p.diagnostics.find(d=>d.capability==='login').code,'503');
  t.mock.timers.tick(4999);await settle();assert.equal(attempts,1);
  t.mock.timers.tick(1);await settle();assert.equal(attempts,2);assert.equal(reads,2);assert.equal(p.ready,true);
  save.win(34,2,3);t.mock.timers.tick(0);await settle();
@@ -170,7 +170,7 @@ test('explicit restart resets both ad quotas and stale cloud claims cannot undo 
 });
 
 test('capabilities are detected separately and incomplete runtime hides unavailable entries',async()=>{
- const p=new TapPlatform(new Save(),false,{login:o=>o.success({})},{...config,rewardedAdUnitId:''});
+ const p=new TapPlatform(new Save(),false,{login:o=>o.success({code:'once'})},{...config,rewardedAdUnitId:''});
  assert.equal(p.capabilities.login,true);assert.equal(p.capabilities.cloud,false);
  assert.equal(p.boardAvailable(),false);assert.equal(p.adsAvailable,false);
  assert.equal(await p.openBoard(),false);assert.equal(await p.rewarded(),null);await p.login();

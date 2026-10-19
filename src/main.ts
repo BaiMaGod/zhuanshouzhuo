@@ -9,7 +9,7 @@ import {snapDelta} from './snap.js';
 import {Save} from './storage.js';
 import type {RewardKind} from './storage.js';
 import {TapPlatform} from './taptap.js';
-import {finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug,setGameCursorHidden} from './web-shell.js';
+import {copyPlatformText,finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug,setGameCursorHidden} from './web-shell.js';
 import {search,nextFrame} from './solver.js';
 interface GamePointer {pointerId:number;stageX:number;stageY:number;button?:number}
 import {JADE_ASSETS,jadeSprite} from './jade.js';
@@ -44,15 +44,39 @@ class Game {
   else if(kind==='erase'&&this.eraseLeft>0)this.eraseLeft--;
   else if(this.model)this.save.consumeReward(this.model.index,kind);
  }
+ private connectionView=0;
+ private platformLive:{card:Laya.Sprite;labels:Laya.Text[];read:()=>string[]}|null=null;
+ private nextPlatformRefresh=0;
  async loginTap(autoTutorial=false):Promise<void>{
   if(this.mode!=='home')return;
-  if(!autoTutorial)this.modal('连接 TapTap',['正在登录并读取云存档…'],[{label:'关闭',action:()=>this.hideModal(),primary:false}]);
+  const view=++this.connectionView;
+  const task=autoTutorial?this.platform.start():this.platform.login(true);
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  const complete=await Promise.race([task.then(()=>true),new Promise<false>(resolve=>{timer=setTimeout(()=>resolve(false),8000)})]);
+  if(timer)clearTimeout(timer);
+  if(view!==this.connectionView||this.mode!=='home'||this.modalOpen)return;
+  const finish=()=>{this.audio.enabled=this.save.data.sound;this.home();if(this.platform.pendingCloud)this.showCloudConflict(autoTutorial);else if(autoTutorial)this.beginFirstVisit()};
+  if(complete){finish();return}
+  this.modal('正在恢复进度',['平台连接仍在进行，可以继续本地游戏。','云档恢复前，本机进度不会覆盖云端。'],[
+   {label:'继续本地游戏',action:()=>{this.connectionView++;this.hideModal();finish()},primary:true},
+   {label:'平台检查',action:()=>this.showPlatformCheck(),primary:false}
+  ]);
   const waiting=this.modalCard;
-  await (autoTutorial?this.platform.start():this.platform.login());
-  if(this.mode!=='home'||autoTutorial&&this.modalOpen||!autoTutorial&&this.modalOpen&&this.modalCard!==waiting)return;
-  this.hideModal();this.audio.enabled=this.save.data.sound;this.home();
-  if(this.platform.pendingCloud)this.showCloudConflict(autoTutorial);
-  else if(autoTutorial)this.beginFirstVisit();
+  // A late result may dismiss only its own waiting card, never a new dialog/run.
+  void task.then(()=>{if(view===this.connectionView&&this.mode==='home'&&this.modalCard===waiting){this.hideModal();finish()}});
+ }
+ private showPlatformCheck():void{
+  const read=()=>[...this.platform.connectionLines(),...(this.platform.debug?['排行 '+this.platform.states.leaderboard+' · 广告 '+this.platform.states.ads+' · 埋点 '+this.platform.states.report]:[])];
+  this.modal('平台检查',read(),[
+   {label:'复制诊断',action:()=>{void copyPlatformText(this.platform.exportDiagnostics(GAME_VERSION)).then(ok=>{
+    if(!ok&&this.modalCard===this.platformLive?.card&&this.platformLive.labels[3])this.platformLive.labels[3].text='复制不可用，请从自测反馈上传日志。';
+   })},primary:true},
+   {label:this.platform.connecting?'查看连接进度':'重试连接',action:()=>{void this.platform.login(true)},primary:false},
+   {label:'返回',action:()=>this.tapMenu(),primary:false}
+  ]);
+  const card=this.modalCard!,labels:Laya.Text[]=[];
+  for(let i=0;i<card.numChildren;i++){const child=card.getChildAt(i);if(child instanceof Laya.Text)labels.push(child)}
+  this.platformLive={card,labels:labels.slice(1),read};
  }
  private showCloudConflict(autoTutorial=false):void{
   this.modal('选择局内存档',['本地和云端的盘面不同，请选择继续哪份。','通关成绩会合并，已领取广告不会重置。'],[
@@ -62,8 +86,8 @@ class Game {
  }
  tapMenu():void{
   this.modal('TapTap',[this.platform.status],[
-   {label:'重试连接',action:()=>{this.hideModal();void this.loginTap()},primary:true},
-   {label:'平台检查',action:()=>this.modal('平台检查',[...this.platform.connectionLines(),...(this.platform.debug?this.platform.diagnosticLines():[])],[{label:'返回',action:()=>this.tapMenu(),primary:true}]),primary:false},
+   {label:this.platform.connecting?'查看连接进度':'重试连接',action:()=>{void this.platform.login(true);this.showPlatformCheck()},primary:true},
+   {label:'平台检查',action:()=>this.showPlatformCheck(),primary:false},
    ...(this.platform.boardAvailable()?[{label:'关卡榜',action:()=>void this.showRank(false),primary:false}]:[]),
    ...(this.platform.boardAvailable(true)?[{label:'星数榜',action:()=>void this.showRank(true),primary:false}]:[]),
    ...(this.save.hasGuestProgress()?[{label:'导入本地进度',action:()=>this.modal('导入本地进度？',['将本机试玩进度合并到当前账号。','导入的试玩进度不参与排行榜。'],[
@@ -679,7 +703,10 @@ class Game {
   if(token!==this.epoch)return;this.busy=false;this.sync();
  }
  tick():void{
-  if(this.platformViewPending&&this.mode==='home'&&!this.modalOpen&&this.platform.states.login!=='busy'&&this.platform.states.cloud!=='busy'){
+  if(this.platformLive&&this.modalCard===this.platformLive.card&&Date.now()>=this.nextPlatformRefresh){
+   this.nextPlatformRefresh=Date.now()+1000;const lines=this.platformLive.read();this.platformLive.labels.forEach((label,i)=>label.text=lines[i]||'');
+  }
+  if(this.platformViewPending&&this.mode==='home'&&!this.modalOpen&&this.platform.states.cloud!=='busy'){
    this.platformViewPending=false;this.audio.enabled=this.save.data.sound;this.home();
    if(this.platform.pendingCloud)this.showCloudConflict();
   }
@@ -793,6 +820,7 @@ class Game {
   this.sync();
  }
  hideModal():void{
+  this.platformLive=null;
   // Modal actions run during Laya's CLICK dispatch. Destroying the clicked
   // button and its parents synchronously can leave stale render/hit state.
   // Hide both layers now, then release them after the current input frame.

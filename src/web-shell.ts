@@ -19,3 +19,11 @@ export function setGameCursorHidden(hidden:boolean):void{
  const canvas=Laya.Browser.mainCanvas?.source;
  if(canvas?.style)canvas.style.cursor=hidden?'none':'auto';
 }
+
+/** Optional clipboard adapter; platform/gameplay code stays independent of DOM APIs. */
+export async function copyPlatformText(value:string):Promise<boolean>{
+ try{if(typeof navigator!=='undefined'&&navigator.clipboard?.writeText){await navigator.clipboard.writeText(value);return true}}catch{}
+ if(typeof document==='undefined'||typeof document.createElement!=='function')return false;
+ const area=document.createElement('textarea');
+ try{area.value=value;area.readOnly=true;area.style.position='fixed';area.style.opacity='0';document.body.appendChild(area);area.select();return document.execCommand('copy')}catch{return false}finally{area.remove()}
+}

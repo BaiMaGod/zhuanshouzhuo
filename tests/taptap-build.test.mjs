@@ -42,7 +42,7 @@ test('TapTap ZIP refuses Web/mismatched builds and contains the verified product
   writeFileSync(join(dist,'js/taptap-config.js'),"export const TAP_CONFIG = {appId:'958691', levelsBoard:'8fhubriadufle2x7ic', starsBoard:'q1vw62hcu7xhx9dnwv', rewardedAdUnitId:'verified-platform-id'};");
   const result=packageTapBuild(dist,output);
   assert.equal(result.appId,'958691');assert.match(result.sha256,/^[a-f0-9]{64}$/);
-  const contents=spawnSync('python3',['-c',"import zipfile,sys,json; z=zipfile.ZipFile(sys.argv[1]); print(json.dumps({'files':z.namelist(),'manifest':json.loads(z.read('zhuanshouzhuo/taptap-build.json')),'entry':z.read('zhuanshouzhuo/index.html').decode()}))",output],{encoding:'utf8'});
+  const contents=spawnSync(process.env.PYTHON||'python3',['-c',"import zipfile,sys,json; z=zipfile.ZipFile(sys.argv[1]); print(json.dumps({'files':z.namelist(),'manifest':json.loads(z.read('zhuanshouzhuo/taptap-build.json')),'entry':z.read('zhuanshouzhuo/index.html').decode()}))",output],{encoding:'utf8'});
   assert.equal(contents.status,0,contents.stderr);
   const actual=JSON.parse(contents.stdout);
   assert.equal(actual.entry,'<title>Game</title>');assert.deepEqual(actual.manifest,config);

@@ -14,7 +14,7 @@ export function packageTapBuild(root='dist',output){
  mkdirSync(dirname(target),{recursive:true});
  const temporary=target+'.tmp';
  try{
-  const result=spawnSync('python3',['-c',`
+  const result=spawnSync(process.env.PYTHON||'python3',['-c',`
 import hashlib, pathlib, sys, zipfile
 root, output = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 files = sorted(root.rglob('*'))
