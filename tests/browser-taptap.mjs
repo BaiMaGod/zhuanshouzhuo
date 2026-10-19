@@ -19,15 +19,15 @@ try{
    getFileSystemManager:()=>({writeFile:o=>{files.set(o.filePath,o.data);o.success({})},readFile:o=>o.success({data:files.get(o.filePath)})}),
    getCloudSaveManager:()=>({getArchiveList:o=>o.success({saves:slots}),createArchive:o=>{slots.push({name:'jade_save_v1',uuid:'mock',fileId:'mock'});o.success({uuid:'mock',fileId:'mock'})},updateArchive:o=>o.success({uuid:'mock',fileId:'mock'})}),
    getLeaderboardManager:()=>({submitScores:o=>o.callback.onSuccess({}),openLeaderboard:o=>o.callback.onSuccess({})}),
-   createRewardedVideoAd:()=>({load:async()=>{},show:async()=>{window.testTap.shown++},onClose:f=>{close=f},onError:f=>{fail=f},offClose:()=>{close=null},offError:()=>{fail=null}})};
+   createRewardedVideoAd:options=>{window.testTap.adUnitId=options.adUnitId;return{load:async()=>{},show:async()=>{window.testTap.shown++},onClose:f=>{close=f},onError:f=>{fail=f},offClose:()=>{close=null},offError:()=>{fail=null}}}};
  });
  await page.goto('http://127.0.0.1:'+server.address().port+'/?debug');
  await page.waitForFunction(()=>window.jadeDebug?.game.platform.ready);
  assert.match(await page.evaluate(()=>window.jadeDebug.game.save.owner),/^(session:|archive:mock$)/);
- // The Web build intentionally contains no production ad ID. Inject an explicit
- // test-only value into this mock runtime, never into a release artifact.
- assert.equal(await page.evaluate(()=>window.jadeDebug.game.platform.adsAvailable),false);
- await page.evaluate(()=>{window.jadeDebug.game.platform.config.rewardedAdUnitId='mock-only'});
+ // Use the actual compiled configuration with a mock SDK. This verifies wiring,
+ // without requesting real ad inventory from an ordinary browser.
+ const packaged=JSON.parse(await readFile(resolve(dist,'taptap-build.json'),'utf8'));
+ assert.equal(await page.evaluate(()=>window.jadeDebug.game.platform.adsAvailable),true);
  await page.evaluate(()=>window.jadeDebug.game.tapMenu());
  await mkdir('tests/results',{recursive:true});await page.screenshot({path:'tests/results/taptap-menu.png'});
  await page.evaluate(()=>{const g=window.jadeDebug.game;g.hideModal();g.load(10,true)});
@@ -39,6 +39,7 @@ try{
  // Click the visible modal's primary watch button, exercising Laya dispatch.
  const watch=await page.evaluate(()=>{const g=window.jadeDebug.game,b=g.modalCard.getChildAt(g.modalCard.numChildren-2),r=document.querySelector('canvas').getBoundingClientRect();return{x:r.left+(g.modalCard.x+b.x+b.width/2)*r.width/720,y:r.top+(g.modalCard.y+b.y+b.height/2)*r.height/g.scene.height}});
  await page.mouse.click(watch.x,watch.y);await page.waitForFunction(()=>window.testTap.shown===1);
+ assert.equal(await page.evaluate(()=>window.testTap.adUnitId),packaged.rewardedAdUnitId);
  await page.evaluate(()=>window.testTap.complete(true));await page.waitForFunction(()=>!window.jadeDebug.game.platform.adBusy);
  assert.equal(await page.evaluate(()=>window.jadeDebug.game.toolLeft('hint')),1);
  await clickHint();await page.waitForFunction(()=>!window.jadeDebug.game.busy);

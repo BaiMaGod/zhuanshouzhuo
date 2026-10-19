@@ -6,6 +6,17 @@ const {Save}=await import('../dist/js/storage.js');
 const {Core}=await import('../dist/js/model.js');
 const {TapPlatform,tapCall}=await import('../dist/js/taptap.js');
 const config={appId:'958691',starsBoard:'stars',levelsBoard:'levels',rewardedAdUnitId:'verified-platform-id'};
+test('compiled default configuration reaches the rewarded SDK without a login dependency',async()=>{
+ let options,close;
+ const platform=new TapPlatform(new Save(),false,{createRewardedVideoAd:value=>{
+  options=value;
+  return{load:async()=>{},show:async()=>{},onClose:fn=>{close=fn},onError:()=>{}};
+ }});
+ assert.equal(platform.adsAvailable,true);
+ const result=platform.rewarded();
+ assert.deepEqual(options,{adUnitId:'1054324'});
+ close({isEnded:true});assert.equal(await result,true);platform.dispose();
+});
 const saveFor=id=>{const save=new Save();save.bindAccount(id);return save};
 function mockRuntime(){
  const files=new Map(),archives=[];let close,error,shows=0,submissions=[];

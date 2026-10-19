@@ -7,6 +7,7 @@ export function verifyTapPackage(root='dist'){
  if(manifest.target!=='taptap-h5')throw Error('Not a TapTap release build; use npm run release:taptap');
  const expected=tapBuildConfig({TAP_RELEASE:'1',TAP_LEVELS_BOARD_ID:manifest.levelsBoard,TAP_STARS_BOARD_ID:manifest.starsBoard,TAP_REWARDED_AD_UNIT_ID:manifest.rewardedAdUnitId});
  if(manifest.appId!==expected.appId)throw Error('Unexpected TapTap application ID');
+ if(manifest.screenOrientation!==expected.screenOrientation)throw Error('Unexpected TapTap screen orientation');
  const config=readFileSync(resolve(root,'js/taptap-config.js'),'utf8');
  for(const key of ['appId','levelsBoard','starsBoard','rewardedAdUnitId']){
   const match=config.match(new RegExp(key+':\\s*([\'\"])(.*?)\\1'));

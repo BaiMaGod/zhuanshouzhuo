@@ -9,10 +9,21 @@ import {verifyTapPackage} from '../scripts/verify-taptap.mjs';
 import {packageTapBuild} from '../scripts/package-taptap.mjs';
 test('TapTap release requires public config, without requiring a login server',()=>{
  assert.equal(tapBuildConfig({}).target,'web');
- assert.throws(()=>tapBuildConfig({TAP_RELEASE:'1'}),/rewardedAdUnitId/);
+ assert.throws(()=>tapBuildConfig({TAP_RELEASE:'1',TAP_REWARDED_AD_UNIT_ID:''}),/rewardedAdUnitId/);
  assert.throws(()=>tapBuildConfig({TAP_RELEASE:'1',TAP_REWARDED_AD_UNIT_ID:'your-ad-unit-id'}));
  const config=tapBuildConfig({TAP_RELEASE:'1',TAP_REWARDED_AD_UNIT_ID:'verified-platform-id'});
  assert.equal(config.target,'taptap-h5');assert.equal(config.appId,'958691');assert.equal('loginUrl' in config,false);
+});
+test('default builds retain the officially resolved portrait ad config without environment variables',()=>{
+ const profile=JSON.parse(readFileSync(new URL('../config/taptap-public.json',import.meta.url),'utf8'));
+ assert.equal(profile.adsVerification.status,1);assert.equal(profile.adsVerification.appId,958691);
+ assert.equal(profile.adsVerification.screenOrientation,1);
+ for(const env of [{},{TAP_RELEASE:'1'}]){
+  const config=tapBuildConfig(env);
+  assert.equal(config.rewardedAdUnitId,profile.rewardedAdUnitId);
+  assert.equal(config.rewardedAdUnitId,'1054324');
+  assert.equal(config.screenOrientation,'portrait');
+ }
 });
 test('TapTap ZIP refuses Web/mismatched builds and contains the verified production config',()=>{
  const root=mkdtempSync(join(tmpdir(),'jade-tap-zip-'));
@@ -57,5 +68,7 @@ test('final artifact check rejects ordinary web builds and mismatched embedded c
   assert.throws(()=>verifyTapPackage(root),/rewardedAdUnitId/);
   writeFileSync(join(root,'js/taptap-config.js'),"export const TAP_CONFIG = {appId:'958691', levelsBoard:'8fhubriadufle2x7ic', starsBoard:'q1vw62hcu7xhx9dnwv', rewardedAdUnitId:'verified-platform-id'};");
   assert.equal(verifyTapPackage(root).target,'taptap-h5');
+  writeFileSync(join(root,'taptap-build.json'),JSON.stringify({...config,screenOrientation:'landscape'}));
+  assert.throws(()=>verifyTapPackage(root),/screen orientation/);
  }finally{rmSync(root,{recursive:true,force:true})}
 });
