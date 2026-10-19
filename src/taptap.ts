@@ -4,7 +4,7 @@ import {TapDiagnostics,platformError as detail,retryable,type Capability} from '
 type Options=Record<string,unknown>;
 interface Manager {[method:string]:((options:Options)=>unknown)|undefined}
 interface Ad {load():Promise<void>;show():Promise<void>;onClose(fn:(r?:{isEnded?:boolean})=>void):void;onError(fn:(e:unknown)=>void):void;offClose?(fn:(r?:{isEnded?:boolean})=>void):void;offError?(fn:(e:unknown)=>void):void}
-export interface TapAPI {login?(options:Options):void;reportScene?(options:Options):void;getCloudSaveManager?():Manager;getFileSystemManager?():Manager;getLeaderboardManager?():Manager;createRewardedVideoAd?(options:{adUnitId:string}):Ad;env?:{USER_DATA_PATH?:string}}
+export interface TapAPI {login?(options:Options):void;reportScene?(options:Options):void;getCloudSaveManager?():Manager;getFileSystemManager?():Manager;getLeaderboardManager?():Manager;createRewardedVideoAd?(options:{adUnitId:string}):Ad;showShareboard?(options:Options):void;onShareMessage?(options:Options):void;offShareMessage?():void;env?:{USER_DATA_PATH?:string}}
 type CapabilityState='unsupported'|'idle'|'busy'|'ready'|'error';
 interface Diagnostic {capability:Capability;operation:string;code:string;message:string;at:number}
 interface Archive {name:string;uuid:string;fileId:string;modifiedTime?:number;extra?:string}
@@ -34,7 +34,7 @@ export function tapCall<T>(manager:Manager,method:string,options:Options={},boar
  });
 }
 export class TapPlatform {
- status='本地存档';ready=false;adBusy=false;syncing=false;
+ status='本地存档';ready=false;adBusy=false;shareBusy=false;syncing=false;
  states:Record<Capability,CapabilityState>={login:'unsupported',cloud:'unsupported',leaderboard:'unsupported',ads:'unsupported',report:'unsupported'};
  diagnostics:Diagnostic[]=[];
  readonly trace=new TapDiagnostics();
@@ -72,6 +72,8 @@ export class TapPlatform {
   ads:typeof this.api?.createRewardedVideoAd==='function'&&configured(this.config.rewardedAdUnitId),
   report:typeof this.api?.reportScene==='function'
  }}
+ get rewardBusy():boolean{return this.adBusy||this.shareBusy}
+ get shareAvailable():boolean{return configured(this.config.shareTemplateId)&&typeof this.api?.showShareboard==='function'&&typeof this.api?.onShareMessage==='function'&&typeof this.api?.offShareMessage==='function'}
  get adsAvailable():boolean{return this.capabilities.ads}
  boardAvailable(stars=false):boolean{return this.capabilities.leaderboard&&configured(stars?this.config.starsBoard:this.config.levelsBoard)}
  private refreshCapabilities():void{this.trace.bridge(this.capabilities);for(const key of Object.keys(this.states) as Capability[])if(this.capabilities[key]&&this.states[key]==='unsupported')this.states[key]='idle'}
@@ -260,7 +262,7 @@ export class TapPlatform {
   catch(e){this.failure('report','reportScene',e)}
  }
  async rewarded():Promise<boolean|null>{
-  if(this.adBusy||!this.adsAvailable)return null;
+  if(this.adBusy||this.shareBusy||!this.adsAvailable)return null;
   this.adBusy=true;this.states.ads='busy';
   try{
    const ad=this.ad??=this.api!.createRewardedVideoAd!({adUnitId:this.config.rewardedAdUnitId});
@@ -279,6 +281,26 @@ export class TapPlatform {
    });
   }catch(e){this.failure('ads','createRewardedVideoAd',e);return null}
   finally{this.adBusy=false;this.onChange()}
+ }
+ /** Opening the share sheet is not a completed share. Only onShareMessage grants. */
+ async shareReward(sceneParam:string):Promise<boolean|null>{
+  if(this.disposed||this.adBusy||this.shareBusy||!this.shareAvailable)return null;
+  const api=this.api!;this.shareBusy=true;
+  try{return await new Promise<boolean|null>(resolve=>{
+   let done=false;let timer:ReturnType<typeof setTimeout>|undefined;
+   const finish=(value:boolean|null)=>{if(done)return;done=true;if(timer)clearTimeout(timer);
+    this.lifecycle.signal.removeEventListener('abort',abort);
+    try{api.offShareMessage!()}catch{}
+    resolve(value);
+   };
+   const abort=()=>finish(false);
+   this.lifecycle.signal.addEventListener('abort',abort,{once:true});
+   timer=setTimeout(()=>finish(false),120000);
+   try{
+    api.onShareMessage!({success:()=>finish(true),fail:()=>finish(false)});
+    api.showShareboard!({templateId:this.config.shareTemplateId,sceneParam,success:()=>{},fail:()=>finish(null)});
+   }catch{finish(null)}
+  })}finally{this.shareBusy=false;this.onChange()}
  }
  dispose():void{this.disposed=true;this.lifecycle.abort();if(this.retryTimer)clearTimeout(this.retryTimer);this.retryTimer=null;if(this.reconnectTimer)clearTimeout(this.reconnectTimer);this.reconnectTimer=null}
 }

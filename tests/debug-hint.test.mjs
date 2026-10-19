@@ -71,9 +71,9 @@ test('debug mode retains collision checks and stops a blocked action',async()=>{
 });
 test('debug tools are unlimited at positive or exhausted quotas and preserve normal quotas on reload',async()=>{
  for(const quota of [1,0]){
-  g.load(11,true);g.hintLeft=quota;g.eraseLeft=quota;g.sync();
+  g.load(11,true);g.hintLeft=quota;g.eraseLeft=0;if(quota)g.save.claim(11,'erase');g.sync();
   assert.equal(g.hintButton.label.text,'提示 ×'+quota);assert.equal(g.eraseButton.label.text,'消除 ×'+quota);
-  assert.equal(g.hintButton.alpha,quota===0?.5:1);assert.equal(g.eraseButton.alpha,quota===0?.5:1);
+  assert.equal(g.hintButton.alpha,1);assert.equal(g.eraseButton.alpha,1);
   for(let i=0;i<2;i++){
    const steps=g.model.state.steps;await g.hint();
    assert.equal(g.model.state.steps,steps+1,'each debug hint still performs one real turn');
@@ -84,13 +84,13 @@ test('debug tools are unlimited at positive or exhausted quotas and preserve nor
    const id=g.model.state.rings.find(r=>r.life==='active').id;
    g.chooseEraseTarget(id);assert.equal(g.modalOpen,true);
    g.modalCard.children.find(n=>n.label?.text==='确认消除').click();
-   assert.equal(C.ring(g.model.state,id).life,'removed');assert.equal(g.eraseLeft,quota);
+   assert.equal(C.ring(g.model.state,id).life,'removed');assert.equal(g.toolLeft('erase'),quota);
    for(let frame=0;frame<50;frame++)h.tick();
   }
-  const saved=g.save.readRun(11);assert.equal(saved.hint,quota);assert.equal(saved.erase,quota);
-  g.home();g.load(11);assert.equal(g.hintLeft,quota);assert.equal(g.eraseLeft,quota);
+  const saved=g.save.readRun(11);assert.equal(saved.hint,quota);assert.equal(saved.erase,0);
+  g.home();g.load(11);assert.equal(g.hintLeft,quota);assert.equal(g.toolLeft('erase'),quota);
   assert.equal(g.hintButton.label.text,'提示 ×'+quota);assert.equal(g.eraseButton.label.text,'消除 ×'+quota);
-  g.home();normal.load(11);
+  g.home();normal.save=new (g.save.constructor)();normal.load(11);
   assert.equal(normal.hintButton.label.text,'提示 ×'+quota);assert.equal(normal.eraseButton.label.text,'消除 ×'+quota);
   if(quota===0){
    const before=C.clone(normal.model.state);await normal.hint();normal.toggleErase();

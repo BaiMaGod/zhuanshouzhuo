@@ -19,8 +19,8 @@ test('formal scene spends free tool first and advertisement reward second, reset
  const cancel=g.watchReward(10,'erase');close({isEnded:false});await cancel;
  assert.equal(g.save.canClaim(10,'erase'),true);
  const erase=g.watchReward(10,'erase');close({isEnded:true});await erase;
- assert.equal(g.toolLeft('erase'),2);
- for(let i=0;i<2;i++){const ring=g.model.state.rings.find(r=>r.life==='active');g.eraseRing(ring.id)}
+ assert.equal(g.toolLeft('erase'),1);
+ for(let i=0;i<1;i++){const ring=g.model.state.rings.find(r=>r.life==='active');g.eraseRing(ring.id)}
  assert.equal(g.toolLeft('erase'),0);assert.equal(g.save.canClaim(10,'erase'),false);
  g.load(11,true);assert.equal(g.save.canClaim(11,'hint'),true);
 });

@@ -7,7 +7,7 @@ import {Audio} from './audio.js';
 import {Haptics} from './haptics.js';
 import {snapDelta} from './snap.js';
 import {Save} from './storage.js';
-import type {RewardKind} from './storage.js';
+import type {RewardKind,RewardSource} from './storage.js';
 import {TapPlatform} from './taptap.js';
 import {copyPlatformText,finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug,setGameCursorHidden} from './web-shell.js';
 import {search,nextFrame} from './solver.js';
@@ -32,11 +32,11 @@ class Game {
  garden:Laya.Sprite|null=null;wallpaper:Laya.Sprite|null=null;
  save=new Save();platform=new TapPlatform(this.save,debugEnabled());accountStatus:Laya.Text|null=null;audio=new Audio();haptics=new Haptics();model:GameModel|null=null;board:Board|null=null;
  mode:'home'|'levels'|'game'='home';message:Laya.Text|null=null;status:Laya.Text|null=null
- controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;eraseButton:Button|null=null;eraseTip:Laya.Text|null=null;eraseMode=false;eraseTap:{id:string;pointer:number;start:Point}|null=null;
+ controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;eraseButton:Button|null=null;eraseTip:Laya.Text|null=null;toolNoticeBox:Laya.Sprite|null=null;eraseMode=false;eraseTap:{id:string;pointer:number;start:Point}|null=null;
  pointers=new Map<number,Point>();panMode=false;viewLabel:Laya.Text|null=null;panButton:Button|null=null;
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
  atlas:Laya.Sprite|null=null;atlasOffset=0;atlasHeight=0;atlasPage=-1;atlasDrag:{id:number;y:number;offset:number;moved:boolean}|null=null;atlasClickAfter=0;
- hintLeft=1;eraseLeft=1;noticeUntil=0;nextCloudCheck=0;
+ hintLeft=1;eraseLeft=0;noticeUntil=0;nextCloudCheck=0;
  private platformViewPending=false;
  toolLeft(kind:RewardKind):number{return (kind==='hint'?this.hintLeft:this.eraseLeft)+(this.model?this.save.rewardLeft(this.model.index,kind):0)}
  consumeTool(kind:RewardKind):void{
@@ -85,16 +85,9 @@ class Game {
   ]);
  }
  tapMenu():void{
-  this.modal('TapTap',[this.platform.status],[
-   {label:this.platform.connecting?'查看连接进度':'重试连接',action:()=>{void this.platform.login(true);this.showPlatformCheck()},primary:true},
-   {label:'平台检查',action:()=>this.showPlatformCheck(),primary:false},
-   ...(this.platform.boardAvailable()?[{label:'关卡榜',action:()=>void this.showRank(false),primary:false}]:[]),
-   ...(this.platform.boardAvailable(true)?[{label:'星数榜',action:()=>void this.showRank(true),primary:false}]:[]),
-   ...(this.save.hasGuestProgress()?[{label:'导入本地进度',action:()=>this.modal('导入本地进度？',['将本机试玩进度合并到当前账号。','导入的试玩进度不参与排行榜。'],[
-    {label:'确认导入',action:()=>{this.save.importGuest();void this.platform.sync();this.home()},primary:true},
-    {label:'取消',action:()=>this.tapMenu(),primary:false}
-   ]),primary:false}]:[]),
-   ...(this.save.hasRecoveryProgress()?[{label:'恢复本机进度',action:()=>this.modal('恢复本机进度？',['可能来自本机的其他账号，请确认后恢复。','恢复的进度不参与排行榜。'],[{label:'确认恢复',action:()=>{this.save.importRecovery();void this.platform.sync();this.home()},primary:true},{label:'取消',action:()=>this.tapMenu(),primary:false}]),primary:false}]:[]),
+  this.modal('排行榜',['比一比通关数与收集的星数。'],[
+   {label:'关卡榜',action:()=>void this.showRank(false),primary:true},
+   {label:'星数榜',action:()=>void this.showRank(true),primary:false},
    {label:'关闭',action:()=>this.hideModal(),primary:false}
   ]);
  }
@@ -102,35 +95,45 @@ class Game {
   if(!await this.platform.openBoard(stars))this.modal('排行榜暂不可用',[this.platform.errorMessage('leaderboard')],[{label:'返回',action:()=>this.tapMenu(),primary:true}])
  }
  offerReward(kind:RewardKind):void{
-  if(!this.model||!this.platform.adsAvailable){this.toolNotice(kind==='hint'?'本关提示已用完':'本关消除已用完');return}
+  if(!this.model)return;
   const index=this.model.index,name=kind==='hint'?'提示':'消除';
-  if(!this.save.canClaim(index,kind)){this.toolNotice('本关广告'+name+'已领取');return}
-  this.modal('获取1次'+name,['完整观看视频，获得1次'+name+'。','本局仅可领取一次，重开后重置。'],[
-   {label:'观看视频',action:()=>{this.hideModal();void this.watchReward(index,kind)},primary:true},
+  if(!this.platform.available){this.toolNotice('本关'+name+'已用完');return}
+  const video=this.save.canClaim(index,kind),share=this.save.canClaim(index,kind,'share');
+  if(!video&&!share){this.toolNotice('本关'+name+'奖励已全部领取');return}
+  this.modal('获取1次'+name,['完整观看视频或成功分享，可获得1次'+name+'。','两种方式每关各限1次，重开后重置。'],[
+   {label:video?'看视频得'+name:'视频奖励已领取',action:()=>{if(!video)return;this.hideModal();void this.watchReward(index,kind)},primary:true},
+   {label:share?'分享得'+name:'分享奖励已领取',action:()=>{if(!share)return;this.hideModal();void this.watchReward(index,kind,'share')},primary:false},
    {label:'取消',action:()=>this.hideModal(),primary:false}
   ]);
+  for(let i=0;i<this.modalCard!.numChildren;i++){
+   const child=this.modalCard!.getChildAt(i);
+   if(child instanceof Button&&(child.label.text==='视频奖励已领取'||child.label.text==='分享奖励已领取'))child.enabled=false;
+  }
  }
- async watchReward(index:number,kind:RewardKind):Promise<void>{
-  if(this.platform.adBusy||!this.save.canClaim(index,kind))return;
+ async watchReward(index:number,kind:RewardKind,source:RewardSource='video'):Promise<void>{
+  if(this.busy||this.platform.rewardBusy||!this.model||this.model.index!==index||!this.save.canClaim(index,kind,source))return;
+  if(source==='share'&&!this.platform.shareAvailable){this.toolNotice('分享暂不可用，请稍后再试');return}
   const model=this.model;this.releasePointers();this.stopGuide(false);this.audio.stopAll();this.busy=true;
   try{
-   const completed=await this.platform.rewarded();
-   if(completed&&this.model===model&&this.model?.index===index&&this.save.claim(index,kind)){
+   const completed=source==='share'?await this.platform.shareReward(JSON.stringify({level:index-TEACHING_COUNT+1,tool:kind})):await this.platform.rewarded();
+   // A late callback from an old board must not affect a restarted/new run.
+   if(this.model!==model)return;
+   if(completed&&this.save.claim(index,kind,source)){
     this.persistRun();this.toolNotice('已获得1次'+(kind==='hint'?'提示':'消除'));void this.platform.sync();
-   }else if(completed===false)this.toolNotice('未完整观看，未领取奖励');
-   else if(completed===null)this.toolNotice(this.platform.errorMessage('ads'));
-  }catch{this.toolNotice(this.platform.errorMessage('ads'))}
-  finally{this.busy=false;this.syncTools()}
+   }else if(completed===false)this.toolNotice(source==='share'?'未完成分享，未领取奖励':'未完整观看，未领取奖励');
+   else if(completed===null)this.toolNotice(source==='share'?'分享暂不可用，请稍后再试':this.platform.errorMessage('ads'));
+  }catch{if(this.model===model)this.toolNotice(source==='share'?'分享暂不可用，请稍后再试':this.platform.errorMessage('ads'))}
+  finally{if(this.model===model){this.busy=false;this.syncTools()}}
  }
 
  persistRun():void{if(this.formal&&this.model)this.save.writeRun(this.model.index,this.model.state,this.hintLeft,this.eraseLeft,this.model.hints?.progress||0)}
- toolNotice(message:string):void{if(this.eraseTip){this.eraseTip.text=message;this.eraseTip.visible=true;this.noticeUntil=performance.now()+2200}}
+ toolNotice(message:string):void{
+  if(this.eraseTip&&this.toolNoticeBox){this.eraseTip.text=message;this.toolNoticeBox.visible=true;this.noticeUntil=performance.now()+3200}
+ }
  syncTools():void{
   if(!this.formal)return;
-  if(this.hintButton){this.hintButton.label.text=this.busy?'观察…':(this.toolLeft('hint')?'提示 ×'+this.toolLeft('hint'):this.platform.adsAvailable&&this.model&&this.save.canClaim(this.model.index,'hint')?'视频 +1提示':'提示 ×0');this.hintButton.setIcon('hint')}
-  if(this.eraseButton){this.eraseButton.label.text=this.eraseMode?'取消':(this.toolLeft('erase')?'消除 ×'+this.toolLeft('erase'):this.platform.adsAvailable&&this.model&&this.save.canClaim(this.model.index,'erase')?'视频 +1消除':'消除 ×0');this.eraseButton.setIcon('erase')}
-  if(this.hintButton)this.hintButton.alpha=this.toolLeft('hint')===0&&!this.platform.adsAvailable?.5:1;
-  if(this.eraseButton)this.eraseButton.alpha=this.toolLeft('erase')===0&&!this.platform.adsAvailable?.5:1;
+  if(this.hintButton){this.hintButton.label.text='提示 ×'+this.toolLeft('hint');this.hintButton.setIcon('hint')}
+  if(this.eraseButton){this.eraseButton.label.text=this.eraseMode?'取消':'消除 ×'+this.toolLeft('erase');this.eraseButton.setIcon('erase')}
  }
  get formal():boolean{return this.model!==null&&this.model.index>=TEACHING_COUNT}
  drag:{id:string;pointer:number;last:number;started:boolean;blocked:boolean}|null=null;
@@ -172,7 +175,7 @@ class Game {
   Laya.stage.on(Laya.Event.KEY_DOWN,this,(e:Laya.Event)=>{
    if(this.mode==='game'&&!this.modalOpen&&e.keyCode===27){this.eraseMode=false;this.syncEraseUI();this.cancel();this.hideModal()}
   });
-  this.platform.canRestore=()=>this.mode==='home'&&!this.platform.adBusy;
+  this.platform.canRestore=()=>this.mode==='home'&&!this.platform.rewardBusy;
   this.save.onChange=()=>this.platform.localChanged();
   this.platform.onChange=()=>{this.platformViewPending=true;if(this.accountStatus)this.accountStatus.text=this.platform.status};
   Laya.timer.frameLoop(1,this,this.tick);this.home();
@@ -195,7 +198,7 @@ class Game {
   // gameplay scene, never inside the tray/ring rendering pass.
   this.wallpaper?.destroy(true);this.wallpaper=null;
   this.scene.destroy(true);this.homeSettingsButton=null;this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
-  this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.eraseButton=null;this.eraseTip=null;this.eraseMode=false;this.eraseTap=null;this.message=null;this.status=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
+  this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.eraseButton=null;this.eraseTip=null;this.toolNoticeBox?.destroy(true);this.toolNoticeBox=null;this.noticeUntil=0;this.eraseMode=false;this.eraseTap=null;this.message=null;this.status=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
   // Keep render-pass topology stable through zoom, undo and restart.
   // A full-scene bitmap cache can lose buttons when their state or icons update.
   // Preserve live HUD and cache only static decorations where appropriate.
@@ -225,8 +228,7 @@ class Game {
   this.scene.addChild(new Button('关卡图谱',116,H-251,234,68,()=>this.levels(),false,'map'));
   this.scene.addChild(new Button('新手练习',370,H-251,234,68,()=>this.practice(),false,'help'));
   if(this.platform.available){
-   this.scene.addChild(new Button('TapTap',244,H-164,232,56,()=>this.tapMenu(),false));
-   this.accountStatus=text(this.scene,this.platform.status,70,H-108,580,28,18,THEME.muted,'center');
+   const rank=new Button('排行榜',244,H-164,232,56,()=>this.tapMenu(),false,'star');rank.name='button:leaderboard';this.scene.addChild(rank);
   }
   // Small, centered attribution below the home actions; avoid overlap on short screens.
   text(this.scene,'v'+GAME_VERSION+' @雨过天青',70,this.platform.available?H-65:H-91,580,36,20,THEME.muted,'center');
@@ -332,10 +334,10 @@ class Game {
  load(i:number,restart=false):void{
   if(i<0||i>=C.levels.length||(i<TEACHING_COUNT&&i>this.save.data.unlocked))return;
   this.clear('game');this.settled=false;this.model=new GameModel(i);if(debugEnabled())this.save.taint();
-  this.hintLeft=1;this.eraseLeft=1;
+  this.hintLeft=1;this.eraseLeft=0;
   if(this.formal){
    const saved=this.save.readRun(i);
-   if(!restart&&saved){this.model.state=saved.state;this.model.selected=null;this.model.resetHint(saved.hintProgress||0);this.hintLeft=saved.hint;this.eraseLeft=saved.erase}
+   if(!restart&&saved){this.model.state=saved.state;this.model.selected=null;this.model.resetHint(saved.hintProgress||0);this.hintLeft=saved.hint;this.eraseLeft=0}
    if(restart){this.save.clearRun(i);this.save.resetRewards(i)}
   }
   if(this.formal){
@@ -382,8 +384,10 @@ class Game {
    this.scene.addChild(new Button('+',436,y,76,62,()=>this.zoomView(1.35)));
    this.eraseButton=new Button('消除',548,y,144,62,()=>this.toggleErase(),false,'erase');
    this.eraseButton.name='button:erase';this.scene.addChild(this.eraseButton);
-   this.eraseTip=text(this.scene,'请点击要消除的手镯',130,y-60,460,44,23,COLORS.ink,'center',true);
-   this.eraseTip.visible=false;
+   this.toolNoticeBox=panel(this.overlay,62,H-300,596,106,20,THEME.white,THEME.line);
+   this.toolNoticeBox.name='tool-notice';this.toolNoticeBox.zOrder=-1;this.toolNoticeBox.cacheAs='none';
+   this.eraseTip=text(this.toolNoticeBox,'请点击要消除的手镯',20,12,556,82,30,COLORS.ink,'center',true);
+   this.toolNoticeBox.visible=false;
    this.syncView();
   }else{
   // Reuse the former lower-caption space so the whole jade tray is taller.
@@ -439,8 +443,8 @@ class Game {
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.undoButton)this.undoButton.enabled=this.model.history.length>0&&!this.modalOpen;
   if(this.demoButton)this.demoButton.label.text=this.busy?'停止':'演示';
-  if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.platform.adBusy&&!this.board.animating&&!this.modalOpen;
-  if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.platform.adBusy&&!this.board.animating&&!this.modalOpen;
+  if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
+  if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
  }
  releaseDrag(releaseCapture=true):void{
   this.audio.stopMotion();this.audio.resetContact();
@@ -489,7 +493,7 @@ class Game {
   this.board.zoomTo(this.board.zoom*factor,{x:r.x+r.w/2,y:r.y+r.h/2});this.syncView();
  }
  down(e:GamePointer):void{
-  if(this.platform.adBusy)return;
+  if(this.platform.rewardBusy)return;
   this.audio.wake();
   if(this.mode!=='game'||!this.model||!this.board||this.busy||this.board.animating||this.modalOpen||(e.button!==undefined&&e.button!==0))return;
   const p=this.point(e);if(!this.board.contains(p))return;
@@ -711,17 +715,17 @@ class Game {
    if(this.platform.pendingCloud)this.showCloudConflict();
   }
   if(Date.now()>=this.nextCloudCheck){this.nextCloudCheck=Date.now()+1000;void this.platform.sync()}
-  if(this.platform.adBusy)return;
+  if(this.platform.rewardBusy)return;
   this.audio.tick(performance.now());
   const now=performance.now();
   if(this.board?.blockedRing&&now>=this.board.blockUntil){this.board.blockedRing=null;if(this.model)this.board.draw(this.model.state)}
-  if(this.noticeUntil&&now>this.noticeUntil){this.noticeUntil=0;if(this.eraseTip&&!this.eraseMode)this.eraseTip.visible=false}
+  if(this.noticeUntil&&now>this.noticeUntil){this.noticeUntil=0;if(this.toolNoticeBox){this.toolNoticeBox.visible=this.eraseMode;if(this.eraseMode&&this.eraseTip)this.eraseTip.text='请选择要消除的手镯'}}
   if(!this.model||!this.board||this.mode!=='game')return;
   if(this.guide&&!this.modalOpen)this.guide.draw(this.model.state,now,!!this.drag);
   if(this.board.animating||this.board.sparks.length||this.board.hint||performance.now()<this.board.blockUntil)this.board.draw(this.model.state);
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
-  if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.platform.adBusy&&!this.board.animating&&!this.modalOpen;
-  if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.platform.adBusy&&!this.board.animating&&!this.modalOpen;
+  if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
+  if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
   if(this.model.cleared&&!this.board.animating&&!this.busy&&!this.settled){this.settled=true;this.win()}
  }
  win():void{
@@ -752,7 +756,7 @@ class Game {
  confirmRestart():void{
   if(!this.formal||!this.model||this.modalOpen)return;
   const index=this.model.index;
-  this.modal('重新开始？',['当前盘面将重置，免费提示和消除各恢复1次。','广告提示和消除的领取次数也会重置。'],[
+  this.modal('重新开始？',['当前盘面将重置，免费提示恢复1次。','消除初始为0次，视频和分享奖励次数重置。'],[
    {label:'继续解镯',action:()=>this.hideModal(),primary:true},
    {label:'确认重开',action:()=>this.load(index,true),primary:false}
   ]);
@@ -767,7 +771,8 @@ class Game {
  syncEraseUI():void{
   this.syncTools();
   if(this.eraseTip)this.eraseTip.text='请选择要消除的手镯';
-  if(this.eraseTip)this.eraseTip.visible=this.eraseMode;
+  this.noticeUntil=0;
+  if(this.toolNoticeBox)this.toolNoticeBox.visible=this.eraseMode;
  }
  chooseEraseTarget(id:string):void{
   if(!this.eraseMode||!this.formal||!this.model||!this.board||this.busy||this.board.animating||this.modalOpen)return;

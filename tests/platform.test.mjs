@@ -7,13 +7,13 @@ const h=installHarness();
 await import('../dist/js/main.js');await new Promise(r=>setImmediate(r));
 const g=globalThis.jadeDebug.game;
 test('engine event dispatch preserves touch identity and cancellation cannot consume erase',()=>{
- g.load(10);g.eraseMode=true;
+ g.load(10,true);g.save.claim(10,'erase');g.eraseMode=true;
  const r=g.model.state.rings[0],p=g.board.toScreen(C.point(r,r.a+60));
  const evt={touchId:42,stageX:p.x*.75,stageY:p.y*.75,button:0};
  const dispatch=(type,e)=>{for(const fn of h.stage.events[type]||[])fn(e)};
  dispatch('mousedown',evt);assert.ok(g.pointers.has(42));
  dispatch('mouseup',{...evt,nativeEvent:{type:'touchcancel'}});
- assert.equal(g.pointers.size,0);assert.equal(g.eraseLeft,1);assert.equal(g.modalOpen,false);
+ assert.equal(g.pointers.size,0);assert.equal(g.toolLeft('erase'),1);assert.equal(g.modalOpen,false);
 });
 test('engine blur saves a live turn and stops input and sound',()=>{
  g.load(10);let stops=0;g.audio.stopAll=()=>stops++;

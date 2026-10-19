@@ -9,19 +9,20 @@ g.audio.enabled=false;
 test('正式道具只在成功后扣除，取消、刷新、重开与切关余量正确',async()=>{
  g.load(10,true);
  assert.equal(g.hintButton.label.text,'提示 ×1');
- g.toggleErase();g.toggleErase();assert.equal(g.eraseLeft,1);
+ assert.equal(g.toolLeft('erase'),0);g.save.claim(10,'erase');g.syncTools();
+  g.toggleErase();g.toggleErase();assert.equal(g.toolLeft('erase'),1);
  g.toggleErase();const id=g.model.state.rings.find(r=>r.life==='active').id;
- g.chooseEraseTarget(id);g.hideModal();assert.equal(g.eraseLeft,1);
+ g.chooseEraseTarget(id);g.hideModal();assert.equal(g.toolLeft('erase'),1);
  await g.hint();assert.equal(g.hintLeft,0);assert.ok(g.guide);
  await g.hint();assert.equal(g.hintLeft,0);assert.equal(g.eraseTip.text,'本关提示已用完');
- g.eraseRing('missing');assert.equal(g.eraseLeft,1);
+ g.eraseRing('missing');assert.equal(g.eraseLeft,0);
  g.eraseRing(id);assert.equal(g.eraseLeft,0);
  const state=JSON.stringify(g.model.state);g.eraseRing(id);assert.equal(JSON.stringify(g.model.state),state);
  g.home();g.load(10);assert.equal(g.hintLeft,0);assert.equal(g.eraseLeft,0);assert.equal(JSON.stringify(g.model.state),state);
  const {Save}=await import('../dist/js/storage.js');const saved=new Save().readRun(10);
  assert.equal(saved.hint,0);assert.equal(saved.erase,0);assert.equal(JSON.stringify(saved.state),state);
- g.load(11,true);assert.equal(g.hintLeft,1);assert.equal(g.eraseLeft,1);
- g.load(10);assert.equal(g.hintLeft,0);g.load(10,true);assert.equal(g.hintLeft,1);assert.equal(g.eraseLeft,1);
+ g.load(11,true);assert.equal(g.hintLeft,1);assert.equal(g.eraseLeft,0);
+ g.load(10);assert.equal(g.hintLeft,0);g.load(10,true);assert.equal(g.hintLeft,1);assert.equal(g.eraseLeft,0);
 });
 test('依赖图无提示不扣次数；教学的过期异步结果无效且不限次数',async()=>{
  g.load(10,true);

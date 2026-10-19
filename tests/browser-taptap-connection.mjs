@@ -26,7 +26,7 @@ try{
  await mkdir('tests/results',{recursive:true});await page.screenshot({path:'tests/results/taptap-connection-check.png'});
  await clickLabel(page,'复制诊断');
  await page.waitForFunction(async()=>{try{return (await navigator.clipboard.readText()).startsWith('{')}catch{return false}},{},{timeout:5000});
- const report=await page.evaluate(()=>navigator.clipboard.readText());assert.equal(JSON.parse(report).version,'0.15.4');
+ const report=await page.evaluate(()=>navigator.clipboard.readText());assert.equal(JSON.parse(report).version,JSON.parse(await readFile(resolve('package.json'),'utf8')).version);
  assert.ok(report.includes('getArchiveList'));assert.ok(report.includes('invoke'));
  await mkdir('tests/results',{recursive:true});await page.screenshot({path:'tests/results/taptap-connection-check.png'});
  const slow=await context.newPage();slow.on('pageerror',e=>errors.push(e.message));

@@ -25,6 +25,7 @@ for(const file of readdirSync('dist/js').filter(f=>f.endsWith('.js'))){
   .replace(/(['"])__TAP_STARS_BOARD_ID__\1/g,()=>JSON.stringify(tapConfig.starsBoard))
   .replace(/(['"])__TAP_LEVELS_BOARD_ID__\1/g,()=>JSON.stringify(tapConfig.levelsBoard))
   .replace(/(['"])__TAP_REWARDED_AD_UNIT_ID__\1/g,()=>JSON.stringify(tapConfig.rewardedAdUnitId))
+  .replace(/(['"])__TAP_SHARE_TEMPLATE_ID__\1/g,()=>JSON.stringify(tapConfig.shareTemplateId))
   .replace(/(from\s+|import\s*)(['"])(\.\/[^'"]+\.js)\2/g,(_,prefix,q,url)=>prefix+q+url+'?v='+p.version+q);
  writeFileSync(path,text);
 }

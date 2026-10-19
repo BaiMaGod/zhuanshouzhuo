@@ -34,13 +34,15 @@ try{
  await clickTool('hint');await page.waitForFunction(()=>!window.jadeDebug.game.busy);
  assert.equal(await page.evaluate(()=>window.jadeDebug.game.hintLeft),0);
  await clickTool('hint');assert.equal(await page.evaluate(()=>window.jadeDebug.game.eraseTip.text),'本关提示已用完');
- await clickTool('erase');await clickTool('erase');assert.equal(await page.evaluate(()=>window.jadeDebug.game.eraseLeft),1);
+ assert.equal(await page.evaluate(()=>window.jadeDebug.game.toolLeft('erase')),0);
+  await page.evaluate(()=>{const g=window.jadeDebug.game;g.save.claim(10,'erase');g.syncTools()});
+  await clickTool('erase');await clickTool('erase');assert.equal(await page.evaluate(()=>window.jadeDebug.game.toolLeft('erase')),1);
  await clickTool('erase');await page.evaluate(()=>{const g=window.jadeDebug.game;g.chooseEraseTarget(g.model.state.rings.find(r=>r.life==='active').id)});
  const pt=await page.evaluate(()=>{const g=window.jadeDebug.game,b=g.modalCard.children.find(n=>n.label?.text==='确认消除'),r=document.querySelector('canvas').getBoundingClientRect();return{x:r.left+(g.modalCard.x+b.x+b.width/2)*r.width/720,y:r.top+(g.modalCard.y+b.y+b.height/2)*r.height/g.scene.height}});
  await page.mouse.click(pt.x,pt.y);assert.equal(await page.evaluate(()=>window.jadeDebug.game.eraseLeft),0);
  await page.reload();await page.waitForFunction(()=>!!window.jadeDebug?.game);await page.evaluate(()=>window.jadeDebug.game.load(10));
  assert.deepEqual(await page.evaluate(()=>[window.jadeDebug.game.hintLeft,window.jadeDebug.game.eraseLeft]),[0,0]);
- await page.evaluate(()=>window.jadeDebug.game.load(10,true));assert.deepEqual(await page.evaluate(()=>[window.jadeDebug.game.hintLeft,window.jadeDebug.game.eraseLeft]),[1,1]);
+ await page.evaluate(()=>window.jadeDebug.game.load(10,true));assert.deepEqual(await page.evaluate(()=>[window.jadeDebug.game.hintLeft,window.jadeDebug.game.eraseLeft]),[1,0]);
  assert.deepEqual(errors,[]);console.log('Real WebGL tool clicks, confirmation, refresh and restart passed');
  await page.close();
 }finally{

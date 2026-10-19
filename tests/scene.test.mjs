@@ -309,7 +309,7 @@ test('正式关返回和重开都必须二次确认，取消不会损失进度',
 });
 
 test('正式关消除道具选定手镯后确认生效，取消不生效，按钮可恢复',()=>{
- g.load(10,true);
+ g.load(10,true);g.save.claim(10,'erase');g.syncTools();
  const button=g.eraseButton;
  assert.ok(button);
  assert.equal(button.name,'button:erase');
@@ -358,7 +358,7 @@ test('正式关消除道具选定手镯后确认生效，取消不生效，按�
 });
 
 test('消除道具选镯时拖动画面不触发消除，双指缩放不会误确认',()=>{
- g.load(10,true);g.eraseButton.click();
+ g.load(10,true);g.save.claim(10,'erase');g.syncTools();g.eraseButton.click();
  const r=g.model.state.rings[0],b=g.board;
  const ringPoint=b.toScreen(C.point(r,r.a+55));
  const p={stageX:ringPoint.x*.75,stageY:ringPoint.y*.75,pointerId:202,button:0};

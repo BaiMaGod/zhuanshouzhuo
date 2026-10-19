@@ -4,6 +4,7 @@
   "levelsBoard": "8fhubriadufle2x7ic",
   "starsBoard": "q1vw62hcu7xhx9dnwv",
   "rewardedAdUnitId": "1054324",
+  "shareTemplateId": "",
   "adsVerification": {
     "source": "@taptap/instant-games-open-mcp@1.24.14 check_ads_status",
     "checkedOn": "2026-10-19",

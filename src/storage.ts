@@ -4,8 +4,12 @@ import {TEACHING_COUNT,FORMAL_INDEX,LEGACY_FORMAL_INDEX} from './levels.js';
 export interface Progress {version:2;unlocked:number;records:Record<string,{steps:number;stars:number}>;sound:boolean;tutorial:number}
 const LEGACY_KEY='jade-bracelet-laya-v1';
 export type RewardKind='hint'|'erase';
+export type RewardSource='video'|'share';
+type RewardKey=RewardKind|'shareHint'|'shareErase';
+const REWARD_KEYS:RewardKey[]=['hint','erase','shareHint','shareErase'];
+const rewardKey=(kind:RewardKind,source:RewardSource):RewardKey=>source==='video'?kind:kind==='hint'?'shareHint':'shareErase';
 interface Reward {claimed:boolean;remaining:number;generation?:number}
-interface SaveMeta {revision:number;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKind,Reward>>>}
+interface SaveMeta {revision:number;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>}
 interface CloudSave {version:1;owner:string;progress:Progress;runs:Record<string,unknown>;meta:SaveMeta}
 const freshProgress=():Progress=>({version:2,unlocked:0,records:{},sound:true,tutorial:0});
 export class Save {
@@ -110,18 +114,19 @@ export class Save {
  }
  resetRewards(index:number):void{
   const items=this.meta.rewards[index];
-  const generation=Math.max(items?.hint?.generation||0,items?.erase?.generation||0)+1;
-  this.meta.rewards[index]={hint:{claimed:false,remaining:0,generation},erase:{claimed:false,remaining:0,generation}};this.changed();
+  const generation=Math.max(0,...REWARD_KEYS.map(key=>items?.[key]?.generation||0))+1;
+  this.meta.rewards[index]=Object.fromEntries(REWARD_KEYS.map(key=>[key,{claimed:false,remaining:0,generation}]));this.changed();
  }
- canClaim(index:number,kind:RewardKind):boolean{return !this.meta.rewards[index]?.[kind]?.claimed}
- claim(index:number,kind:RewardKind):boolean{
-  if(!this.canClaim(index,kind))return false;
-  (this.meta.rewards[index]??={})[kind]={claimed:true,remaining:1,generation:this.meta.rewards[index]?.[kind]?.generation||0};this.changed();return true;
+ canClaim(index:number,kind:RewardKind,source:RewardSource='video'):boolean{return !this.meta.rewards[index]?.[rewardKey(kind,source)]?.claimed}
+ claim(index:number,kind:RewardKind,source:RewardSource='video'):boolean{
+  if(!this.canClaim(index,kind,source))return false;
+  const key=rewardKey(kind,source);
+  (this.meta.rewards[index]??={})[key]={claimed:true,remaining:1,generation:this.meta.rewards[index]?.[key]?.generation||0};this.changed();return true;
  }
- rewardLeft(index:number,kind:RewardKind):number{return this.meta.rewards[index]?.[kind]?.remaining||0}
+ rewardLeft(index:number,kind:RewardKind):number{return (['video','share'] as const).reduce((sum,source)=>sum+(this.meta.rewards[index]?.[rewardKey(kind,source)]?.remaining||0),0)}
  consumeReward(index:number,kind:RewardKind):boolean{
-  const reward=this.meta.rewards[index]?.[kind];if(!reward?.remaining)return false;
-  reward.remaining=0;this.changed();return true;
+  for(const source of ['video','share'] as const){const reward=this.meta.rewards[index]?.[rewardKey(kind,source)];if(reward?.remaining){reward.remaining=0;this.changed();return true}}
+  return false;
  }
  taint():void{if(!this.meta.tainted){this.meta.tainted=true;this.changed()}}
  markSynced(revision:number):void{if(revision===this.revision){this.meta.dirty=false;Laya.LocalStorage.setItem(this.key+'-meta',JSON.stringify(this.meta))}}
@@ -147,7 +152,7 @@ export class Save {
   for(const [i,r] of Object.entries(cloud.meta.rankRecords)){
    const old=this.meta.rankRecords[i];this.meta.rankRecords[i]={steps:old?Math.min(old.steps,r.steps):r.steps,stars:old?Math.max(old.stars,r.stars):r.stars};
   }
-  for(const [i,items] of Object.entries(cloud.meta.rewards))for(const kind of ['hint','erase'] as const){
+  for(const [i,items] of Object.entries(cloud.meta.rewards))for(const kind of REWARD_KEYS){
    const remote=items[kind];if(!remote)continue;
    const local=this.meta.rewards[i]?.[kind];
    if((local?.generation||0)!==(remote.generation||0)){
@@ -185,7 +190,7 @@ function validateMeta(value:unknown):SaveMeta{
  const rewards:SaveMeta['rewards']={};
  for(const [i,items] of Object.entries(m.rewards)){
   if(!/^(?:0|[1-9]\d*)$/.test(i)||Number(i)>=Core.levels.length||!items||typeof items!=='object')throw Error('Invalid reward');
-  for(const kind of ['hint','erase'] as const){const r=items[kind];if(r){if(r.generation!==undefined&&(!Number.isSafeInteger(r.generation)||r.generation<0)||typeof r.claimed!=='boolean'||![0,1].includes(r.remaining)||!r.claimed&&r.remaining!==0)throw Error('Invalid reward');(rewards[i]??={})[kind]={claimed:r.claimed,remaining:r.remaining,generation:r.generation||0}}};
+  for(const kind of REWARD_KEYS){const r=items[kind];if(r){if(r.generation!==undefined&&(!Number.isSafeInteger(r.generation)||r.generation<0)||typeof r.claimed!=='boolean'||![0,1].includes(r.remaining)||!r.claimed&&r.remaining!==0)throw Error('Invalid reward');(rewards[i]??={})[kind]={claimed:r.claimed,remaining:r.remaining,generation:r.generation||0}}};
  }
  const rankRecords:Progress['records']={};
  for(const [i,r] of Object.entries(m.rankRecords||{})){
