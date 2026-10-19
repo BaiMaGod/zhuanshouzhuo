@@ -73,11 +73,40 @@ export class Save {
  markTutorialOpened():void{
   try{Laya.LocalStorage.setItem(this.key+'-tutorial-opened','1')}catch{}
  }
- bindAccount(owner:string):void{
+ bindAccount(owner:string,preserveSession=false):void{
   if(owner===this.owner)return;
   if(!owner||owner.length>256)throw Error('Invalid account');
+  const current=preserveSession?this.exportCloud():null;
   const key=LEGACY_KEY+'-tap-'+encodeURIComponent(owner),saved=new Save(key);
   this.key=key;this.owner=owner;this.data=saved.data;this.meta=saved.meta;this.runCache.clear();
+  if(current){current.owner=owner;this.mergeCloud(current)}
+ }
+ beginContainerSession():void{
+  const id=globalThis.crypto?.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2);
+  this.bindAccount('session:'+id);this.rememberScope();
+ }
+ private rememberScope():void{
+  try{const scopes=JSON.parse(Laya.LocalStorage.getItem(LEGACY_KEY+'-recovery')||'[]');Laya.LocalStorage.setItem(LEGACY_KEY+'-recovery',JSON.stringify([this.owner,...(Array.isArray(scopes)?scopes:[]).filter(x=>typeof x==='string'&&x!==this.owner)].slice(0,16)))}catch{}
+ }
+ moveAccount(owner:string):void{
+  if(owner===this.owner)return;
+  const snapshot=this.exportCloud(),oldOwner=this.owner,opened=Laya.LocalStorage.getItem(this.key+'-tutorial-opened');
+  this.key=LEGACY_KEY+'-tap-'+encodeURIComponent(owner);this.owner=owner;this.runCache.clear();
+  Laya.LocalStorage.setItem(this.key,JSON.stringify(this.data));Laya.LocalStorage.setItem(this.key+'-meta',JSON.stringify(this.meta));
+  for(let i=TEACHING_COUNT;i<Core.levels.length;i++)Laya.LocalStorage.setItem(this.key+'-run-'+i,JSON.stringify(snapshot.runs[i]??null));
+  if(opened)Laya.LocalStorage.setItem(this.key+'-tutorial-opened',opened);
+  try{const scopes=JSON.parse(Laya.LocalStorage.getItem(LEGACY_KEY+'-recovery')||'[]');if(Array.isArray(scopes))Laya.LocalStorage.setItem(LEGACY_KEY+'-recovery',JSON.stringify(scopes.filter(x=>x!==oldOwner)))}catch{}
+  this.rememberScope();
+ }
+ private recoveryOwner():string|null{
+  try{const scopes=JSON.parse(Laya.LocalStorage.getItem(LEGACY_KEY+'-recovery')||'[]');
+   if(Array.isArray(scopes))for(const owner of scopes)if(typeof owner==='string'&&owner!==this.owner){const s=new Save(LEGACY_KEY+'-tap-'+encodeURIComponent(owner));if(Object.keys(s.data.records).length||Object.keys(s.exportCloud().runs).length)return owner}
+  }catch{}return null;
+ }
+ hasRecoveryProgress():boolean{return !!this.recoveryOwner()}
+ importRecovery():void{
+  const owner=this.recoveryOwner();if(!owner)return;
+  const value=new Save(LEGACY_KEY+'-tap-'+encodeURIComponent(owner)).exportCloud();value.owner=this.owner;value.meta.tainted=true;value.meta.rankRecords={};this.mergeCloud(value);
  }
  resetRewards(index:number):void{
   const items=this.meta.rewards[index];
@@ -190,4 +219,12 @@ function validRun(value:unknown,index:number):boolean{
    if(!s.states||initial.rods.some(z=>!Array.isArray(s.states[z.id])||s.states[z.id].length!==initial.states[z.id].length||s.states[z.id].some(v=>!['latched','aligned','inactive'].includes(v)))||!Array.isArray(s.events)||s.rings.every(v=>v.life==='removed'))return false;
   return true;
  }catch{return false}
+}
+
+// The container authenticates archive ownership. Validate the entire old payload
+// before translating its legacy owner field to a UUID-scoped local account.
+export function containerCloud(value:unknown,owner:string):CloudSave{
+ const original=(value as CloudSave)?.owner;
+ if(typeof original!=='string'||!original||original.length>256)throw Error('Invalid cloud owner');
+ return {...validateCloud(value,original),owner};
 }
