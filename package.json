@@ -22,6 +22,7 @@
     "release:android": "node scripts/build-platform.mjs android",
     "release:ios": "node scripts/build-platform.mjs ios",
     "release:taptap": "node scripts/build-taptap.mjs",
+    "package:taptap": "node scripts/package-taptap.mjs",
     "verify:taptap": "node scripts/verify-taptap.mjs"
   },
   "devDependencies": {
