@@ -70,6 +70,21 @@ test('old save metadata migrates without corrupting old progress or rewards',()=
  assert.equal(new Save(key).inventoryLeft('hint'),1);
 });
 
+test('cloud archive v1 migrates to version 2 without deleting old progress',()=>{
+ const old=new Save('old-archive-source');
+ old.win(0,1,1);
+ const legacy=old.exportCloud();
+ legacy.version=1;
+ delete legacy.meta.economy;
+ const newSave=new Save('old-archive-target');
+ newSave.mergeCloud(legacy);
+ assert.equal(newSave.exportCloud().version,2);
+ assert.equal(newSave.data.records[0].stars,3);
+ assert.equal(newSave.inventoryLeft('hint'),0);
+ assert.equal(newSave.claimDaily(at(23)).ok,true);
+ assert.equal(newSave.exportCloud().version,2);
+});
+
 test('invalid/rolled-back device dates do not award more items',()=>{
  const s=new Save('daily-clock');
  s.claimDaily(at(25));
