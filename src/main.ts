@@ -9,6 +9,7 @@ import {snapDelta} from './snap.js';
 import {Save} from './storage.js';
 import type {RewardKind,RewardSource} from './storage.js';
 import {DAILY_REWARDS} from './signin-inventory.js';
+import {drawHomeShortcut,drawGift,drawRewardFrame} from './feature-art.js';
 import {TapPlatform} from './taptap.js';
 import {copyPlatformText,finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug,setGameCursorHidden} from './web-shell.js';
 import {search,nextFrame} from './solver.js';
@@ -231,12 +232,14 @@ class Game {
   const state=C.make(0);this.homePreview.load(state);this.homePreview.draw(state);
   const current=this.formalCurrent();
   // Screen-edge shortcuts, deliberately ABOVE the main play button.
-  const sign=new Button('',12,H-500,96,100,()=>this.openSignIn(),false,'signin');
+  const sign=new Button('',12,H-500,96,100,()=>this.openSignIn());
   sign.name='button:signin';this.scene.addChild(sign);
-  text(sign,'签到',0,66,96,28,22,COLORS.ink,'center',true);
-  const bag=new Button('',W-108,H-500,96,100,()=>this.openBag(),false,'bag');
+  sign.skin.graphics.clear();drawHomeShortcut(sign.skin.graphics,'signin');
+  text(sign,'签到',0,73,96,25,21,COLORS.ink,'center',true);
+  const bag=new Button('',W-108,H-500,96,100,()=>this.openBag());
   bag.name='button:bag';this.scene.addChild(bag);
-  text(bag,'背包',0,66,96,28,22,COLORS.ink,'center',true);
+  bag.skin.graphics.clear();drawHomeShortcut(bag.skin.graphics,'bag');
+  text(bag,'背包',0,73,96,25,21,COLORS.ink,'center',true);
   const dot=new Laya.Sprite();dot.name='signin-red-dot';
   dot.pos(86,H-494);dot.graphics.drawCircle(0,0,9,THEME.rose,THEME.white,2);
   dot.mouseEnabled=false;
@@ -281,24 +284,49 @@ class Game {
  }
  openSignIn():void{
   if(this.mode!=='home')return;
-  const state=this.save.dailySignInStatus(),card=this.featurePanel('每日签到',730);
+  const state=this.save.dailySignInStatus(),card=this.featurePanel('每日签到',760);
   text(card,'七日有礼 · 每日一礼，玉运常伴',50,110,520,48,21,COLORS.muted);
   text(card,'累计第 '+state.todaySlot+' / 7 天',50,151,520,37,22,COLORS.ink,'center',true);
-  const rowHeight=Math.min(168,Math.max(144,(card.height-308)/2));
-  const y1=202,y2=y1+rowHeight+12,w=119,gap=13;
+  // Four equal cards on top, two equal cards plus a double-width Day 7
+  // below. Keep the two Day 7 rewards in separate columns with no wrap.
+  const w=119,gap=14,left=(620-(w*4+gap*3))/2;
+  const gridTop=198,rowHeight=Math.min(174,Math.max(144,(card.height-345)/2));
+  const rowTwo=gridTop+rowHeight+16;
   for(let i=0;i<7;i++){
-   const day=i+1,row=i<4?0:1,col=row?i-4:i,cols=row?3:4;
-   const x=(620-(cols*w+(cols-1)*gap))/2+col*(w+gap),y=row?y2:y1;
+   const day=i+1,special=day===7;
+   const x=left+(i<4?i:i-4)*(w+gap),y=i<4?gridTop:rowTwo;
+   const cw=special?w*2+gap:w;
    const already=day<=state.completed,upcoming=day===state.todaySlot&&!state.claimedToday;
-   const cell=panel(card,x,y,w,rowHeight-7,14,upcoming?THEME.pink:already?THEME.faint:THEME.white,upcoming?THEME.rose:THEME.line);
-   cell.cacheAs='none';
-   text(cell,'第'+day+'天',5,7,w-10,30,21,COLORS.ink,'center',true);
+   const cell=panel(card,x,y,cw,rowHeight,15,THEME.white,THEME.line);
+   cell.name='signin-day:'+day;cell.cacheAs='none';cell.graphics.clear();
+   drawRewardFrame(cell.graphics,cw,rowHeight,special);
+   if(upcoming){
+    // A restrained pink interior accent instead of a flashy gold card.
+    cell.graphics.drawLine(14,rowHeight-39,cw-14,rowHeight-39,THEME.rose,1.6);
+   }
+   text(cell,'第'+day+'天',5,10,cw-10,29,special?23:21,COLORS.ink,'center',true);
    const reward=DAILY_REWARDS[i]!;
-   const symbol=new Laya.Sprite();symbol.pos((w-34)/2,41);symbol.mouseEnabled=false;
-   icon(symbol.graphics,reward.erase?'erase':'hint',0,0,34,THEME.rose);cell.addChild(symbol);
-   const rewardText=reward.hint&&reward.erase?'提示×1 消除×1':reward.hint?'提示×'+reward.hint:'消除×'+reward.erase;
-   text(cell,rewardText,6,81,w-12,38,18,COLORS.ink);
-   text(cell,already?'已领取':upcoming?'今日可领':'待领取',6,rowHeight-47,w-12,29,17,already?COLORS.muted:COLORS.ink);
+   if(special){
+    for(const [col,kind,count] of [[0,'hint',reward.hint],[1,'erase',reward.erase]] as const){
+     const cx=cw*(col===0?.25:.75);
+     const symbol=new Laya.Sprite();symbol.name='signin-reward:'+kind;
+     symbol.pos(cx-26,42);symbol.size(52,52);symbol.mouseEnabled=false;
+     drawGift(symbol.graphics,kind,0,0,52);cell.addChild(symbol);
+     const t=text(cell,(kind==='hint'?'提示':'消除')+'×'+count,cx-59,103,118,29,19,COLORS.ink);
+     t.wordWrap=false;
+    }
+   }else{
+    const symbol=new Laya.Sprite();symbol.name='signin-reward:'+(reward.erase?'erase':'hint');
+    symbol.pos((cw-48)/2,42);symbol.size(48,48);symbol.mouseEnabled=false;
+    drawGift(symbol.graphics,reward.erase?'erase':'hint',0,0,48);cell.addChild(symbol);
+    const t=text(cell,reward.hint?'提示×'+reward.hint:'消除×'+reward.erase,8,99,cw-16,28,19,COLORS.ink);
+    t.wordWrap=false;
+   }
+   const status=already?'已领取':upcoming?'今日可领':'待领取';
+   const banner=panel(cell,8,rowHeight-39,cw-16,32,12,upcoming?THEME.rose:already?THEME.faint:THEME.pink,THEME.faint);
+   banner.cacheAs='none';
+   const statusLabel=text(banner,status,5,2,cw-26,28,18,upcoming?THEME.white:already?COLORS.muted:COLORS.ink);
+   statusLabel.wordWrap=false;
   }
   const by=card.height-112;
   if(state.clockInvalid&&!state.claimedToday)
