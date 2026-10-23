@@ -8,6 +8,7 @@ import {Haptics} from './haptics.js';
 import {snapDelta} from './snap.js';
 import {Save} from './storage.js';
 import type {RewardKind,RewardSource} from './storage.js';
+import {DAILY_REWARDS} from './signin-inventory.js';
 import {TapPlatform} from './taptap.js';
 import {copyPlatformText,finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug,setGameCursorHidden} from './web-shell.js';
 import {search,nextFrame} from './solver.js';
@@ -37,12 +38,17 @@ class Game {
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
  atlas:Laya.Sprite|null=null;atlasOffset=0;atlasHeight=0;atlasPage=-1;atlasDrag:{id:number;y:number;offset:number;moved:boolean}|null=null;atlasClickAfter=0;
  hintLeft=1;eraseLeft=0;noticeUntil=0;nextCloudCheck=0;
+ homeSignDot:Laya.Sprite|null=null;
  private platformViewPending=false;
- toolLeft(kind:RewardKind):number{return (kind==='hint'?this.hintLeft:this.eraseLeft)+(this.model?this.save.rewardLeft(this.model.index,kind):0)}
+ toolLeft(kind:RewardKind):number{
+  return (kind==='hint'?this.hintLeft:this.eraseLeft)+this.save.inventoryLeft(kind)+(this.model?this.save.rewardLeft(this.model.index,kind):0);
+ }
  consumeTool(kind:RewardKind):void{
   if(kind==='hint'&&this.hintLeft>0)this.hintLeft--;
   else if(kind==='erase'&&this.eraseLeft>0)this.eraseLeft--;
-  else if(this.model)this.save.consumeReward(this.model.index,kind);
+  else if(this.model){
+   if(!this.save.consumeInventory(kind,this.model.index))this.save.consumeReward(this.model.index,kind);
+  }
  }
  private connectionView=0;
  private platformLive:{card:Laya.Sprite;labels:Laya.Text[];read:()=>string[]}|null=null;
@@ -197,7 +203,7 @@ class Game {
   // Dispose the fixed decorative wallpaper separately: it lives under the
   // gameplay scene, never inside the tray/ring rendering pass.
   this.wallpaper?.destroy(true);this.wallpaper=null;
-  this.scene.destroy(true);this.homeSettingsButton=null;this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
+  this.scene.destroy(true);this.homeSettingsButton=null;this.homeSignDot=null;this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
   this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.eraseButton=null;this.eraseTip=null;this.toolNoticeBox?.destroy(true);this.toolNoticeBox=null;this.noticeUntil=0;this.eraseMode=false;this.eraseTap=null;this.message=null;this.status=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
   // Keep render-pass topology stable through zoom, undo and restart.
   // A full-scene bitmap cache can lose buttons when their state or icons update.
@@ -224,6 +230,17 @@ class Game {
   this.homePreview=new Board(this.scene,{x:118,y:cy-126,w:484,h:252});this.homePreview.showLabels=false;
   const state=C.make(0);this.homePreview.load(state);this.homePreview.draw(state);
   const current=this.formalCurrent();
+  // Screen-edge shortcuts, deliberately ABOVE the main play button.
+  const sign=new Button('',12,H-500,96,100,()=>this.openSignIn(),false,'signin');
+  sign.name='button:signin';this.scene.addChild(sign);
+  text(sign,'签到',0,66,96,28,22,COLORS.ink,'center',true);
+  const bag=new Button('',W-108,H-500,96,100,()=>this.openBag(),false,'bag');
+  bag.name='button:bag';this.scene.addChild(bag);
+  text(bag,'背包',0,66,96,28,22,COLORS.ink,'center',true);
+  const dot=new Laya.Sprite();dot.name='signin-red-dot';
+  dot.pos(86,H-494);dot.graphics.drawCircle(0,0,9,THEME.rose,THEME.white,2);
+  dot.mouseEnabled=false;dot.visible=!this.save.dailySignInStatus().claimedToday;
+  this.scene.addChild(dot);this.homeSignDot=dot;
   this.scene.addChild(new Button('第'+(current-TEACHING_COUNT+1)+'关',112,H-375,496,88,()=>this.load(current),true,'play'));
   this.scene.addChild(new Button('关卡图谱',116,H-251,234,68,()=>this.levels(),false,'map'));
   this.scene.addChild(new Button('新手练习',370,H-251,234,68,()=>this.practice(),false,'help'));
@@ -240,6 +257,85 @@ class Game {
   this.load(0);
   // The prompt will not reappear after leaving the tutorial or reopening the game.
   if(this.model?.index===0)this.save.markTutorialOpened();
+ }
+ // Both panels reuse the same live (uncached) floral dialog surface.
+ private featurePanel(title:string,height:number):Laya.Sprite{
+  this.hideModal();this.modalOpen=true;this.releasePointers();this.setSystemCursor();this.guide?.clear();
+  const shade=new Laya.Sprite();shade.size(W,H);
+  shade.graphics.drawRect(0,0,W,H,'rgba(81,57,69,0.28)');
+  shade.mouseEnabled=true;shade.on(Laya.Event.CLICK,this,()=>{});
+  this.overlay.addChild(shade);this.modalShade=shade;
+  const size=Math.min(height,H-100),card=panel(this.overlay,50,(H-size)/2,620,size,26,THEME.white,THEME.line);
+  card.cacheAs='none';card.mouseEnabled=true;card.on(Laya.Event.CLICK,this,()=>{});
+  this.modalCard=card;
+  text(card,title,68,23,484,64,37,COLORS.ink,'center',true);
+  ornament(card,170,103,280);
+  const close=new Button('',535,19,64,54,()=>this.hideModal(),false,'close');
+  close.name='button:close-feature';card.addChild(close);
+  if(Laya.Tween&&!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches){
+   card.alpha=0;Laya.Tween.to(card,{alpha:1},140,Laya.Ease.sineOut);
+  }
+  this.sync();
+  return card;
+ }
+ openSignIn():void{
+  if(this.mode!=='home')return;
+  const state=this.save.dailySignInStatus(),card=this.featurePanel('每日签到',730);
+  text(card,'七日有礼 · 每日一礼，玉运常伴',50,110,520,48,21,COLORS.muted);
+  text(card,'累计第 '+state.todaySlot+' / 7 天',50,151,520,37,22,COLORS.ink,'center',true);
+  const rowHeight=Math.min(168,Math.max(144,(card.height-308)/2));
+  const y1=202,y2=y1+rowHeight+12,w=119,gap=13;
+  for(let i=0;i<7;i++){
+   const day=i+1,row=i<4?0:1,col=row?i-4:i,cols=row?3:4;
+   const x=(620-(cols*w+(cols-1)*gap))/2+col*(w+gap),y=row?y2:y1;
+   const already=day<=state.completed,upcoming=day===state.todaySlot&&!state.claimedToday;
+   const cell=panel(card,x,y,w,rowHeight-7,14,upcoming?THEME.pink:already?THEME.faint:THEME.white,upcoming?THEME.rose:THEME.line);
+   cell.cacheAs='none';
+   text(cell,'第'+day+'天',5,7,w-10,30,21,COLORS.ink,'center',true);
+   const reward=DAILY_REWARDS[i]!;
+   const symbol=new Laya.Sprite();symbol.pos((w-34)/2,41);symbol.mouseEnabled=false;
+   icon(symbol.graphics,reward.erase?'erase':'hint',0,0,34,THEME.rose);cell.addChild(symbol);
+   const rewardText=reward.hint&&reward.erase?'提示×1 消除×1':reward.hint?'提示×'+reward.hint:'消除×'+reward.erase;
+   text(cell,rewardText,6,81,w-12,38,18,COLORS.ink);
+   text(cell,already?'已领取':upcoming?'今日可领':'待领取',6,rowHeight-47,w-12,29,17,already?COLORS.muted:COLORS.ink);
+  }
+  const by=card.height-112;
+  if(state.clockInvalid&&!state.claimedToday)
+   text(card,'日期校验异常，请检查设备时间',40,by-41,540,34,21,COLORS.ink);
+  else if(state.claimedToday)
+   text(card,'今日奖励已存入背包',40,by-41,540,34,22,COLORS.muted);
+  const action=new Button(state.claimedToday?'今日已领取':'领取今日奖励',74,by,472,70,()=>this.claimSignIn(),true);
+  action.name='button:claim-signin';action.enabled=!state.claimedToday&&!state.clockInvalid;card.addChild(action);
+ }
+ claimSignIn():void{
+  if(this.mode!=='home')return;
+  const outcome=this.save.claimDaily();
+  if(outcome.ok){
+   if(this.homeSignDot)this.homeSignDot.visible=false;
+   // Refresh the live card only after the atomic local grant has succeeded.
+   this.openSignIn();
+   void this.platform.sync();
+  }else this.openSignIn();
+ }
+ openBag():void{
+  if(this.mode!=='home')return;
+  const card=this.featurePanel('我的背包',560);
+  text(card,'签到奖励永久保存，可在正式关卡使用',42,116,536,40,21,COLORS.muted);
+  const kinds=['hint','erase'] as const;
+  for(let i=0;i<2;i++){
+   const kind=kinds[i],x=51+i*268;
+   const tile=panel(card,x,178,250,224,20,THEME.pink,THEME.line);
+   tile.cacheAs='none';
+   const g=new Laya.Sprite();g.pos(100,24);g.mouseEnabled=false;
+   icon(g.graphics,kind,0,0,50,THEME.rose);tile.addChild(g);
+   text(tile,kind==='hint'?'提示':'消除',20,82,210,42,30,COLORS.ink,'center',true);
+   const n=this.save.inventoryLeft(kind);
+   text(tile,n?'×'+n:'暂无',20,129,210,36,28,COLORS.ink,'center',true);
+   text(tile,kind==='hint'?'指引正确旋转方向':'消除一只选中的玉镯',10,170,230,36,19,COLORS.muted);
+  }
+  text(card,'道具不可在背包内直接使用',42,412,536,36,21,COLORS.muted);
+  const close=new Button('关闭',75,card.height-99,470,66,()=>this.hideModal(),true);
+  close.name='button:close-bag';card.addChild(close);
  }
  practice():void{this.load(this.teachingCurrent())}
  settings():void{
