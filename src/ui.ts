@@ -103,6 +103,7 @@ export class Button extends Laya.Sprite {
  setIcon(kind:Icon,primary=false):void{
   const g=this.iconSprite.graphics;g.clear();
   const size=!this.label.visible&&this.height>=92?42:26,gap=8;
+  this.iconSprite.size(size,size);
   if(!this.label.visible)this.iconSprite.pos((this.width-size)/2,this.height>=92?13:(this.height-size)/2);
   else{
    // Centre the entire icon+label group; avoid the former fixed 46px offset.
