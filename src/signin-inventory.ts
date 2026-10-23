@@ -40,7 +40,7 @@ export function validateEconomy(value:unknown):Economy{
  }
  const spends:Record<string,InventorySpend>={};
  for(const [id,v] of Object.entries(e.spends)){
-  if(!/^[A-Za-z0-9:._-]{1,160}$/.test(id)||Object.keys(spends).length>=50000||!v||!kinds.includes(v.kind)||!Number.isSafeInteger(v.at)||v.at<0||!Number.isInteger(v.level)||v.level<0||v.level>1000)throw Error('Invalid inventory spend');
+  if(!/^tool:[A-Za-z0-9-]{8,120}$/.test(id)||Object.keys(spends).length>=50000||!v||!kinds.includes(v.kind)||!Number.isSafeInteger(v.at)||v.at<0||!Number.isInteger(v.level)||v.level<0||v.level>1000)throw Error('Invalid inventory spend');
   spends[id]={kind:v.kind,at:v.at,level:v.level};
  }
  return {version:1,claims,spends};
