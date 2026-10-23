@@ -38,7 +38,7 @@ class Game {
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
  atlas:Laya.Sprite|null=null;atlasOffset=0;atlasHeight=0;atlasPage=-1;atlasDrag:{id:number;y:number;offset:number;moved:boolean}|null=null;atlasClickAfter=0;
  hintLeft=1;eraseLeft=0;noticeUntil=0;nextCloudCheck=0;
- homeSignDot:Laya.Sprite|null=null;
+ homeSignDot:Laya.Sprite|null=null;nextSignBadgeCheck=0;
  private platformViewPending=false;
  toolLeft(kind:RewardKind):number{
   return (kind==='hint'?this.hintLeft:this.eraseLeft)+this.save.inventoryLeft(kind)+(this.model?this.save.rewardLeft(this.model.index,kind):0);
@@ -203,7 +203,7 @@ class Game {
   // Dispose the fixed decorative wallpaper separately: it lives under the
   // gameplay scene, never inside the tray/ring rendering pass.
   this.wallpaper?.destroy(true);this.wallpaper=null;
-  this.scene.destroy(true);this.homeSettingsButton=null;this.homeSignDot=null;this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
+  this.scene.destroy(true);this.homeSettingsButton=null;this.homeSignDot=null;this.nextSignBadgeCheck=0;this.scene=new Laya.Sprite();this.root.addChild(this.scene);this.scene.zOrder=0;
   this.overlay.zOrder=50;this.hideModal();this.controls=[];this.undoButton=null;this.hintButton=null;this.eraseButton=null;this.eraseTip=null;this.toolNoticeBox?.destroy(true);this.toolNoticeBox=null;this.noticeUntil=0;this.eraseMode=false;this.eraseTap=null;this.message=null;this.status=null;this.demoButton=null;this.viewLabel=null;this.panButton=null;this.panMode=false;
   // Keep render-pass topology stable through zoom, undo and restart.
   // A full-scene bitmap cache can lose buttons when their state or icons update.
@@ -239,7 +239,8 @@ class Game {
   text(bag,'背包',0,66,96,28,22,COLORS.ink,'center',true);
   const dot=new Laya.Sprite();dot.name='signin-red-dot';
   dot.pos(86,H-494);dot.graphics.drawCircle(0,0,9,THEME.rose,THEME.white,2);
-  dot.mouseEnabled=false;dot.visible=!this.save.dailySignInStatus().claimedToday;
+  dot.mouseEnabled=false;
+  const signState=this.save.dailySignInStatus();dot.visible=!signState.claimedToday&&!signState.clockInvalid;
   this.scene.addChild(dot);this.homeSignDot=dot;
   this.scene.addChild(new Button('第'+(current-TEACHING_COUNT+1)+'关',112,H-375,496,88,()=>this.load(current),true,'play'));
   this.scene.addChild(new Button('关卡图谱',116,H-251,234,68,()=>this.levels(),false,'map'));
@@ -314,6 +315,15 @@ class Game {
    if(this.homeSignDot)this.homeSignDot.visible=false;
    // Refresh the live card only after the atomic local grant has succeeded.
    this.openSignIn();
+   // A brief floral reward glint travels towards the bag shortcut.
+   if(Laya.Tween&&!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches){
+    const trail=new Laya.Sprite();trail.pos(W/2,H/2);
+    trail.graphics.drawCircle(0,0,18,THEME.pink,THEME.rose,1.5);
+    icon(trail.graphics,outcome.reward.erase?'erase':'hint',-14,-14,28,THEME.rose);
+    trail.mouseEnabled=false;this.overlay.addChild(trail);
+    Laya.Tween.to(trail,{x:W-60,y:H-465,alpha:0},560,Laya.Ease.sineOut);
+    Laya.timer.frameOnce(38,this,()=>{Laya.Tween?.clearAll(trail);trail.destroy(true)});
+   }
    void this.platform.sync();
   }else this.openSignIn();
  }
@@ -809,6 +819,11 @@ class Game {
   if(this.platformViewPending&&this.mode==='home'&&!this.modalOpen&&this.platform.states.cloud!=='busy'){
    this.platformViewPending=false;this.audio.enabled=this.save.data.sound;this.home();
    if(this.platform.pendingCloud)this.showCloudConflict();
+  }
+  if(this.mode==='home'&&this.homeSignDot&&Date.now()>=this.nextSignBadgeCheck){
+   this.nextSignBadgeCheck=Date.now()+60000;
+   const state=this.save.dailySignInStatus();
+   this.homeSignDot.visible=!state.claimedToday&&!state.clockInvalid;
   }
   if(Date.now()>=this.nextCloudCheck){this.nextCloudCheck=Date.now()+1000;void this.platform.sync()}
   if(this.platform.rewardBusy)return;
