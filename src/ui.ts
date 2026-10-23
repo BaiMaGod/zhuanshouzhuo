@@ -25,7 +25,7 @@ export function curvedPath(g:Laya.Graphics,x:number,y:number,commands:unknown[][
  }
  g.drawPath(x,y,out,brush,pen);
 }
-export type Icon='erase'|'play'|'map'|'settings'|'sound'|'mute'|'help'|'home'|'back'|'undo'|'restart'|'hint'|'demo'|'left'|'right'|'lock'|'star';
+export type Icon='erase'|'play'|'map'|'settings'|'sound'|'mute'|'help'|'home'|'back'|'undo'|'restart'|'hint'|'demo'|'left'|'right'|'lock'|'star'|'signin'|'bag'|'close';
 export function icon(g:Laya.Graphics,kind:Icon,x:number,y:number,size:number,color:string):void{
  const s=size/24;const line=(a:number,b:number,c:number,d:number)=>g.drawLine(x+a*s,y+b*s,x+c*s,y+d*s,color,2*s);
  const poly=(p:number[],fill:string|null=color)=>g.drawPoly(x,y,p.map(v=>v*s),fill,fill?null:color,2*s);
@@ -41,6 +41,20 @@ export function icon(g:Laya.Graphics,kind:Icon,x:number,y:number,size:number,col
  else if(kind==='hint'){g.drawCircle(x+12*s,y+9*s,6*s,null,color,2*s);line(8,14,9,19);line(16,14,15,19);line(9,19,15,19);line(10,22,14,22);for(const a of[-60,0,60]){const t=a*Math.PI/180;line(12+9*Math.sin(t),9-9*Math.cos(t),12+12*Math.sin(t),9-12*Math.cos(t))}}
  else if(kind==='undo'||kind==='restart'){curvedPath(g,x,y,[['moveTo',5*s,7*s],['quadraticCurveTo',17*s,-1*s,21*s,11*s],['quadraticCurveTo',24*s,24*s,7*s,21*s]],undefined,{strokeStyle:color,lineWidth:2*s});poly([2,2,2,11,10,10],null)}
  else if(kind==='lock'){round(g,x+5*s,y+10*s,14*s,12*s,3*s,color);curvedPath(g,x,y,[['moveTo',7*s,10*s],['lineTo',7*s,6*s],['quadraticCurveTo',12*s,-2*s,17*s,6*s],['lineTo',17*s,10*s]],undefined,{strokeStyle:color,lineWidth:2*s})}
+ else if(kind==='signin'){
+  // Calendar leaf: the same minimal line drawing as the existing game icons.
+  round(g,x+3*s,y+5*s,18*s,16*s,3*s,THEME.white,color,1.6*s);
+  g.drawLine(x+3*s,y+10*s,x+21*s,y+10*s,color,1.6*s);
+  line(8,2,8,7);line(16,2,16,7);
+  flower(g,x+12*s,y+15*s,2.3*s,color);
+ }
+ else if(kind==='bag'){
+  // Small stitched pouch with a tie and a flower seal.
+  curvedPath(g,x,y,[['moveTo',6*s,7*s],['quadraticCurveTo',4*s,12*s,4*s,17*s],['quadraticCurveTo',4*s,23*s,12*s,23*s],['quadraticCurveTo',20*s,23*s,20*s,17*s],['quadraticCurveTo',20*s,12*s,18*s,7*s],['closePath']],{fillStyle:THEME.pink},{strokeStyle:color,lineWidth:1.6*s});
+  line(6,8,18,8);line(8,3,16,3);line(8,3,9,8);line(16,3,15,8);
+  flower(g,x+12*s,y+16*s,2.5*s,color);
+ }
+ else if(kind==='close'){line(5,5,19,19);line(19,5,5,19)}
  else if(kind==='star'){const pts:number[]=[];for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?4.5:10;pts.push(12+Math.cos(a)*r,12+Math.sin(a)*r)}poly(pts)}
 }
 export class Button extends Laya.Sprite {
@@ -88,8 +102,8 @@ export class Button extends Laya.Sprite {
  get enabled():boolean{return this.enabled_}
  setIcon(kind:Icon,primary=false):void{
   const g=this.iconSprite.graphics;g.clear();
-  const size=26,gap=8;
-  if(!this.label.visible)this.iconSprite.pos((this.width-size)/2,(this.height-size)/2);
+  const size=!this.label.visible&&this.height>=92?42:26,gap=8;
+  if(!this.label.visible)this.iconSprite.pos((this.width-size)/2,this.height>=92?13:(this.height-size)/2);
   else{
    // Centre the entire icon+label group; avoid the former fixed 46px offset.
    const font=this.label.fontSize;
