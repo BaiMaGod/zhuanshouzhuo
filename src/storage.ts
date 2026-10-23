@@ -12,7 +12,7 @@ const REWARD_KEYS:RewardKey[]=['hint','erase','shareHint','shareErase'];
 const rewardKey=(kind:RewardKind,source:RewardSource):RewardKey=>source==='video'?kind:kind==='hint'?'shareHint':'shareErase';
 interface Reward {claimed:boolean;remaining:number;generation?:number}
 interface SaveMeta {revision:number;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>;economy:Economy}
-interface CloudSave {version:1;owner:string;progress:Progress;runs:Record<string,unknown>;meta:SaveMeta}
+interface CloudSave {version:1|2;owner:string;progress:Progress;runs:Record<string,unknown>;meta:SaveMeta}
 const freshProgress=():Progress=>({version:2,unlocked:0,records:{},sound:true,tutorial:0});
 export class Save {
  private key=LEGACY_KEY;
@@ -148,7 +148,7 @@ export class Save {
   for(let i=TEACHING_COUNT;i<Core.levels.length;i++){
    const run=this.readRun(i);if(run)runs[i]=run;
   }
-  return JSON.parse(JSON.stringify({version:1,owner:this.owner,progress:this.data,runs,meta:this.meta}));
+  return JSON.parse(JSON.stringify({version:2,owner:this.owner,progress:this.data,runs,meta:this.meta}));
  }
  hasRunConflict(value:unknown):boolean{
   const cloud=validateCloud(value,this.owner),local=this.exportCloud();
@@ -215,7 +215,7 @@ function validateMeta(value:unknown):SaveMeta{
 }
 function validateCloud(value:unknown,owner:string):CloudSave{
  const v=value as CloudSave;
- if(!v||v.version!==1||v.owner!==owner||!v.progress||v.progress.version!==2||!v.runs||typeof v.runs!=='object')throw Error('Invalid cloud save');
+ if(!v||(v.version!==1&&v.version!==2)||v.owner!==owner||!v.progress||v.progress.version!==2||!v.runs||typeof v.runs!=='object')throw Error('Invalid cloud save');
  const p=v.progress,progress=freshProgress();
  if(!Number.isInteger(p.unlocked)||p.unlocked<0||p.unlocked>=TEACHING_COUNT||!Number.isInteger(p.tutorial)||p.tutorial<0||p.tutorial>3||typeof p.sound!=='boolean'||!p.records||typeof p.records!=='object')throw Error('Invalid progress');
  progress.unlocked=p.unlocked;progress.tutorial=p.tutorial;progress.sound=p.sound;
@@ -224,7 +224,7 @@ function validateCloud(value:unknown,owner:string):CloudSave{
   progress.records[i]={steps:r.steps,stars:r.stars};
  }
  for(const [i,run] of Object.entries(v.runs))if(!/^(?:0|[1-9]\d*)$/.test(i)||Number(i)<TEACHING_COUNT||Number(i)>=Core.levels.length||!validRun(run,Number(i)))throw Error('Invalid run');
- return {version:1,owner,progress,runs:v.runs,meta:validateMeta(v.meta)};
+ return {version:2,owner,progress,runs:v.runs,meta:validateMeta(v.meta)};
 }
 
 function validRun(value:unknown,index:number):boolean{
