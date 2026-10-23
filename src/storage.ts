@@ -1,5 +1,7 @@
 import {Core} from './model.js';
 import type {State} from './types.js';
+import {emptyEconomy,validateEconomy,mergeEconomy,dailyStatus,claimToday,inventoryBalance,spendInventory} from './signin-inventory.js';
+import type {Economy,InventoryKind,DailyStatus,DailyReward} from './signin-inventory.js';
 import {TEACHING_COUNT,FORMAL_INDEX,LEGACY_FORMAL_INDEX} from './levels.js';
 export interface Progress {version:2;unlocked:number;records:Record<string,{steps:number;stars:number}>;sound:boolean;tutorial:number}
 const LEGACY_KEY='jade-bracelet-laya-v1';
@@ -9,13 +11,13 @@ type RewardKey=RewardKind|'shareHint'|'shareErase';
 const REWARD_KEYS:RewardKey[]=['hint','erase','shareHint','shareErase'];
 const rewardKey=(kind:RewardKind,source:RewardSource):RewardKey=>source==='video'?kind:kind==='hint'?'shareHint':'shareErase';
 interface Reward {claimed:boolean;remaining:number;generation?:number}
-interface SaveMeta {revision:number;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>}
+interface SaveMeta {revision:number;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>;economy:Economy}
 interface CloudSave {version:1;owner:string;progress:Progress;runs:Record<string,unknown>;meta:SaveMeta}
 const freshProgress=():Progress=>({version:2,unlocked:0,records:{},sound:true,tutorial:0});
 export class Save {
  private key=LEGACY_KEY;
  owner='';
- meta:SaveMeta={revision:0,dirty:false,tainted:false,rankRecords:{},rewards:{}};
+ meta:SaveMeta={revision:0,dirty:false,tainted:false,rankRecords:{},rewards:{},economy:emptyEconomy()};
  onChange:()=>void=()=>{};
  get cloudDirty():boolean{return this.meta.dirty}
  get revision():number{return this.meta.revision}
@@ -112,6 +114,17 @@ export class Save {
   const owner=this.recoveryOwner();if(!owner)return;
   const value=new Save(LEGACY_KEY+'-tap-'+encodeURIComponent(owner)).exportCloud();value.owner=this.owner;value.meta.tainted=true;value.meta.rankRecords={};this.mergeCloud(value);
  }
+ dailySignInStatus(now=Date.now()):DailyStatus{return dailyStatus(this.meta.economy,now)}
+ claimDaily(now=Date.now()):{ok:boolean;status:DailyStatus;reward:DailyReward}{
+  const result=claimToday(this.meta.economy,now);
+  if(result.ok)this.changed();
+  return result;
+ }
+ inventoryLeft(kind:InventoryKind):number{return inventoryBalance(this.meta.economy,kind)}
+ consumeInventory(kind:InventoryKind,level:number,now=Date.now()):boolean{
+  if(!spendInventory(this.meta.economy,kind,level,now))return false;
+  this.changed();return true;
+ }
  resetRewards(index:number):void{
   const items=this.meta.rewards[index];
   const generation=Math.max(0,...REWARD_KEYS.map(key=>items?.[key]?.generation||0))+1;
@@ -148,6 +161,7 @@ export class Save {
   }
   this.data.unlocked=Math.max(this.data.unlocked,cloud.progress.unlocked);this.data.tutorial=Math.max(this.data.tutorial,cloud.progress.tutorial);
   this.meta.revision=Math.max(this.meta.revision,cloud.meta.revision);
+  this.meta.economy=mergeEconomy(this.meta.economy,cloud.meta.economy);
   this.meta.tainted ||= cloud.meta.tainted;
   for(const [i,r] of Object.entries(cloud.meta.rankRecords)){
    const old=this.meta.rankRecords[i];this.meta.rankRecords[i]={steps:old?Math.min(old.steps,r.steps):r.steps,stars:old?Math.max(old.stars,r.stars):r.stars};
@@ -197,7 +211,7 @@ function validateMeta(value:unknown):SaveMeta{
   if(!/^(?:0|[1-9]\d*)$/.test(i)||Number(i)<TEACHING_COUNT||Number(i)>=Core.levels.length||!r||!Number.isInteger(r.steps)||r.steps<0||!Number.isInteger(r.stars)||r.stars<1||r.stars>3)throw Error('Invalid ranked score');
   rankRecords[i]={steps:r.steps,stars:r.stars};
  }
- return {revision:m.revision,dirty:m.dirty,tainted:m.tainted,rankRecords,rewards};
+ return {revision:m.revision,dirty:m.dirty,tainted:m.tainted,rankRecords,rewards,economy:validateEconomy(m.economy)};
 }
 function validateCloud(value:unknown,owner:string):CloudSave{
  const v=value as CloudSave;
