@@ -45,3 +45,28 @@ test('sign-in dialog grants into bag, bag can be opened and level restart leaves
  assert.equal(g.save.inventoryLeft('hint'),0,'restarting the level does not refund inventory');
  assert.equal(g.hintLeft,1,'but free hint is restored');
 });
+
+
+test('floral shortcuts and double-width seventh day retain separated readable rewards',()=>{
+ g.home();
+ const sign=g.scene.children.find(x=>x.name==='button:signin');
+ const bag=g.scene.children.find(x=>x.name==='button:bag');
+ assert.ok(sign.skin.graphics.ops.length>5,'sign-in ornament uses detailed illustration');
+ assert.ok(bag.skin.graphics.ops.length>5,'pouch ornament uses detailed illustration');
+ assert.ok(sign.children.some(x=>x.text==='签到'));
+ assert.ok(bag.children.some(x=>x.text==='背包'));
+ g.openSignIn();
+ const day=(n)=>g.modalCard.children.find(x=>x.name==='signin-day:'+n);
+ assert.ok(day(1)&&day(6)&&day(7));
+ assert.equal(day(7).width,day(5).width*2+14);
+ assert.equal(day(7).y,day(5).y);
+ assert.ok(day(7).x>day(6).x+day(6).width);
+ const texts=day(7).children.filter(x=>typeof x.text==='string').map(x=>x.text);
+ assert.ok(texts.includes('提示×1'));
+ assert.ok(texts.includes('消除×1'));
+ assert.ok(!texts.some(x=>x.includes('提示×1 消除×1')),'gift copy must never wrap in the same field');
+ const giftNodes=day(7).children.filter(x=>x.name?.startsWith('signin-reward:'));
+ assert.equal(giftNodes.length,2);
+ assert.ok(giftNodes[1].x-giftNodes[0].x>90,'two icons have separate columns');
+ g.hideModal();
+});
