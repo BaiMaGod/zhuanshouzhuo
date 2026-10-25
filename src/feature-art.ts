@@ -4,7 +4,9 @@ export const FEATURE_ART={
  signin:'assets/art-rose/signin-shortcut.webp',
  bag:'assets/art-rose/bag-shortcut.webp',
  calendar:'assets/art-rose/signin-panel.webp',
- inventory:'assets/art-rose/bag-panel.webp'
+ inventory:'assets/art-rose/bag-panel.webp',
+ hintTool:'assets/art-rose/hint-tool.webp',
+ eraseTool:'assets/art-rose/erase-tool.webp'
 };
 export const FEATURE_ASSETS=Object.values(FEATURE_ART);
 export function paintFeature(g:Laya.Graphics,url:string,w:number,h:number):void{
