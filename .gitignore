@@ -12,3 +12,6 @@ laya/local/
 laya/temp/
 laya/bin/
 laya/release/
+
+# Original feature masters are persisted with the approved conversation assets.
+art-source/feature-ui/*.png

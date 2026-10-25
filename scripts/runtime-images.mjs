@@ -5,7 +5,8 @@ import {fileURLToPath} from 'node:url';
 export const RUNTIME_IMAGES=[
  ...['amber','peach','celadon','ice','ivory'].map(n=>'jade-v2/'+n+'.png'),
  'art-v3/clasp.png','art-rose/tray.png','art-rose/hint-hand.png',
- 'art-rose/home-bg.jpg','shadow.png'
+ 'art-rose/home-bg.jpg','shadow.png',
+ ...['signin-shortcut','bag-shortcut','signin-panel','bag-panel'].map(n=>'art-rose/'+n+'.webp')
 ];
 export const IMAGE_BUDGET=3*1024*1024;
 export function auditImages(root='public/assets'){

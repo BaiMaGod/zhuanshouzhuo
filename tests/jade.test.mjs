@@ -4,7 +4,7 @@ import {jadeMesh,JADE_NAMES} from '../dist/js/jade.js';
 import C from '../dist/js/core.js';
 import profiles from '../dist/js/jade-profiles.js';
 import {existsSync,readFileSync} from 'node:fs';
-import {verifyPackagedImages} from '../scripts/runtime-images.mjs';
+import {verifyPackagedImages,RUNTIME_IMAGES} from '../scripts/runtime-images.mjs';
 
 test('五种生成材质注册到完全相同的玩法环体与缺口',()=>{
  const half=Math.asin(C.GAP/(2*(C.R-C.BAND/2))),meshes=JADE_NAMES.map(jadeMesh);
@@ -36,5 +36,5 @@ test('缩图保持高清原图的归一化UV，运行包不含原图且不超过
   for(const axis of ['x','y'])assert.ok(Math.abs(a['c'+axis]/a[axis==='x'?'width':'height']-b['c'+axis]/b[axis==='x'?'width':'height'])<1e-12);
   for(const edge of ['inner','outer'])a[edge].forEach((r,i)=>assert.ok(Math.abs(r/a.width-b[edge][i]/b.width)<1e-12));
  }
- const report=verifyPackagedImages('dist/assets');assert.equal(report.count,10);
+ const report=verifyPackagedImages('dist/assets');assert.equal(report.count,RUNTIME_IMAGES.length);
 });
