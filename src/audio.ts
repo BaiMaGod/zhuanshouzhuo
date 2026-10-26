@@ -3,17 +3,29 @@
 type Kind='button'|'tool'|'select'|'align'|'clear'|'block'|'win';
 export class Audio {
  private enabled_=true;
+ private music:Laya.SoundChannel|null=null;
+ private musicReady=false;
+ private suspended=false;
  private rotation:Laya.SoundChannel|null=null;
  private rotationVoices=new Set<Laya.SoundChannel>();
  private voices=new Set<Laya.SoundChannel>();
  private fading=new Set<Laya.SoundChannel>();
  private motionAt=0;private velocity=0;private lastTickAt=-Infinity;private lastAt=-Infinity;private lastCollisionAt=-Infinity;private contact:string|null=null;
  get enabled():boolean{return this.enabled_}
- set enabled(v:boolean){this.enabled_=v;if(!v)this.stopAll()}
+ set enabled(v:boolean){this.enabled_=v;if(!v){this.stopAll();this.stopMusic()}else this.wake()}
  async load():Promise<void>{
+  this.musicReady=true;this.wake();
   await Laya.loader.load(['ratchet_tick.wav','crystal_block.mp3','button.wav','align_glass_tink.mp3','clear.wav','tool.wav','win.wav'].map(n=>'assets/audio/'+n));
  }
- wake():void{/* Laya handles platform gesture unlock. */}
+ wake():void{
+  if(!this.enabled||!this.musicReady||this.suspended||(this.music&&!this.music.isStopped))return;
+  this.music=Laya.SoundManager.playMusic('assets/audio/blossom-valley.mp3',0);
+  if(this.music)this.music.volume=.18;
+ }
+ private stopMusic():void{this.music?.stop();this.music=null}
+ suspend():void{this.suspended=true;this.stopMusic();this.stopAll()}
+ resume():void{this.suspended=false;this.wake()}
+
  motion(delta:number):void{
   if(!this.enabled||Math.abs(delta)<.001)return;
   const now=performance.now(),continuous=this.motionAt>0&&now-this.motionAt<=110;

@@ -16,7 +16,7 @@ function fixture(){
   createBufferSource(){const n={...node(),playbackRate:param(),starts:0,stops:0,start(){this.starts++},stop(){this.stops++}};sources.push(n);return n}
  }
  globalThis.AudioContext=Context;globalThis.performance={now:()=>now};
- globalThis.Laya={loader:{load:async()=>{}},SoundManager:{playSound(url,loops,complete){const n={url,loop:loops===0,volume:1,playbackRate:1,starts:1,stops:0,isStopped:false,stop(){this.stops++;this.isStopped=true},complete};sources.push(n);return n}}};
+ globalThis.Laya={loader:{load:async()=>{}},SoundManager:{playMusic(url,loops){const n={url,loop:loops===0,volume:1,isStopped:false,stops:0,stop(){this.stops++;this.isStopped=true}};sources.push(n);return n},playSound(url,loops,complete){const n={url,loop:loops===0,volume:1,playbackRate:1,starts:1,stops:0,isStopped:false,stop(){this.stops++;this.isStopped=true},complete};sources.push(n);return n}}};
  const a=new Audio();a.context=new Context();
  return{a,sources,advance:ms=>now+=ms,get now(){return now}};
 }
@@ -96,11 +96,11 @@ test('buttons sound, selection stays silent, win uses one bounded voice',()=>{
  assert.equal(sources.length,4);assert.notEqual(sources[0].url,sources[1].url);
  assert.ok(sources[3].url.endsWith('win.wav'));a.enabled=false;assert.ok(sources.every(s=>s.stops===1));
 });
-test('load uses the engine asset loader without starting playback',async()=>{
+test('load starts one quiet looping music channel alongside effect assets',async()=>{
  const {a,sources}=fixture();let loaded;Laya.loader.load=async urls=>{loaded=urls};
  await a.load();assert.equal(loaded.length,7);
  assert.deepEqual(loaded.filter(u=>u.endsWith('.mp3')),['assets/audio/crystal_block.mp3','assets/audio/align_glass_tink.mp3']);
- assert.equal(loaded.filter(u=>u.endsWith('.wav')).length,5);assert.equal(sources.length,0);
+ assert.equal(loaded.filter(u=>u.endsWith('.wav')).length,5);assert.equal(sources.length,1);assert.equal(sources[0].loop,true);assert.equal(sources[0].volume,.18);
 });
 
 test('Glass Tink replaces the generated alignment cue and preserves the 160ms debounce',()=>{
@@ -110,4 +110,13 @@ test('Glass Tink replaces the generated alignment cue and preserves the 160ms de
  assert.equal(sources[0].url,'assets/audio/align_glass_tink.mp3');
  assert.equal(sources[0].playbackRate,1);
  advance(160);a.play('align');assert.equal(sources.length,2);
+});
+
+test('music survives scene effect cleanup, mutes and resumes without duplicate channels',async()=>{
+ const {a,sources}=fixture();await a.load();const first=sources[0];
+ a.wake();a.stopAll();a.wake();assert.equal(sources.length,1);assert.equal(first.isStopped,false);
+ a.suspend();assert.equal(first.isStopped,true);a.wake();assert.equal(sources.length,1);
+ a.resume();assert.equal(sources.length,2);a.resume();assert.equal(sources.length,2);
+ a.enabled=false;assert.equal(sources[1].isStopped,true);a.resume();assert.equal(sources.length,2);
+ a.enabled=true;assert.equal(sources.length,3);assert.equal(sources[2].url,'assets/audio/blossom-valley.mp3');
 });

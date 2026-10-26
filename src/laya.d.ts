@@ -10,7 +10,7 @@ declare namespace Laya {
  }
  class Handler {static create(caller:unknown,fn:Function):Handler}
  class SoundChannel {volume:number;playbackRate:number;isStopped:boolean;stop():void}
- const SoundManager:{playSound(url:string,loops?:number,complete?:()=>void,startTime?:number):SoundChannel;autoStopMusic:boolean};
+ const SoundManager:{playMusic(url:string,loops?:number):SoundChannel;playSound(url:string,loops?:number,complete?:()=>void,startTime?:number):SoundChannel;autoStopMusic:boolean};
 
  function init(width:number,height:number):Promise<void>;
  class Sprite {

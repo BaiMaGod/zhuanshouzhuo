@@ -154,7 +154,7 @@ class Game {
   this.audio.enabled=this.save.data.sound;Button.feedback=()=>{this.audio.wake();this.audio.play('button')};
   const pointer=(e:Laya.Event):GamePointer=>({pointerId:e.touchId,stageX:e.stageX,stageY:e.stageY,button:e.button});
   Laya.InputManager.multiTouchEnabled=true;
-  Laya.stage.on(Laya.Event.MOUSE_DOWN,this,(e:Laya.Event)=>{const p=pointer(e);this.atlasDown(p);this.down(p)});
+  Laya.stage.on(Laya.Event.MOUSE_DOWN,this,(e:Laya.Event)=>{const p=pointer(e);this.audio.wake();this.atlasDown(p);this.down(p)});
   Laya.stage.on(Laya.Event.MOUSE_MOVE,this,(e:Laya.Event)=>{const p=pointer(e);this.atlasMove(p);this.move(p)});
   Laya.stage.on(Laya.Event.MOUSE_UP,this,(e:Laya.Event)=>{
    // Laya normalizes touchcancel to MOUSE_UP. A cancelled touch must never use a tool.
@@ -174,10 +174,10 @@ class Game {
    const p=this.point(pointer(e));if(!this.board.contains(p))return;
    this.releasePointers();this.board.zoomTo(this.board.zoom*Math.exp(-delta*.0015),p);this.syncView();
   });
-  const suspend=()=>{this.atlasDrag=null;this.cancel();this.persistRun();this.audio.stopAll()};
+  const suspend=()=>{this.atlasDrag=null;this.cancel();this.persistRun();this.audio.suspend()};
   Laya.stage.on(Laya.Event.BLUR,this,suspend);
-  Laya.stage.on(Laya.Event.FOCUS,this,()=>void this.platform.resume());
-  Laya.stage.on(Laya.Event.VISIBILITY_CHANGE,this,()=>{if(!Laya.stage.isVisibility)suspend();else void this.platform.resume()});
+  Laya.stage.on(Laya.Event.FOCUS,this,()=>{this.audio.resume();void this.platform.resume()});
+  Laya.stage.on(Laya.Event.VISIBILITY_CHANGE,this,()=>{if(!Laya.stage.isVisibility)suspend();else {this.audio.resume();void this.platform.resume()}});
   Laya.stage.on(Laya.Event.RESIZE,this,()=>{this.atlasDrag=null;this.releasePointers()});
   Laya.stage.on(Laya.Event.KEY_DOWN,this,(e:Laya.Event)=>{
    if(this.mode==='game'&&!this.modalOpen&&e.keyCode===27){this.eraseMode=false;this.syncEraseUI();this.cancel();this.hideModal()}
@@ -370,7 +370,7 @@ class Game {
  practice():void{this.load(this.teachingCurrent())}
  settings():void{
   this.modal('设置',[],[
-   {label:this.audio.enabled?'音效 开':'音效 关',action:()=>{this.toggleSound();this.settings()},primary:false},
+   {label:this.audio.enabled?'声音 开':'声音 关',action:()=>{this.toggleSound();this.settings()},primary:false},
    {label:'新手练习',action:()=>this.practice(),primary:false},
    {label:'关闭',action:()=>this.hideModal(),primary:true}
   ]);
@@ -486,8 +486,8 @@ class Game {
   const practiceHome=new Button('',28,26,76,64,()=>this.home(),false,'home');practiceHome.name='button:home';this.scene.addChild(practiceHome);
   const chapters=new Button('教程关卡',112,26,190,64,()=>this.teachingLevels(),false,'map');
   chapters.name='button:teaching-levels';this.scene.addChild(chapters);
-  const sound=new Button(this.audio.enabled?'音效开':'音效关',402,26,160,64,()=>{
-   this.toggleSound();sound.label.text=this.audio.enabled?'音效开':'音效关';
+  const sound=new Button(this.audio.enabled?'声音开':'声音关',402,26,160,64,()=>{
+   this.toggleSound();sound.label.text=this.audio.enabled?'声音开':'声音关';
    sound.setIcon(this.audio.enabled?'sound':'mute');
   },false,this.audio.enabled?'sound':'mute');sound.name='button:sound';this.scene.addChild(sound);
   const help=new Button('玩法',572,26,120,64,()=>this.help(),false,'help');
