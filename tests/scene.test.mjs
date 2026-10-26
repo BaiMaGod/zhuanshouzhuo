@@ -109,7 +109,7 @@ test('首页只保留主标题和操作入口，设置弹窗关闭后按钮可�
   assert.equal(card.parent,null,'下一帧移除关闭的弹窗');
   assert.equal(shade.parent,null,'下一帧移除关闭的遮罩');
  }
- settings.click();const sound=g.modalCard.children.find(node=>node.label?.text?.startsWith('音效 '));
+ settings.click();const sound=g.modalCard.children.find(node=>node.label?.text?.startsWith('声音 '));
  assert.ok(sound);const before=g.audio.enabled;sound.click();
  assert.equal(g.audio.enabled,!before);assert.equal(g.modalOpen,true);
  g.modalCard.children.find(node=>node.label?.text==='关闭').click();
