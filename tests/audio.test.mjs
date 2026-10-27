@@ -131,3 +131,18 @@ test('independent volumes apply live, clamp, and persist across audio instances'
  a.effectsVolume=2;assert.equal(a.effectsVolume,1);a.musicVolume=-1;assert.equal(a.musicVolume,0);
  a.musicVolume=NaN;assert.equal(a.musicVolume,0);delete Laya.LocalStorage;
 });
+
+test('playing HTML music does not skip recovery of a suspended effect context',async()=>{
+ const {a,sources}=fixture();await a.load();const music=sources[0];let resumes=0;
+ Laya.PAL={media:{audioCtx:{state:'suspended',resume(){resumes++;this.state='running';return Promise.resolve()}}}};
+ a.wake();assert.equal(resumes,1);assert.equal(sources.length,1);assert.equal(music.isStopped,false);
+ a.wake();assert.equal(resumes,1,'a running effect context is left alone');
+ Laya.PAL.media.audioCtx.state='interrupted';a.wake();assert.equal(resumes,2,'recover mobile interruptions');
+ Laya.PAL.media.audioCtx.state='suspended';a.suspend();a.wake();assert.equal(resumes,2);
+ a.resume();assert.equal(resumes,3);a.enabled=false;Laya.PAL.media.audioCtx.state='suspended';a.wake();assert.equal(resumes,3);
+});
+test('effect recovery rejection cannot prevent music or effects playback',async()=>{
+ const {a,sources}=fixture();Laya.PAL={media:{audioCtx:{state:'suspended',resume(){return Promise.reject(Error('gesture required'))}}}};
+ await a.load();a.wake();a.play('align');await Promise.resolve();assert.equal(sources.length,2);
+ assert.ok(sources[1].volume>=.2,'alignment remains audible over 50 percent music');
+});

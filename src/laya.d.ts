@@ -2,6 +2,7 @@
 declare namespace Laya {
  const Config:{useWebGL2:boolean};
  const Browser:{width:number;height:number;clientWidth:number;clientHeight:number;onMobile:boolean;mainCanvas?:{source?:{style?:{cursor:string}}}};
+ const PAL:{media?:{audioCtx?:{state:string;resume():Promise<void>}}};
  const InputManager:{multiTouchEnabled:boolean};
  const LocalStorage:{getItem(key:string):string|null;setItem(key:string,value:string):void};
  class Event {

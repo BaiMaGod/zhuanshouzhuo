@@ -40,7 +40,14 @@ export class Audio {
   await Laya.loader.load(['ratchet_tick.wav','crystal_block.mp3','button.wav','align_glass_tink.mp3','clear.wav','tool.wav','win.wav'].map(n=>'assets/audio/'+n));
  }
  wake():void{
-  if(!this.enabled||!this.musicReady||this.suspended||(this.music&&!this.music.isStopped))return;
+  if(!this.enabled||this.suspended)return;
+  // Music uses HTMLAudio; effects use a separate WebAudio context. A playing
+  // music channel must never skip gesture-based recovery of the effect context.
+  const context=Laya.PAL?.media?.audioCtx;
+  if(context&&(context.state==='suspended'||context.state==='interrupted')){
+   try{void context.resume().catch(()=>{})}catch{}
+  }
+  if(!this.musicReady||(this.music&&!this.music.isStopped))return;
   this.music=Laya.SoundManager.playMusic('assets/audio/blossom-valley.mp3',0);
   if(this.music)this.music.volume=this.musicGain;
  }
@@ -72,7 +79,7 @@ export class Audio {
   voice=Laya.SoundManager.playSound('assets/audio/ratchet_tick.wav',1,()=>this.rotationVoices.delete(voice));
   if(voice){
    voice.playbackRate=1;
-   const gain=.12+.08*Math.min(1,this.velocity/360);this.gains.set(voice,gain);voice.volume=gain*this.effectsGain;
+   const gain=.36+.16*Math.min(1,this.velocity/360);this.gains.set(voice,gain);voice.volume=gain*this.effectsGain;
    this.rotationVoices.add(voice);
    this.rotation=voice;
    this.lastTickAt=now;
@@ -97,7 +104,7 @@ export class Audio {
   this.stopMotion();if(this.contact===key)return;this.contact=key;
   // Do not stack the recorded crystal impact across rapidly changing contact points.
   const now=performance.now();if(now-this.lastCollisionAt<150)return;this.lastCollisionAt=now;
-  this.sample('crystal_block.mp3',.24+Math.max(0,Math.min(1,strength))*.12);
+  this.sample('crystal_block.mp3',.42+Math.max(0,Math.min(1,strength))*.12);
  }
  private sample(name:string,gain:number,rate=1):void{
   if(!this.enabled)return;
@@ -110,7 +117,7 @@ export class Audio {
  play(kind:Kind):void{
   if(kind==='select')return;if(kind==='block'){this.collision('legacy');return}
   const now=performance.now();if(kind==='align'&&now-this.lastAt<160)return;if(kind==='align')this.lastAt=now;
-  this.sample(kind==='align'?'align_glass_tink.mp3':kind+'.wav',kind==='button'?.12:kind==='align'?.10:kind==='win'?.24:.19);
+  this.sample(kind==='align'?'align_glass_tink.mp3':kind+'.wav',kind==='button'?.28:kind==='align'?.36:kind==='win'?.45:.38);
  }
  stopAll():void{
   this.stopMotion();for(const v of this.fading){Laya.Tween?.clearAll(v);v.stop()}this.fading.clear();
