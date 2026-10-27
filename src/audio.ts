@@ -3,8 +3,8 @@
 type Kind='button'|'tool'|'select'|'align'|'clear'|'block'|'win';
 export class Audio {
  private enabled_=true;
- private musicGain=.5;
- private effectsGain=.65;
+ private musicGain=.6;
+ private effectsGain=.8;
  private gains=new WeakMap<Laya.SoundChannel,number>();
  constructor(){
   try{const v=JSON.parse(Laya.LocalStorage.getItem('jade-audio-volumes-v1')||'null');
