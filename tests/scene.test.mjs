@@ -555,3 +555,14 @@ test('玩家丝巾手指锚定触点，桌面替代光标但不随玉镯旋转�
  assert.equal(g.cursorHand.sprite.visible,false,'取消及失焦应清理临时手势');
  g.home();Laya.Browser.onMobile=false;
 });
+
+test('settings changes music and effects independently in five percent steps',()=>{
+ g.home();g.audio.musicVolume=.5;g.audio.effectsVolume=.65;g.settings();
+ const card=g.modalCard,find=name=>card.children.find(n=>n.name===name);
+ assert.equal(find('volume:music').text,'背景音乐  50%');
+ find('button:volume-music-up').click();assert.equal(g.audio.musicVolume,.55);assert.equal(g.audio.effectsVolume,.65);
+ assert.equal(find('volume:music').text,'背景音乐  55%');
+ find('button:volume-effects-down').click();assert.equal(g.audio.effectsVolume,.6);assert.equal(g.audio.musicVolume,.55);
+ assert.equal(find('volume:effects').text,'音效音量  60%');
+ g.hideModal();g.settings();assert.equal(g.modalCard.children.find(n=>n.name==='volume:music').text,'背景音乐  55%');g.hideModal();
+});

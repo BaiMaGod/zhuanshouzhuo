@@ -3,6 +3,28 @@
 type Kind='button'|'tool'|'select'|'align'|'clear'|'block'|'win';
 export class Audio {
  private enabled_=true;
+ private musicGain=.5;
+ private effectsGain=.65;
+ private gains=new WeakMap<Laya.SoundChannel,number>();
+ constructor(){
+  try{const v=JSON.parse(Laya.LocalStorage.getItem('jade-audio-volumes-v1')||'null');
+   if(Number.isFinite(v?.music))this.musicGain=Math.max(0,Math.min(1,v.music));
+   if(Number.isFinite(v?.effects))this.effectsGain=Math.max(0,Math.min(1,v.effects));
+  }catch{}
+ }
+ get musicVolume():number{return this.musicGain}
+ set musicVolume(value:number){
+  if(!Number.isFinite(value))return;this.musicGain=Math.max(0,Math.min(1,value));
+  if(this.music)this.music.volume=this.musicGain;this.saveVolumes();
+ }
+ get effectsVolume():number{return this.effectsGain}
+ set effectsVolume(value:number){
+  if(!Number.isFinite(value))return;this.effectsGain=Math.max(0,Math.min(1,value));
+  for(const v of [...this.voices,...this.rotationVoices])if(!v.isStopped)v.volume=(this.gains.get(v)||0)*this.effectsGain;
+  this.saveVolumes();
+ }
+ private saveVolumes():void{try{Laya.LocalStorage.setItem('jade-audio-volumes-v1',JSON.stringify({music:this.musicGain,effects:this.effectsGain}))}catch{}}
+
  private music:Laya.SoundChannel|null=null;
  private musicReady=false;
  private suspended=false;
@@ -20,7 +42,7 @@ export class Audio {
  wake():void{
   if(!this.enabled||!this.musicReady||this.suspended||(this.music&&!this.music.isStopped))return;
   this.music=Laya.SoundManager.playMusic('assets/audio/blossom-valley.mp3',0);
-  if(this.music)this.music.volume=.18;
+  if(this.music)this.music.volume=this.musicGain;
  }
  private stopMusic():void{this.music?.stop();this.music=null}
  suspend():void{this.suspended=true;this.stopMusic();this.stopAll()}
@@ -50,7 +72,7 @@ export class Audio {
   voice=Laya.SoundManager.playSound('assets/audio/ratchet_tick.wav',1,()=>this.rotationVoices.delete(voice));
   if(voice){
    voice.playbackRate=1;
-   voice.volume=(.12+.08*Math.min(1,this.velocity/360))*.65;
+   const gain=.12+.08*Math.min(1,this.velocity/360);this.gains.set(voice,gain);voice.volume=gain*this.effectsGain;
    this.rotationVoices.add(voice);
    this.rotation=voice;
    this.lastTickAt=now;
@@ -83,7 +105,7 @@ export class Audio {
   if(this.voices.size>=4)return;
   let channel:Laya.SoundChannel;
   channel=Laya.SoundManager.playSound('assets/audio/'+name,1,()=>this.voices.delete(channel));
-  if(channel){channel.volume=gain*.65;channel.playbackRate=rate;this.voices.add(channel)}
+  if(channel){this.gains.set(channel,gain);channel.volume=gain*this.effectsGain;channel.playbackRate=rate;this.voices.add(channel)}
  }
  play(kind:Kind):void{
   if(kind==='select')return;if(kind==='block'){this.collision('legacy');return}

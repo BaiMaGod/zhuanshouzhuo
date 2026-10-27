@@ -100,7 +100,7 @@ test('load starts one quiet looping music channel alongside effect assets',async
  const {a,sources}=fixture();let loaded;Laya.loader.load=async urls=>{loaded=urls};
  await a.load();assert.equal(loaded.length,7);
  assert.deepEqual(loaded.filter(u=>u.endsWith('.mp3')),['assets/audio/crystal_block.mp3','assets/audio/align_glass_tink.mp3']);
- assert.equal(loaded.filter(u=>u.endsWith('.wav')).length,5);assert.equal(sources.length,1);assert.equal(sources[0].loop,true);assert.equal(sources[0].volume,.18);
+ assert.equal(loaded.filter(u=>u.endsWith('.wav')).length,5);assert.equal(sources.length,1);assert.equal(sources[0].loop,true);assert.equal(sources[0].volume,.5);
 });
 
 test('Glass Tink replaces the generated alignment cue and preserves the 160ms debounce',()=>{
@@ -119,4 +119,15 @@ test('music survives scene effect cleanup, mutes and resumes without duplicate c
  a.resume();assert.equal(sources.length,2);a.resume();assert.equal(sources.length,2);
  a.enabled=false;assert.equal(sources[1].isStopped,true);a.resume();assert.equal(sources.length,2);
  a.enabled=true;assert.equal(sources.length,3);assert.equal(sources[2].url,'assets/audio/blossom-valley.mp3');
+});
+
+test('independent volumes apply live, clamp, and persist across audio instances',async()=>{
+ const {a,sources}=fixture();const memory=new Map();Laya.LocalStorage={getItem:k=>memory.get(k),setItem:(k,v)=>memory.set(k,v)};
+ await a.load();assert.equal(a.musicVolume,.5);assert.equal(a.effectsVolume,.65);
+ a.play('button');const effect=sources[1],before=effect.volume;
+ a.musicVolume=.8;assert.equal(sources[0].volume,.8);assert.equal(effect.volume,before);
+ a.effectsVolume=0;assert.equal(effect.volume,0);assert.equal(sources[0].volume,.8);
+ const restored=new Audio();assert.equal(restored.musicVolume,.8);assert.equal(restored.effectsVolume,0);
+ a.effectsVolume=2;assert.equal(a.effectsVolume,1);a.musicVolume=-1;assert.equal(a.musicVolume,0);
+ a.musicVolume=NaN;assert.equal(a.musicVolume,0);delete Laya.LocalStorage;
 });

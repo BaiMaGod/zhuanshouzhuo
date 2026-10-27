@@ -369,11 +369,25 @@ class Game {
  }
  practice():void{this.load(this.teachingCurrent())}
  settings():void{
-  this.modal('设置',[],[
+  this.modal('设置',['',''],[
    {label:this.audio.enabled?'声音 开':'声音 关',action:()=>{this.toggleSound();this.settings()},primary:false},
    {label:'新手练习',action:()=>this.practice(),primary:false},
    {label:'关闭',action:()=>this.hideModal(),primary:true}
   ]);
+  const card=this.modalCard!;
+  for(const [index,kind] of (['music','effects'] as const).entries()){
+   const y=139+index*85,label=text(card,'',40,y,270,64,26,COLORS.ink,'center',true);
+   const current=()=>kind==='music'?this.audio.musicVolume:this.audio.effectsVolume;
+   const refresh=()=>{label.text=(kind==='music'?'背景音乐':'音效音量')+'  '+Math.round(current()*100)+'%'};
+   label.name='volume:'+kind;refresh();
+   for(const [delta,x] of [[-5,320],[5,440]]){
+    const b=new Button(delta<0?'−':'+',x,y,120,64,()=>{
+     const value=Math.round(Math.max(0,Math.min(100,Math.round(current()*100)+delta)))/100;
+     if(kind==='music')this.audio.musicVolume=value;else {this.audio.effectsVolume=value;this.audio.play('button')}
+     refresh();
+    },false);b.name='button:volume-'+kind+(delta<0?'-down':'-up');card.addChild(b);
+   }
+  }
  }
  toggleSound():void{this.audio.enabled=!this.audio.enabled;this.save.data.sound=this.audio.enabled;this.save.persist()}
  teachingCurrent():number{
