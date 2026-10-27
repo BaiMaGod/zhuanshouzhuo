@@ -368,10 +368,10 @@ class Game {
   this.featureAction(card,'收好背包',120,583,436,62,()=>this.hideModal(),'button:close-bag');
  }
  practice():void{this.load(this.teachingCurrent())}
- settings():void{
-  this.modal('设置',['',''],[
-   {label:this.audio.enabled?'声音 开':'声音 关',action:()=>{this.toggleSound();this.settings()},primary:false},
-   {label:'新手练习',action:()=>this.practice(),primary:false},
+ settings(audioOnly=false):void{
+  this.modal(audioOnly?'音量设置':'设置',['',''],[
+   {label:this.audio.enabled?'声音 开':'声音 关',action:()=>{this.toggleSound();this.settings(audioOnly)},primary:false},
+   ...(!audioOnly?[{label:'新手练习',action:()=>this.practice(),primary:false}]:[]),
    {label:'关闭',action:()=>this.hideModal(),primary:true}
   ]);
   const card=this.modalCard!;
@@ -389,7 +389,14 @@ class Game {
    }
   }
  }
- toggleSound():void{this.audio.enabled=!this.audio.enabled;this.save.data.sound=this.audio.enabled;this.save.persist()}
+ toggleSound():void{
+  this.audio.enabled=!this.audio.enabled;this.save.data.sound=this.audio.enabled;this.save.persist();
+  for(let i=0;i<this.scene.numChildren;i++){
+   const b=this.scene.getChildAt(i);if(b.name!=='button:sound'||!(b instanceof Button))continue;
+   if(b.label.visible)b.label.text=this.audio.enabled?'声音开':'声音关';
+   b.setIcon(this.audio.enabled?'sound':'mute');
+  }
+ }
  teachingCurrent():number{
   for(let index=0;index<TEACHING_COUNT;index++)if(!this.save.data.records[index])return Math.min(index,this.save.data.unlocked);
   return TEACHING_COUNT-1; // All tutorial levels cleared: replay the final one.
@@ -490,7 +497,7 @@ class Game {
    const home=new Button('',28,26,76,64,()=>this.confirmExit(),false,'home');home.name='button:home';this.scene.addChild(home);
    const restart=new Button('',116,26,76,64,()=>this.confirmRestart(),false,'restart');restart.name='button:restart';this.scene.addChild(restart);
    const title=text(this.scene,'第'+(i-TEACHING_COUNT+1)+'关',216,26,288,64,43,COLORS.ink,'center',true);
-   const sound=new Button('',528,26,76,64,()=>{this.toggleSound();sound.setIcon(this.audio.enabled?'sound':'mute')},false,this.audio.enabled?'sound':'mute');sound.name='button:sound';this.scene.addChild(sound);
+   const sound=new Button('',528,26,76,64,()=>this.settings(true),false,this.audio.enabled?'sound':'mute');sound.name='button:sound';this.scene.addChild(sound);
    const help=new Button('',616,26,76,64,()=>this.help(),false,'help');help.name='button:help';this.scene.addChild(help);
    // Both counters share one non-wrapping line under the level title.
    this.status=text(this.scene,'',90,101,540,34,23,COLORS.ink,'center');
@@ -500,10 +507,7 @@ class Game {
   const practiceHome=new Button('',28,26,76,64,()=>this.home(),false,'home');practiceHome.name='button:home';this.scene.addChild(practiceHome);
   const chapters=new Button('教程关卡',112,26,190,64,()=>this.teachingLevels(),false,'map');
   chapters.name='button:teaching-levels';this.scene.addChild(chapters);
-  const sound=new Button(this.audio.enabled?'声音开':'声音关',402,26,160,64,()=>{
-   this.toggleSound();sound.label.text=this.audio.enabled?'声音开':'声音关';
-   sound.setIcon(this.audio.enabled?'sound':'mute');
-  },false,this.audio.enabled?'sound':'mute');sound.name='button:sound';this.scene.addChild(sound);
+  const sound=new Button(this.audio.enabled?'声音开':'声音关',402,26,160,64,()=>this.settings(true),false,this.audio.enabled?'sound':'mute');sound.name='button:sound';this.scene.addChild(sound);
   const help=new Button('玩法',572,26,120,64,()=>this.help(),false,'help');
   help.name='button:help';this.scene.addChild(help);
   text(this.scene,'教学 '+String(i+1).padStart(2,'0')+' 境 · '+C.levels[i].name,50,110,620,64,39,COLORS.ink,'center',true);

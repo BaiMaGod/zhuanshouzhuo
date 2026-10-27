@@ -258,7 +258,9 @@ test('正式关音效与玩法按钮反复点击不消失，提示按钮保留�
  assert.equal(g.scene.cacheAs,'none','正式关按钮不应被整个场景缓存');
  const initial=g.audio.enabled;
  sound.click();
- assert.equal(g.audio.enabled,!initial);
+ assert.equal(g.audio.enabled,initial,'opening volume controls must not mute');
+ assert.ok(g.modalCard.children.some(n=>n.text==='音量设置'));
+ g.modalCard.children.find(n=>n.label?.text==='关闭').click();
  assert.equal(sound.parent,g.scene);
  assert.equal(sound.visible,true);
  assert.ok(sound.skin.graphics.ops.length);
@@ -565,4 +567,22 @@ test('settings changes music and effects independently in five percent steps',()
  find('button:volume-effects-down').click();assert.equal(g.audio.effectsVolume,.6);assert.equal(g.audio.musicVolume,.55);
  assert.equal(find('volume:effects').text,'音效音量  60%');
  g.hideModal();g.settings();assert.equal(g.modalCard.children.find(n=>n.name==='volume:music').text,'背景音乐  55%');g.hideModal();
+});
+
+test('game sound entry opens independent volume controls in tutorial and formal play without losing the board',()=>{
+ for(const index of [0,10]){
+  g.load(index);const model=g.model,state=JSON.stringify(model.state),before=g.audio.enabled;
+  const button=g.scene.children.find(n=>n.name==='button:sound');button.click();
+  assert.equal(g.modalOpen,true);assert.equal(g.audio.enabled,before);
+  assert.ok(g.modalCard.children.some(n=>n.text==='音量设置'));
+  assert.ok(!g.modalCard.children.some(n=>n.label?.text==='新手练习'));
+  g.modalCard.children.find(n=>n.name==='button:volume-music-up').click();
+  g.modalCard.children.find(n=>n.name==='button:volume-effects-down').click();
+  g.modalCard.children.find(n=>n.label?.text?.startsWith('声音 ')).click();
+  assert.equal(g.audio.enabled,!before);assert.equal(g.save.data.sound,!before);
+  g.modalCard.children.find(n=>n.label?.text==='关闭').click();h.tick();
+  assert.equal(g.model,model);assert.equal(JSON.stringify(g.model.state),state);
+  assert.equal(button.visible,true);assert.equal(button.parent,g.scene);
+  button.click();assert.equal(g.modalOpen,true);g.hideModal();
+ }
 });
