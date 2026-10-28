@@ -100,7 +100,7 @@ test('load starts one quiet looping music channel alongside effect assets',async
  const {a,sources}=fixture();let loaded;Laya.loader.load=async urls=>{loaded=urls};
  await a.load();assert.equal(loaded.length,7);
  assert.deepEqual(loaded.filter(u=>u.endsWith('.mp3')),['assets/audio/crystal_block.mp3','assets/audio/align_glass_tink.mp3']);
- assert.equal(loaded.filter(u=>u.endsWith('.wav')).length,5);assert.equal(sources.length,1);assert.equal(sources[0].loop,true);assert.equal(sources[0].volume,.5);
+ assert.equal(loaded.filter(u=>u.endsWith('.wav')).length,5);assert.equal(sources.length,1);assert.equal(sources[0].loop,true);assert.equal(sources[0].volume,.3);
 });
 
 test('Glass Tink replaces the generated alignment cue and preserves the 160ms debounce',()=>{
@@ -123,13 +123,30 @@ test('music survives scene effect cleanup, mutes and resumes without duplicate c
 
 test('independent volumes apply live, clamp, and persist across audio instances',async()=>{
  const {a,sources}=fixture();const memory=new Map();Laya.LocalStorage={getItem:k=>memory.get(k),setItem:(k,v)=>memory.set(k,v)};
- await a.load();assert.equal(a.musicVolume,.5);assert.equal(a.effectsVolume,.65);
+ await a.load();assert.equal(a.musicVolume,.6);assert.equal(a.effectsVolume,.8);
  a.play('button');const effect=sources[1],before=effect.volume;
- a.musicVolume=.8;assert.equal(sources[0].volume,.8);assert.equal(effect.volume,before);
- a.effectsVolume=0;assert.equal(effect.volume,0);assert.equal(sources[0].volume,.8);
+ a.musicVolume=.8;assert.equal(sources[0].volume,.4);assert.equal(effect.volume,before);
+ a.effectsVolume=0;assert.equal(effect.volume,0);assert.equal(sources[0].volume,.4);
  const restored=new Audio();assert.equal(restored.musicVolume,.8);assert.equal(restored.effectsVolume,0);
  a.effectsVolume=2;assert.equal(a.effectsVolume,1);a.musicVolume=-1;assert.equal(a.musicVolume,0);
  a.musicVolume=NaN;assert.equal(a.musicVolume,0);delete Laya.LocalStorage;
+});
+
+test('background music uses half source gain and only bracelet removal gains 50%',async()=>{
+ const {a,sources}=fixture();await a.load();
+ assert.equal(a.musicVolume,.6,'default music slider remains 60%');
+ assert.equal(a.effectsVolume,.8,'default effects slider remains 80%');
+ assert.equal(sources[0].volume,.3,'music source receives an additional 50% attenuation');
+ a.play('clear');a.play('tool');
+ const clear=sources[1],tool=sources[2];
+ assert.equal(clear.url,'assets/audio/clear.wav');
+ assert.equal(clear.volume,.38*1.5*.8,'bracelet removal is 50% louder');
+ assert.equal(tool.volume,.38*.8,'other effects are unchanged');
+ a.effectsVolume=.5;
+ assert.equal(clear.volume,.38*1.5*.5,'clear volume follows the effects slider');
+ assert.equal(tool.volume,.38*.5,'normal effects follow the effects slider');
+ a.musicVolume=.2;
+ assert.equal(sources[0].volume,.1,'live music slider still uses the same half-gain scaling');
 });
 
 test('playing HTML music does not skip recovery of a suspended effect context',async()=>{
