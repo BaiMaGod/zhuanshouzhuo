@@ -1,6 +1,9 @@
 // Playback through Laya's platform sound adapter. Rotation uses one recorded ratchet tick
 // paced by actual angular speed, not a repeating loop or a pitch-shifted motor.
 type Kind='button'|'tool'|'select'|'align'|'clear'|'block'|'win';
+// Keep the UI sliders independent of source-specific mixing adjustments.
+const MUSIC_SOURCE_GAIN=.5;
+const CLEAR_SOUND_BOOST=1.5;
 export class Audio {
  private enabled_=true;
  private musicGain=.6;
@@ -15,7 +18,7 @@ export class Audio {
  get musicVolume():number{return this.musicGain}
  set musicVolume(value:number){
   if(!Number.isFinite(value))return;this.musicGain=Math.max(0,Math.min(1,value));
-  if(this.music)this.music.volume=this.musicGain;this.saveVolumes();
+  if(this.music)this.music.volume=this.musicGain*MUSIC_SOURCE_GAIN;this.saveVolumes();
  }
  get effectsVolume():number{return this.effectsGain}
  set effectsVolume(value:number){
@@ -49,7 +52,7 @@ export class Audio {
   }
   if(!this.musicReady||(this.music&&!this.music.isStopped))return;
   this.music=Laya.SoundManager.playMusic('assets/audio/blossom-valley.mp3',0);
-  if(this.music)this.music.volume=this.musicGain;
+  if(this.music)this.music.volume=this.musicGain*MUSIC_SOURCE_GAIN;
  }
  private stopMusic():void{this.music?.stop();this.music=null}
  suspend():void{this.suspended=true;this.stopMusic();this.stopAll()}
@@ -117,7 +120,7 @@ export class Audio {
  play(kind:Kind):void{
   if(kind==='select')return;if(kind==='block'){this.collision('legacy');return}
   const now=performance.now();if(kind==='align'&&now-this.lastAt<160)return;if(kind==='align')this.lastAt=now;
-  this.sample(kind==='align'?'align_glass_tink.mp3':kind+'.wav',kind==='button'?.28:kind==='align'?.36:kind==='win'?.45:.38);
+  this.sample(kind==='align'?'align_glass_tink.mp3':kind+'.wav',kind==='button'?.28:kind==='align'?.36:kind==='win'?.45:kind==='clear'?.38*CLEAR_SOUND_BOOST:.38);
  }
  stopAll():void{
   this.stopMotion();for(const v of this.fading){Laya.Tween?.clearAll(v);v.stop()}this.fading.clear();
