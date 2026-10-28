@@ -3,7 +3,10 @@
 type Kind='button'|'tool'|'select'|'align'|'clear'|'block'|'win';
 // Keep the UI sliders independent of source-specific mixing adjustments.
 const MUSIC_SOURCE_GAIN=.5;
-const CLEAR_SOUND_BOOST=1.5;
+const ROTATION_SOUND_BOOST=1.5;
+const ALIGN_SOUND_BOOST=1.5;
+// Removal already had a 1.5x boost; this request increases that result another 50%.
+const CLEAR_SOUND_BOOST=2.25;
 export class Audio {
  private enabled_=true;
  private musicGain=.6;
@@ -82,7 +85,7 @@ export class Audio {
   voice=Laya.SoundManager.playSound('assets/audio/ratchet_tick.wav',1,()=>this.rotationVoices.delete(voice));
   if(voice){
    voice.playbackRate=1;
-   const gain=.36+.16*Math.min(1,this.velocity/360);this.gains.set(voice,gain);voice.volume=gain*this.effectsGain;
+   const gain=(.36+.16*Math.min(1,this.velocity/360))*ROTATION_SOUND_BOOST;this.gains.set(voice,gain);voice.volume=gain*this.effectsGain;
    this.rotationVoices.add(voice);
    this.rotation=voice;
    this.lastTickAt=now;
@@ -120,7 +123,7 @@ export class Audio {
  play(kind:Kind):void{
   if(kind==='select')return;if(kind==='block'){this.collision('legacy');return}
   const now=performance.now();if(kind==='align'&&now-this.lastAt<160)return;if(kind==='align')this.lastAt=now;
-  this.sample(kind==='align'?'align_glass_tink.mp3':kind+'.wav',kind==='button'?.28:kind==='align'?.36:kind==='win'?.45:kind==='clear'?.38*CLEAR_SOUND_BOOST:.38);
+  this.sample(kind==='align'?'align_glass_tink.mp3':kind+'.wav',kind==='button'?.28:kind==='align'?.36*ALIGN_SOUND_BOOST:kind==='win'?.45:kind==='clear'?.38*CLEAR_SOUND_BOOST:.38);
  }
  stopAll():void{
   this.stopMotion();for(const v of this.fading){Laya.Tween?.clearAll(v);v.stop()}this.fading.clear();
