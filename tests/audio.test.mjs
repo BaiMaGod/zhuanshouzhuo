@@ -132,21 +132,28 @@ test('independent volumes apply live, clamp, and persist across audio instances'
  a.musicVolume=NaN;assert.equal(a.musicVolume,0);delete Laya.LocalStorage;
 });
 
-test('background music uses half source gain and only bracelet removal gains 50%',async()=>{
+test('rotation, removal and alignment gains increase 50% independently of other audio',async()=>{
  const {a,sources}=fixture();await a.load();
  assert.equal(a.musicVolume,.6,'default music slider remains 60%');
  assert.equal(a.effectsVolume,.8,'default effects slider remains 80%');
- assert.equal(sources[0].volume,.3,'music source receives an additional 50% attenuation');
- a.play('clear');a.play('tool');
- const clear=sources[1],tool=sources[2];
+ assert.equal(sources[0].volume,.3,'music source remains attenuated by 50%');
+ a.play('clear');a.play('tool');a.play('align');a.motion(2);
+ const clear=sources[1],tool=sources[2],align=sources[3],rotation=sources[4];
  assert.equal(clear.url,'assets/audio/clear.wav');
- assert.equal(clear.volume,.38*1.5*.8,'bracelet removal is 50% louder');
+ assert.equal(align.url,'assets/audio/align_glass_tink.mp3');
+ assert.equal(rotation.url,'assets/audio/ratchet_tick.wav');
+ assert.equal(clear.volume,.38*2.25*.8,'removal increases 50% on top of its previous 1.5x boost');
+ assert.equal(align.volume,.36*1.5*.8,'alignment increases 50%');
+ const rotationGain=(.36+.16*(120/360))*1.5;
+ assert.ok(Math.abs(rotation.volume-rotationGain*.8)<1e-12,'rotation increases 50%');
  assert.equal(tool.volume,.38*.8,'other effects are unchanged');
  a.effectsVolume=.5;
- assert.equal(clear.volume,.38*1.5*.5,'clear volume follows the effects slider');
- assert.equal(tool.volume,.38*.5,'normal effects follow the effects slider');
+ assert.equal(clear.volume,.38*2.25*.5,'removal still follows effects slider');
+ assert.equal(align.volume,.36*1.5*.5,'alignment still follows effects slider');
+ assert.ok(Math.abs(rotation.volume-rotationGain*.5)<1e-12,'rotation still follows effects slider');
+ assert.equal(tool.volume,.38*.5,'other effects still follow effects slider');
  a.musicVolume=.2;
- assert.equal(sources[0].volume,.1,'live music slider still uses the same half-gain scaling');
+ assert.equal(sources[0].volume,.1,'music attenuation is unchanged');
 });
 
 test('playing HTML music does not skip recovery of a suspended effect context',async()=>{
