@@ -41,7 +41,9 @@ test('正式场景导航、点击只选中、真实手势路径与逐关解锁',
  for(let a=75;a<=185;a+=5)g.move(event(g.board.toScreen(C.point(ring,a))));
  g.up(event(p));
  assert.ok(g.model.cleared);assert.equal(g.model.state.steps,1);
- for(let i=0;i<25;i++)h.tick();
+ for(let i=0;i<20;i++)h.tick();
+ assert.equal(g.modalOpen,false,'清盘庆祝期间不提前弹结算');
+ for(let i=0;i<50;i++)h.tick();
  assert.equal(g.save.data.unlocked,1);assert.ok(g.modalOpen);assert.ok(g.settled);
 });
 test('取消、重开与撤销解除指针捕获，恢复完整场景',()=>{
@@ -144,7 +146,9 @@ test('所有关卡没有旋转按钮、撤销、选中圆圈，正式关可用�
  const route=(await import('../dist/js/solutions.js')).default[LEGACY_FORMAL_INDEX];
  for(const i of [0,1,10]){g.load(i);const labels=[];function walk(n){if(n.label)labels.push(n.label.text);for(const c of n.children)walk(c)}walk(g.scene);for(const label of ['旋转手镯','移动棋盘','撤销','↶ 30°','30° ↷','↶ 微调','微调 ↷','演示'])assert.ok(!labels.includes(label));assert.equal(g.undoButton,null);for(const v of g.board.rings.values())assert.equal(v.halo.graphics.ops.length,0);}
  g.load(LEGACY_FORMAL_INDEX);const b=g.board;
- for(const a of route){const r=C.ring(g.model.state,a.id);b.zoomTo(b.fitZoom*3,{x:360,y:500});const delta=C.rot({x:r.x-b.center.x,y:r.y-b.center.y},b.turn);b.panTo({x:360-delta.x*b.zoom,y:500-delta.y*b.zoom});const start=r.a+50,event=q=>({stageX:q.x*.75,stageY:q.y*.75,pointerId:88,button:0});const first=b.toScreen(C.point(r,start));g.down(event(first));assert.equal(g.drag?.id,a.id);const n=Math.ceil(Math.abs(a.delta)/4);for(let k=1;k<=n;k++)g.move(event(b.toScreen(C.point(r,start+a.delta*k/n))));g.up(event(first));for(let k=0;k<40;k++)h.tick();assert.ok(!b.animating);for(const v of b.rings.values())assert.equal(v.halo.graphics.ops.length,0);}
+ for(const a of route){const r=C.ring(g.model.state,a.id);b.zoomTo(b.fitZoom*3,{x:360,y:500});const delta=C.rot({x:r.x-b.center.x,y:r.y-b.center.y},b.turn);b.panTo({x:360-delta.x*b.zoom,y:500-delta.y*b.zoom});const start=r.a+50,event=q=>({stageX:q.x*.75,stageY:q.y*.75,pointerId:88,button:0});const first=b.toScreen(C.point(r,start));g.down(event(first));assert.equal(g.drag?.id,a.id);const n=Math.ceil(Math.abs(a.delta)/4);for(let k=1;k<=n;k++)g.move(event(b.toScreen(C.point(r,start+a.delta*k/n))));g.up(event(first));
+  // Ordinary release ends within 640ms; the final clear includes its tray celebration.
+  for(let k=0;k<(g.model.cleared?70:40);k++)h.tick();assert.ok(!b.animating);for(const v of b.rings.values())assert.equal(v.halo.graphics.ops.length,0);}
  assert.ok(g.model.cleared);assert.ok(g.settled);assert.equal(g.model.state.steps,route.length);g.load(LEGACY_FORMAL_INDEX);assert.equal(g.model.state.rings.filter(r=>r.life==='active').length,54);
 });
 

@@ -10,4 +10,4 @@
 
 config/taptap-public.json 的 shareTemplateId 必须填入应用 958691 已审核通过的分享模板 template_code，也可由 TAP_SHARE_TEMPLATE_ID 注入。它不是广告位 ID。
 
-本次后台查询被拒绝，未获取、创建或审批分享模板，因此此值保留为空。普通 Web 构建与模拟测试可运行；TapTap 正式发布校验会明确报 shareTemplateId 缺失，防止发布一个无法分享的版本。必须补入后台核实的模板后，再运行 release:taptap、verify:taptap，并在 TapTap 宿主内验证成功分享与取消分享。模拟测试不会证明真实渠道分享成功。
+默认分享模板已恢复为历史 H5 包使用的 `ST1792455066861BCSTD2Y3D`（2026-10-28 从此前发布记录恢复）。此前默认配置为空，不代表后台不存在已审核模板。发布仍运行 release:taptap、verify:taptap，并在 TapTap 宿主内复测成功分享与取消分享；本地模拟测试不能替代真实渠道验收。

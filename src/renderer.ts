@@ -4,8 +4,9 @@ import {JADE_NAMES,drawJade} from './jade.js';
 import {trayFit} from './tray-layout.js';
 import {TEACHING_COUNT} from './levels.js';
 import {THEME} from './ui.js';
+import {FEEDBACK,reducedMotion,easeOut,glint} from './feedback.js';
 const C=C0 as unknown as CoreAPI;
-export interface Ghost {r:Ring;state:State;start:number}
+export interface Ghost {r:Ring;start:number;rods:Laya.Sprite}
 interface RingView {root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite}
 export class Board {
  viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();effects=new Laya.Sprite();
@@ -19,7 +20,10 @@ export class Board {
  private rodsDrawKey=''; private highlightedRing:string|null=null;
  private traySize:{w:number;h:number}|undefined;
  hint:Point|null=null;blocked:Block|null=null;blockUntil=0;blockedRing:string|null=null;
- ghosts:Ghost[]=[];sparks:{x:number;y:number;start:number;seed:number}[]=[];
+ ghosts:Ghost[]=[];sparks:{x:number;y:number;start:number;seed:number;strength:number}[]=[];
+ private flashes:{x:number;y:number;start:number}[]=[];
+ private clearAt=-Infinity;private releaseAt=-Infinity;private streak=0;
+ private quiet=reducedMotion();
  constructor(private parent:Laya.Sprite,public rect:{x:number;y:number;w:number;h:number}){
   this.screen={x:rect.x+rect.w/2,y:rect.y+rect.h/2};
   this.viewport.pos(rect.x,rect.y);this.viewport.size(rect.w,rect.h);this.viewport.scrollRect=new Laya.Rectangle(0,0,rect.w,rect.h);this.viewport.mouseEnabled=false;
@@ -35,7 +39,8 @@ export class Board {
   // Cache only the immutable jade/ring bodies and the clasp batch; never
   // cache the moving whole scene, input targets or zoomable camera.
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
-  this.ghosts=[];this.sparks=[];this.hint=null;this.blocked=null;this.blockedRing=null;this.blockUntil=0;
+  this.ghosts=[];this.sparks=[];this.flashes=[];this.clearAt=-Infinity;this.releaseAt=-Infinity;this.streak=0;
+  this.quiet=reducedMotion();this.hint=null;this.blocked=null;this.blockedRing=null;this.blockUntil=0;
   this.effects.graphics.clear();
   for(let i=this.effects.numChildren-1;i>=0;i--)this.effects.getChildAt(i).destroy(true);
   const xs=s.rings.map(r=>r.x),ys=s.rings.map(r=>r.y);
@@ -118,12 +123,36 @@ export class Board {
   return hits[0]?.r||s.rings.find(r=>r.life==='active'&&C.dist(r,q)<23);
  }
  release(before:State,after:State,ids:string[]):void{
-  for(const id of ids){
-   const r=C.ring(after,id)!;this.ghosts.push({r:{...r},state:before,start:performance.now()});
-   for(let k=0;k<8;k++){const p=C.point(r,k*45,40);this.sparks.push({...p,start:performance.now(),seed:k})}
+  const now=performance.now();this.quiet=reducedMotion();
+  this.streak=now-this.releaseAt<1800?Math.min(3,this.streak+1):1;this.releaseAt=now;
+  for(const id of ids.slice(0,FEEDBACK.maxGhosts)){
+   const r=C.ring(after,id)!;
+   // Batch each departing clasp once; don't clone state/create nodes per frame.
+   const rods=new Laya.Sprite();rods.mouseEnabled=false;
+   const state=C.clone(before);C.ring(state,id)!.a=r.a;
+   this.drawRods(state,rods.graphics,id);this.effects.addChild(rods);
+   this.ghosts.push({r:{...r},start:now,rods});
+   for(const z of before.rods)for(const e of C.endpoints(before,z))if(e.id===id)this.flash(e.p,now);
+   if(!this.quiet)for(let k=0;k<10+this.streak*2;k++){
+    const p=C.point(r,k*137.5,34+(k%3)*5);
+    this.sparks.push({...p,start:now,seed:k,strength:this.streak});
+   }
   }
+  while(this.ghosts.length>FEEDBACK.maxGhosts)this.ghosts.shift()!.rods.destroy(true);
+  this.sparks=this.sparks.slice(-FEEDBACK.maxParticles);
+  if(after.rings.every(r=>r.life!=='active')&&this.clearAt===-Infinity)this.clearAt=now;
  }
- get animating():boolean {return this.ghosts.length>0}
+ private flash(p:Point,now:number):void{
+  this.flashes.push({...p,start:now});this.flashes=this.flashes.slice(-32);
+ }
+ alignment(before:State,after:State,id:string):void{
+  const now=performance.now();
+  for(const z of after.rods)if(C.exists(after,z))C.endpoints(after,z).forEach((e,j)=>{
+   if(e.id===id&&after.states[z.id][j]==='aligned'&&before.states[z.id]?.[j]!=='aligned')this.flash(e.p,now);
+  });
+ }
+ get animating():boolean {return this.ghosts.length>0||performance.now()-this.clearAt<(this.quiet?180:FEEDBACK.clear)}
+ get hasFeedback():boolean{return this.animating||this.sparks.length>0||this.flashes.length>0}
  private line(g:Laya.Graphics,p:Point,q:Point,c:string,w:number):void{g.drawLine(p.x,p.y,q.x,q.y,c,w)}
  private sleeve(g:Laya.Graphics,p:Point,a:number,state:string):void{
   // Rounded silver sleeve retains its hollow opening, pose and complete outline.
@@ -172,13 +201,19 @@ export class Board {
  }
  draw(s:State,now=performance.now()):void{
   this.lastState=s;
-  this.ghosts=this.ghosts.filter(g=>now-g.start<340);this.sparks=this.sparks.filter(p=>now-p.start<520);
+  const releaseMs=this.quiet?150:FEEDBACK.release;
+  this.ghosts=this.ghosts.filter(g=>{if(now-g.start<releaseMs)return true;g.rods.destroy(true);return false});
+  this.sparks=this.sparks.filter(p=>now-p.start<FEEDBACK.particles);
+  this.flashes=this.flashes.filter(p=>now-p.start<(this.quiet?140:FEEDBACK.alignment));
   for(const r of s.rings){
    const v=this.rings.get(r.id)!;const ghost=this.ghosts.find(g=>g.r.id===r.id);
    const screen=this.toScreen(r),margin=72*this.zoom;
    v.root.visible=(r.life==='active'||!!ghost)&&screen.x+margin>=this.rect.x&&screen.x-margin<=this.rect.x+this.rect.w&&screen.y+margin>=this.rect.y&&screen.y-margin<=this.rect.y+this.rect.h;
-   v.root.alpha=ghost?1-(now-ghost.start)/340:1;
-   const dy=ghost?((now-ghost.start)/340)**2*16:0;
+   const t=ghost?Math.min(1,(now-ghost.start)/releaseMs):0;
+   v.root.alpha=ghost?(this.quiet?1-t:1-Math.max(0,(t-.18)/.82)**1.25):1;
+   const lift=ghost&&!this.quiet?easeOut(t)*-14:0;
+   const dy=lift;
+   const scale=ghost&&!this.quiet?1+Math.sin(t*Math.PI)*.045:1;v.root.scale(scale,scale);
    const offset=C.rot({x:0,y:dy},-this.turn);v.root.pos(r.x+offset.x,r.y+offset.y);
    if(v.body.rotation!==r.a)v.body.rotation=r.a;
    if(v.shadow.rotation!==r.a)v.shadow.rotation=r.a;
@@ -208,22 +243,43 @@ export class Board {
    this.rods.graphics.clear();this.drawRods(s,this.rods.graphics);
    this.rodsDrawKey=key;
   }
-  // Preserve the effects container instead of destroying and allocating it
-  // on every frame. Only temporary ghost children are disposed.
-  for(let i=this.effects.numChildren-1;i>=0;i--)this.effects.getChildAt(i).destroy(true);
+  // Reuse the effects layer and departing clasp nodes through their lifetime.
   this.effects.graphics.clear();
   for(const ghost of this.ghosts){
-   const sprite=new Laya.Sprite();sprite.alpha=1-(now-ghost.start)/340;
-   const dy=((now-ghost.start)/340)**2*16,offset=C.rot({x:0,y:dy},-this.turn);
-   sprite.pos(offset.x,offset.y);
-   const st=C.clone(ghost.state);C.ring(st,ghost.r.id)!.a=ghost.r.a;
-   this.drawRods(st,sprite.graphics,ghost.r.id);this.effects.addChild(sprite);
+   const t=(now-ghost.start)/releaseMs,offset=C.rot({x:0,y:this.quiet?0:easeOut(t)*-14},-this.turn);
+   ghost.rods.alpha=1-t;ghost.rods.pos(offset.x,offset.y);
+   if(!this.quiet){
+    const g=this.effects.graphics,r=ghost.r,pulse=Math.sin(Math.min(1,t/.7)*Math.PI);
+    // A soft mint glint at the opening, never a selected-ring outline.
+    const p=C.point(r,r.a,44);g.drawCircle(p.x,p.y,8+pulse*6,'rgba(154,211,188,'+(pulse*.18)+')');
+    glint(g,p.x,p.y,3+pulse*3,'rgba(255,250,224,'+(1-t)+')');
+   }
   }
   for(const p of this.sparks){
-   const t=(now-p.start)/520,a=p.seed*45;
-   const q=C.point(p,a,12*t);this.effects.graphics.drawCircle(q.x,q.y,(1-t)*1.8,THEME.rose);
+   const t=(now-p.start)/FEEDBACK.particles,a=p.seed*137.5;
+   const q=C.point(p,a,(8+p.strength*4)*easeOut(t));q.y-=12*t;
+   const alpha=(1-t)**2,r=(1-t)*(p.seed%3===0?3.2:1.8);
+   glint(this.effects.graphics,q.x,q.y,r,(p.seed%2?'rgba(116,179,157,':'rgba(206,164,97,')+alpha+')');
   }
+  for(const p of this.flashes){
+   const t=(now-p.start)/(this.quiet?140:FEEDBACK.alignment),alpha=Math.sin(Math.PI*t);
+   this.effects.graphics.drawCircle(p.x,p.y,5+t*4,'rgba(105,201,155,'+(alpha*.25)+')');
+   glint(this.effects.graphics,p.x,p.y,3+alpha*3,'rgba(71,164,119,'+alpha+')');
+  }
+  if(!this.quiet&&now-this.clearAt<FEEDBACK.clear)this.drawClear(now);
   if(this.hint){const d=8*(1+Math.sin(now/170)*.09),p=this.hint;this.effects.graphics.drawPoly(p.x,p.y,[0,-d,d,0,0,d,-d,0],null,THEME.pressed,1.1)}
+ }
+ private drawClear(now:number):void{
+  const t=(now-this.clearAt)/FEEDBACK.clear;
+  if(t<.2)return;
+  const u=(t-.2)/.8,g=this.effects.graphics,c=this.center,alpha=Math.sin(u*Math.PI);
+  // Local celebration follows the jade tray camera, without a screen flash.
+  for(let k=0;k<3;k++)g.drawCircle(c.x,c.y,(45+easeOut(u)*100+k*14),null,'rgba(174,203,172,'+(alpha*(.24-k*.055))+')',1.6-k*.3);
+  for(let k=0;k<18;k++){
+   const a=k*137.5,p=C.point(c,a,48+(1-easeOut(u))*85),r=(k%3+2)*alpha;
+   if(k%3)glint(g,p.x,p.y,r,'rgba(203,161,95,'+(alpha*.8)+')');
+   else g.drawPoly(p.x,p.y,[0,-r*1.5,r*.8,0,0,r*1.5,-r*.8,0],'rgba(213,151,170,'+(alpha*.6)+')');
+  }
  }
  destroy():void{this.backdrop?.destroy(true);this.backdrop=null;this.viewport.destroy(true)}
 }
