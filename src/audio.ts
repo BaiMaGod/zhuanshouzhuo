@@ -62,7 +62,7 @@ export class Audio {
  resume():void{this.suspended=false;this.wake()}
 
  motion(delta:number):void{
-  if(!this.enabled||Math.abs(delta)<.001)return;
+  if(!this.enabled||this.suspended||Math.abs(delta)<.001)return;
   const now=performance.now(),continuous=this.motionAt>0&&now-this.motionAt<=110;
   const elapsed=continuous?Math.max(1,now-this.motionAt):1000/60;
   const angularSpeed=Math.min(720,Math.abs(delta)*1000/elapsed);
@@ -112,10 +112,16 @@ export class Audio {
   const now=performance.now();if(now-this.lastCollisionAt<150)return;this.lastCollisionAt=now;
   this.sample('crystal_block.mp3',.42+Math.max(0,Math.min(1,strength))*.12);
  }
- private sample(name:string,gain:number,rate=1):void{
-  if(!this.enabled)return;
+ private sample(name:string,gain:number,rate=1,priority=false):void{
+  if(!this.enabled||this.suspended)return;
   for(const v of this.voices)if(v.isStopped)this.voices.delete(v);
-  if(this.voices.size>=4)return;
+  if(this.voices.size>=4){
+   if(!priority)return;
+   // A removal or victory must remain audible even when UI/contact sounds fill
+   // the bounded voice budget. Retire the oldest voice; never increase volume.
+   const oldest=this.voices.values().next().value;
+   if(oldest){oldest.stop();this.voices.delete(oldest)}
+  }
   let channel:Laya.SoundChannel;
   channel=Laya.SoundManager.playSound('assets/audio/'+name,1,()=>this.voices.delete(channel));
   if(channel){this.gains.set(channel,gain);channel.volume=gain*this.effectsGain;channel.playbackRate=rate;this.voices.add(channel)}
@@ -123,7 +129,7 @@ export class Audio {
  play(kind:Kind):void{
   if(kind==='select')return;if(kind==='block'){this.collision('legacy');return}
   const now=performance.now();if(kind==='align'&&now-this.lastAt<160)return;if(kind==='align')this.lastAt=now;
-  this.sample(kind==='align'?'align_glass_tink.mp3':kind+'.wav',kind==='button'?.28:kind==='align'?.36*ALIGN_SOUND_BOOST:kind==='win'?.45:kind==='clear'?.38*CLEAR_SOUND_BOOST:.38);
+  this.sample(kind==='align'?'align_glass_tink.mp3':kind+'.wav',kind==='button'?.28:kind==='align'?.36*ALIGN_SOUND_BOOST:kind==='win'?.45:kind==='clear'?.38*CLEAR_SOUND_BOOST:.38,1,kind==='clear'||kind==='win');
  }
  stopAll():void{
   this.stopMotion();for(const v of this.fading){Laya.Tween?.clearAll(v);v.stop()}this.fading.clear();

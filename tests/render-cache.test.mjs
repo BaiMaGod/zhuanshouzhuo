@@ -33,6 +33,6 @@ test('54-ring board keeps its jade and clasp batches cached across unchanged fra
  b.draw(s);assert.ok(b.rings.get('1A').halo.graphics.ops.length);
  const hot=b.rods.graphics.ops;b.blockUntil=performance.now()-1;b.draw(s);
  assert.notEqual(b.rods.graphics.ops,hot,'expired hot clasp must redraw normally');
- assert.equal(b.rings.get('1A').halo.graphics.ops.length,0);
+ assert.equal(b.rings.get('1A').halo.visible,false);
  game.home();
 });

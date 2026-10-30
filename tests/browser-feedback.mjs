@@ -44,7 +44,20 @@ try{
   const shot=async name=>{const file=id+'-'+name+'.png';await page.screenshot({path:resolve(out,file)});return file};
   await click('button:home');await click('第1关');
   const start=await shot('start');
+  const steadyFrames=await page.evaluate(()=>new Promise(resolve=>{
+   const samples=[];let last;const frame=now=>{if(last!==undefined)samples.push(now-last);last=now;
+    if(samples.length<120)requestAnimationFrame(frame);else{samples.sort((a,b)=>a-b);resolve({p95Ms:samples[Math.floor(samples.length*.95)],samples:samples.length,budgetMs:33.3})}};
+   requestAnimationFrame(frame);
+  }));
   const cdp=await context.newCDPSession(page);
+  const heldShot=async id=>{
+   if(!captureHeld)return;captureHeld=false;
+   if(!process.env.JADE_BASELINE){
+    assert.equal(await page.evaluate(id=>jadeDebug.game.board.rings.get(id).focus.visible,id),true,'real pointer down emphasizes the held ring');
+    assert.equal(await page.evaluate(id=>jadeDebug.game.board.rings.get(id).halo.visible,id),false,'no selected outline');
+   }
+   held=await shot('held');
+  };
   const drag=async a=>{
    const points=await page.evaluate(a=>{
     const {game:g,Core:C}=jadeDebug,r=C.ring(g.model.state,a.id),box=document.querySelector('canvas').getBoundingClientRect();
@@ -57,6 +70,7 @@ try{
     const touch=p=>[{id:1,x:p.x,y:p.y,radiusX:1,radiusY:1,force:1}];
     await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:touch(points[0])});
     await page.waitForTimeout(40);
+    await heldShot(a.id);
     for(const p of points.slice(1)){
      await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:touch(p)});await page.waitForTimeout(24);
      if(await page.evaluate(id=>jadeDebug.Core.ring(jadeDebug.game.model.state,id).life!=='active',a.id))break;
@@ -64,6 +78,7 @@ try{
     await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
    }else{
     await page.mouse.move(points[0].x,points[0].y);await page.mouse.down();
+    await heldShot(a.id);
     for(const p of points.slice(1)){
      await page.mouse.move(p.x,p.y);await page.waitForTimeout(12);
      if(await page.evaluate(id=>jadeDebug.Core.ring(jadeDebug.game.model.state,id).life!=='active',a.id))break;
@@ -77,7 +92,7 @@ try{
    window.feedbackFrames=[];window.feedbackSampling=true;let last=performance.now();
    const sample=now=>{if(!window.feedbackSampling)return;window.feedbackFrames.push(now-last);last=now;requestAnimationFrame(sample)};requestAnimationFrame(sample);
   });
-  let release,bloom;
+  let release,bloom,held;let captureHeld=true;
   for(const [i,a] of solutions[10].entries()){
    const count=await page.evaluate(()=>jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length);
    await drag(a);
@@ -117,7 +132,7 @@ try{
   const next=await shot('next');
   await click('button:home');await click('确认返回');
   assert.equal(await page.evaluate(()=>jadeDebug.game.mode),'home');
-  report.profiles.push({id,width,height,quiet,input:width<600?'CDP real touch drag':'mouse drag',state,p95Ms:p95,screenshots:{start,release,bloom,victory,next}});
+  report.profiles.push({id,width,height,quiet,input:width<600?'CDP real touch drag':'mouse drag',state,p95Ms:p95,steadyFrames,screenshots:{start,held,release,bloom,victory,next}});
   await context.close();console.log('Feedback real play passed',id,'p95',p95);
  }
  assert.deepEqual(report.errors,[]);

@@ -96,6 +96,21 @@ test('buttons sound, selection stays silent, win uses one bounded voice',()=>{
  assert.equal(sources.length,4);assert.notEqual(sources[0].url,sources[1].url);
  assert.ok(sources[3].url.endsWith('win.wav'));a.enabled=false;assert.ok(sources.every(s=>s.stops===1));
 });
+test('removal and victory replace the oldest saturated voice without changing gains or the voice cap',()=>{
+ const {a,sources}=fixture();for(let i=0;i<4;i++)a.play('button');
+ a.play('clear');assert.equal(sources.length,5);assert.equal(sources[0].stops,1);
+ assert.equal(sources[4].url,'assets/audio/clear.wav');assert.equal(sources[4].volume,.38*2.25*.8);
+ a.play('win');assert.equal(sources.length,6);assert.equal(sources[1].stops,1);
+ assert.equal(sources[5].url,'assets/audio/win.wav');assert.equal(sources[5].volume,.45*.8);
+ assert.equal(sources.filter(v=>!v.isStopped).length,4);
+ a.enabled=false;assert.ok(sources.every(v=>v.isStopped));
+});
+test('background suspension rejects pending cues and rotation until resume',()=>{
+ const {a,sources}=fixture();a.play('button');a.suspend();const n=sources.length;
+ for(const cue of ['align','clear','win','tool'])a.play(cue);a.motion(4);
+ assert.equal(sources.length,n);assert.ok(sources.every(v=>v.isStopped));
+ a.resume();a.play('clear');assert.equal(sources.length,n+1);
+});
 test('load starts one quiet looping music channel alongside effect assets',async()=>{
  const {a,sources}=fixture();let loaded;Laya.loader.load=async urls=>{loaded=urls};
  await a.load();assert.equal(loaded.length,7);

@@ -586,7 +586,7 @@ class Game {
   if(!this.model||!this.board)return;
   const s=this.model.state,n=s.rings.filter(r=>r.life==='active').length;
    this.status!.text='剩余 '+n+' 个  ·  已转 '+s.steps+' 次'+(!this.formal&&this.model.selected?'  ·  选中 '+this.model.selected:'');
-  this.board.selected=this.model.selected;if(redraw)this.board.draw(s);this.syncTools();if(!this.drag)this.persistRun();
+  this.board.selected=this.model.selected;this.board.focus(this.drag?.id||null);if(redraw)this.board.draw(s);this.syncTools();if(!this.drag)this.persistRun();
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.undoButton)this.undoButton.enabled=this.model.history.length>0&&!this.modalOpen;
   if(this.demoButton)this.demoButton.label.text=this.busy?'停止':'演示';
@@ -594,6 +594,7 @@ class Game {
   if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
  }
  releaseDrag(releaseCapture=true):void{
+  this.board?.focus(null);
   this.audio.stopMotion();this.audio.resetContact();
   const d=this.drag;this.drag=null;
   if(d&&releaseCapture)this.pointers.delete(d.pointer);

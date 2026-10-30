@@ -8,6 +8,18 @@ const route=(await import('../dist/js/solutions.js')).default[10];
 g.audio.enabled=false;
 const wait=ms=>{for(let i=0;i<Math.ceil(ms/16);i++)h.tick()};
 
+test('held ring emphasizes only the real gap and returns to normal on release, cancel and reload',()=>{
+ g.load(10,true);const b=g.board,ring=g.model.state.rings[0],v=b.rings.get(ring.id);
+ const state=JSON.stringify(g.model.state);b.focus(ring.id);b.draw(g.model.state);
+ assert.equal(v.focus.visible,true);assert.equal(v.focus.rotation,ring.a);
+ assert.equal(v.body.alpha,1,'jade and neighbours remain opaque');assert.equal(v.root.scaleX,1);
+ assert.equal(v.halo.visible,false,'holding a ring must not draw an outline');
+ assert.equal(JSON.stringify(g.model.state),state,'emphasis cannot change physics');
+ g.releaseDrag();assert.equal(v.focus.visible,false);assert.equal(v.shadow.scaleX,1);
+ b.focus(ring.id);g.cancel();assert.equal(v.focus.visible,false);
+ b.focus(ring.id);g.load(10,true);assert.ok([...g.board.rings.values()].every(v=>!v.focus.visible));
+});
+
 test('real removal presentation preserves rules and awards one result, then releases all transient nodes',()=>{
  g.load(10,true);const b=g.board;
  for(const a of route){g.model.begin();g.perform(a.id,a.delta);wait(g.model.cleared?1200:500)}
