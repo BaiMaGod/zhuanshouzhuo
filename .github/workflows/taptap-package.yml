@@ -1,0 +1,65 @@
+name: Package TapTap H5
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/taptap-package.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Strict TapTap H5 build and ZIP package
+        run: npm run package:taptap
+      - name: Verify package contents and checksum
+        id: pkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p 'JSON.parse(require("fs").readFileSync("package.json","utf8")).version')"
+          archive=".release-out/zhuanshouzhuo-${version}-taptap.zip"
+          test -s "$archive"
+          python3 - "$archive" "$version" <<'PY'
+          import json, sys, zipfile
+          archive, version = sys.argv[1:]
+          with zipfile.ZipFile(archive) as f:
+              assert f.testzip() is None, "ZIP integrity check failed"
+              names = f.namelist()
+              assert "zhuanshouzhuo/index.html" in names
+              assert "zhuanshouzhuo/js/taptap.js" in names
+              assert "zhuanshouzhuo/js/taptap-config.js" in names
+              config = json.loads(f.read("zhuanshouzhuo/taptap-build.json"))
+              assert config["target"] == "taptap-h5"
+              assert config["appId"] == "958691"
+              assert config["version"] == version
+              assert config["shareTemplateId"], "Existing share template must be preserved"
+              print(f"Verified TapTap H5: version={version}, appId={config['appId']}, files={len(names)}")
+          PY
+          sha256sum "$archive" > ".release-out/SHA256SUMS.txt"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          cat .release-out/SHA256SUMS.txt
+      - name: Upload verified TapTap H5 archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhuanshouzhuo-taptap-h5-${{ steps.pkg.outputs.version }}
+          path: |
+            .release-out/*.zip
+            .release-out/SHA256SUMS.txt
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
