@@ -43,7 +43,7 @@ async function drag(page,a){
  },a);
  await page.mouse.move(points[0].x,points[0].y);await page.mouse.down();
  for(const p of points.slice(1))await page.mouse.move(p.x,p.y);
- await page.mouse.up();await page.waitForTimeout(350);
+ await page.mouse.up();await page.waitForFunction(()=>!window.jadeDebug.game.board.animating);
 }
 try{
  for(const [width,height] of [[360,640],[390,844],[1280,720]]){

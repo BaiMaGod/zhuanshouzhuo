@@ -1,5 +1,7 @@
 import {Core as C,GameModel} from './model.js';
 import {Board} from './renderer.js';
+import {Victory} from './victory.js';
+import type {VictoryOptions} from './victory.js';
 import {text,panel,Button,ornament,COLORS,THEME,icon,flower,round} from './ui.js';
 import {Guide,HINT_HAND_ASSET} from './guide.js';
 import {GestureHand} from './gesture-hand.js';
@@ -146,6 +148,7 @@ class Game {
  drag:{id:string;pointer:number;last:number;started:boolean;blocked:boolean}|null=null;
  busy=false;epoch=0;finishPlan:((path:Action[]|null)=>void)|null=null;
  demoButton:Button|null=null;settled=false;tutorialSeen=false;modalOpen=false;
+ victory:Victory|null=null;
  guide:Guide|null=null;guideTitle:Laya.Text|null=null;guideSkip:Button|null=null;homePreview:Board|null=null;homeSettingsButton:Button|null=null;modalCard:Laya.Sprite|null=null;modalShade:Laya.Sprite|null=null;
  constructor(){
   this.root.scale(RENDER_SCALE,RENDER_SCALE);
@@ -733,7 +736,7 @@ class Game {
     this.say(id+' 已对齐，保持这个位置，再调整其他扣位。');
     const entered=model.state.rods.some(z=>C.exists(model.state,z)&&C.endpoints(model.state,z).some((e,j)=>
      e.id===id&&model.state.states[z.id][j]==='aligned'&&before.states[z.id]?.[j]!=='aligned'));
-    if(entered){this.audio.play('align');this.haptics.pulse('snap')}
+    if(entered){this.board!.alignment(before,model.state,id);this.audio.play('align');this.haptics.pulse('snap')}
    }
   }
   this.sync();return res;
@@ -851,6 +854,7 @@ class Game {
   if(token!==this.epoch)return;this.busy=false;this.sync();
  }
  tick():void{
+  this.victory?.draw(performance.now());
   if(this.platformLive&&this.modalCard===this.platformLive.card&&Date.now()>=this.nextPlatformRefresh){
    this.nextPlatformRefresh=Date.now()+1000;const lines=this.platformLive.read();this.platformLive.labels.forEach((label,i)=>label.text=lines[i]||'');
   }
@@ -871,7 +875,7 @@ class Game {
   if(this.noticeUntil&&now>this.noticeUntil){this.noticeUntil=0;if(this.toolNoticeBox){this.toolNoticeBox.visible=this.eraseMode;if(this.eraseMode&&this.eraseTip)this.eraseTip.text='请选择要消除的手镯'}}
   if(!this.model||!this.board||this.mode!=='game')return;
   if(this.guide&&!this.modalOpen)this.guide.draw(this.model.state,now,!!this.drag);
-  if(this.board.animating||this.board.sparks.length||this.board.hint||performance.now()<this.board.blockUntil)this.board.draw(this.model.state);
+  if(this.board.hasFeedback||this.board.hint||performance.now()<this.board.blockUntil)this.board.draw(this.model.state);
   this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
   if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
@@ -883,17 +887,24 @@ class Game {
   if(this.formal){
    const stars=this.save.win(i,steps,solutions[i].length,!debugEnabled()),last=i===C.levels.length-1,level='第'+(i-TEACHING_COUNT+1)+'关';
    void this.platform.sync();void this.platform.submitScores().catch(()=>{});this.audio.play('win');
-   this.modal(level+' · 全部解开',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].points.length+' 只玉镯全部解开 · '+steps+' 次转动',last?'最后一关已解开，随时回来再挑战。':'通关成绩已记录，下一关再多一只玉镯。'],[
+   this.showVictory({title:level+' · 全部解开',subtitle:stars===3?'三星达成，解得漂亮':'又解开一盘玉镯',count:C.levels[i].points.length,steps,stars,note:last?'全部关卡已完成，随时回来再挑战':'下一关已开启',actions:[
     {label:last?'关卡图谱':'下一关',action:()=>last?this.levels():this.load(i+1),primary:true},
     {label:'回到首页',action:()=>this.home(),primary:false},
     {label:'再挑战一次',action:()=>this.load(i,true),primary:false}
-   ]);return;
+   ]});return;
   }
   const stars=this.save.win(i,steps,solutions[i].length,!debugEnabled());if(i<3){this.save.data.tutorial=Math.max(this.save.data.tutorial,i+1);this.save.persist()}this.stopGuide(false);this.audio.play('win');
-  this.modal(i===9?'十境皆通':'这一境，解开了',['★'.repeat(stars)+'☆'.repeat(3-stars),C.levels[i].name+' · '+steps+' 次转动',i===9?'玉环十境全部完成，随时回来再解。':'下一境已开启，机关会再多一点变化。'],[
+  this.showVictory({title:i===9?'教学全部完成':'这一境，解开了',subtitle:C.levels[i].name,count:C.levels[i].points.length,steps,stars,note:i===9?'准备好，开始正式挑战吧':'下一节练习已开启',actions:[
    {label:i===9?'进入正式关卡':'进入第 '+(i+2)+' 境',action:()=>i===9?this.levels():this.load(i+1),primary:true},
    {label:'再解一次',action:()=>this.load(i,true),primary:false}
-  ]);
+  ]});
+ }
+ showVictory(options:VictoryOptions):void{
+  this.hideModal();this.modalOpen=true;this.releasePointers();this.setSystemCursor();this.guide?.clear();
+  const shade=new Laya.Sprite();shade.name='victory-shade';shade.size(W,H);
+  shade.graphics.drawRect(0,0,W,H,'rgba(81,57,69,0.23)');shade.mouseEnabled=true;
+  shade.on(Laya.Event.CLICK,this,()=>{});this.overlay.addChild(shade);this.modalShade=shade;
+  this.victory=new Victory(this.overlay,W,H,options);this.modalCard=this.victory.card;this.sync();
  }
  confirmExit():void{
   if(!this.formal||!this.model||this.modalOpen)return;
@@ -974,6 +985,7 @@ class Game {
   this.sync();
  }
  hideModal():void{
+  this.victory=null;
   this.platformLive=null;
   // Modal actions run during Laya's CLICK dispatch. Destroying the clicked
   // button and its parents synchronously can leave stale render/hit state.

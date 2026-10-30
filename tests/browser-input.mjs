@@ -45,7 +45,7 @@ try{
    const points=await page.evaluate(a=>{const {game:g,Core:C}=jadeDebug,r=C.ring(g.model.state,a.id),box=document.querySelector('canvas').getBoundingClientRect(),n=Math.ceil(Math.abs(a.delta)/3);return Array.from({length:n+1},(_,i)=>{const p=g.board.toScreen(C.point(r,r.a+50+a.delta*i/n));return{x:box.left+p.x/g.scene.width*box.width,y:box.top+p.y/g.scene.height*box.height}})},action);
    await send('touchStart',[touch(4,points[0].x,points[0].y)]);
    for(const p of points.slice(1))await send('touchMove',[touch(4,p.x,p.y)]);
-   await send('touchEnd',[]);await page.waitForTimeout(350);
+   await send('touchEnd',[]);await page.waitForFunction(()=>!jadeDebug.game.board.animating);
    if(reloadHold&&!reloaded&&activeBefore===await page.evaluate(()=>jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length)){
     const before=await page.evaluate(()=>JSON.stringify(jadeDebug.game.model.state));
     await page.reload();await page.waitForFunction(()=>globalThis.jadeDebug?.game&&!document.querySelector('#boot')&&!document.querySelector('#splash'));
