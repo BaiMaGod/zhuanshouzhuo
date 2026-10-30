@@ -18,7 +18,7 @@ function lowpass(buffer,hz){for(let c=0;c<buffer.numberOfChannels;c++){
 function write(name,b){const bytes=b.length*b.numberOfChannels*2,out=Buffer.alloc(44+bytes);out.write('RIFF');out.writeUInt32LE(36+bytes,4);out.write('WAVEfmt ',8);out.writeUInt32LE(16,16);out.writeUInt16LE(1,20);out.writeUInt16LE(b.numberOfChannels,22);out.writeUInt32LE(b.sampleRate,24);out.writeUInt32LE(b.sampleRate*b.numberOfChannels*2,28);out.writeUInt16LE(b.numberOfChannels*2,32);out.writeUInt16LE(16,34);out.write('data',36);out.writeUInt32LE(bytes,40);for(let i=0;i<b.length;i++)for(let c=0;c<b.numberOfChannels;c++)out.writeInt16LE(Math.round(Math.max(-1,Math.min(1,b.getChannelData(c)[i]))*32767),44+(i*b.numberOfChannels+c)*2);writeFileSync('public/assets/audio/'+name+'.wav',out)}
 // The selected ratchet_tick.wav is a mastered user-approved recording.
 // Do not regenerate or overwrite it with synthetic/ceramic friction.
-write('collision',lowpass(read('ceramic_place_1'),3400));
+if(!process.argv.includes('--win-only'))write('collision',lowpass(read('ceramic_place_1'),3400));
 // Alignment uses a mastered Glass Tink recording (align_glass_tink.mp3).
 // Never synthesize or overwrite that asset during audio:generate.
-for(const n of ['button','clear','tool','win'])write(n,lowpass(cueBuffer(ctx,n),6200));
+for(const n of (process.argv.includes('--win-only')?['win']:['button','clear','tool','win']))write(n,lowpass(cueBuffer(ctx,n),6200));

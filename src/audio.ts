@@ -129,7 +129,7 @@ export class Audio {
  play(kind:Kind):void{
   if(kind==='select')return;if(kind==='block'){this.collision('legacy');return}
   const now=performance.now();if(kind==='align'&&now-this.lastAt<160)return;if(kind==='align')this.lastAt=now;
-  this.sample(kind==='align'?'align_glass_tink.mp3':kind+'.wav',kind==='button'?.28:kind==='align'?.36*ALIGN_SOUND_BOOST:kind==='win'?.45:kind==='clear'?.38*CLEAR_SOUND_BOOST:.38,1,kind==='clear'||kind==='win');
+  this.sample(kind==='align'?'align_glass_tink.mp3':kind+'.wav',kind==='button'?.28:kind==='align'?.36*ALIGN_SOUND_BOOST:kind==='win'?.85:kind==='clear'?.38*CLEAR_SOUND_BOOST:.38,1,kind==='clear'||kind==='win');
  }
  stopAll():void{
   this.stopMotion();for(const v of this.fading){Laya.Tween?.clearAll(v);v.stop()}this.fading.clear();

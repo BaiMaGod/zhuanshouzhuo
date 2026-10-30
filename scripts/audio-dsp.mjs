@@ -19,6 +19,8 @@ export function frictionLoop(ctx, buffer) {
 // Original modal synthesis for UI/reward feedback; no external sample licence.
 // One buffer per cue keeps the voice limit predictable, including the win phrase.
 export function cueBuffer(ctx, kind) {
+    if (kind === 'win') return victoryBuffer(ctx);
+
     const notes = kind === 'win' ? [523.25, 659.25, 783.99] : kind === 'tool' ? [659.25, 987.77] : kind === 'clear' ? [783.99, 1046.5] : kind === 'align' ? [1174.66] : [880];
     const spacing = kind === 'win' ? .16 : .065, duration = kind === 'button' ? .065 : kind === 'align' ? .11 : .3;
     const rate = ctx.sampleRate || 44100, length = Math.ceil((duration + spacing * (notes.length - 1)) * rate);
@@ -31,5 +33,34 @@ export function cueBuffer(ctx, kind) {
             data[start + i] += (Math.sin(2 * Math.PI * frequency * t) + .22 * Math.sin(2 * Math.PI * frequency * 2.71 * t) * Math.exp(-t * 35)) * envelope * .48;
         }
     });
+    return out;
+}
+
+// A rounded strike, rising pentatonic phrase and a warm resolving chord.
+// Deterministic modal synthesis, mastered offline; one runtime voice, no timers.
+export function victoryBuffer(ctx) {
+    const rate = ctx.sampleRate || 44100, duration = 1.65;
+    const out = ctx.createBuffer(1, Math.ceil(rate * duration), rate), data = out.getChannelData(0);
+    const notes = [[0,523.25,.62],[.12,659.25,.49],[.25,783.99,.46],[.40,1046.5,.40],[.56,523.25,.31],[.56,659.25,.26],[.56,783.99,.24]];
+    for (const [at,f,gain] of notes) {
+        const start = Math.round(at * rate);
+        for (let i = start; i < data.length; i++) {
+            const t = (i-start)/rate;
+            const envelope = (1-Math.exp(-t/ .003))*Math.exp(-t/.27);
+            const tone = Math.sin(2*Math.PI*f*t) + .24*Math.sin(2*Math.PI*f*2*t)*Math.exp(-t/ .11) + .12*Math.sin(2*Math.PI*f*2.71*t)*Math.exp(-t/ .045);
+            data[i] += tone*envelope*gain;
+        }
+    }
+    // Quiet early reflections soften the chime without a long washed-out tail.
+    const dry = data.slice();
+    for (const [delay,gain] of [[.071,.14],[.127,.08]]) {
+        const offset = Math.round(delay*rate);
+        for (let i=offset;i<data.length;i++) data[i] += dry[i-offset]*gain;
+    }
+    let peak=0;for(const x of data)peak=Math.max(peak,Math.abs(x));
+    for(let i=0;i<data.length;i++) {
+        const tail=Math.min(1,(data.length-1-i)/(rate*.06));
+        data[i]=data[i]/Math.max(peak, .001)*.88*Math.max(0,tail);
+    }
     return out;
 }
