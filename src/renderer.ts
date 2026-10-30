@@ -7,7 +7,7 @@ import {THEME} from './ui.js';
 import {FEEDBACK,reducedMotion,easeOut,glint} from './feedback.js';
 const C=C0 as unknown as CoreAPI;
 export interface Ghost {r:Ring;start:number;rods:Laya.Sprite}
-interface RingView {root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite}
+interface RingView {root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite}
 export class Board {
  viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();effects=new Laya.Sprite();
  backdrop:Laya.Sprite|null=null;
@@ -18,6 +18,7 @@ export class Board {
  // A single immutable graphics batch costs one cached quad per frame.
  // Invalidate only when the camera, ring poses or collision highlight changes.
  private rodsDrawKey=''; private highlightedRing:string|null=null;
+ private focusId:string|null=null;
  private traySize:{w:number;h:number}|undefined;
  hint:Point|null=null;blocked:Block|null=null;blockUntil=0;blockedRing:string|null=null;
  ghosts:Ghost[]=[];sparks:{x:number;y:number;start:number;seed:number;strength:number}[]=[];
@@ -35,7 +36,7 @@ export class Board {
  }
  load(s:State,traySize?:{w:number;h:number}):void{
   if(traySize)this.traySize=traySize;
-  this.lastState=null;this.rodsDrawKey='';this.highlightedRing=null;
+  this.lastState=null;this.rodsDrawKey='';this.highlightedRing=null;this.focusId=null;
   // Cache only the immutable jade/ring bodies and the clasp batch; never
   // cache the moving whole scene, input targets or zoomable camera.
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
@@ -60,15 +61,36 @@ export class Board {
    const shadow=new Laya.Sprite();
    // Reuse the preblurred silhouette; its soft tips follow the gap without another mesh draw.
    shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-55,-55,110,110);
+   // A close contact shadow separates pale jade from the pale tray. Reuse the
+   // original gap-shaped texture, preserving its transparent opening.
+   shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-54,-56,110,110);
    const offset=C.rot({x:1.7,y:3.6},-this.turn);shadow.pos(offset.x,offset.y);root.addChild(shadow);
-   const halo=new Laya.Sprite();root.addChild(halo);
+   const halo=new Laya.Sprite();halo.visible=false;root.addChild(halo);
    const body=new Laya.Sprite();drawJade(body.graphics,JADE_NAMES[i%5]);
    // A body never changes its local mesh; only its sprite rotation changes.
    // Rasterize once into a small offscreen surface, even on a 54-ring board.
    body.cacheAs='normal';root.addChild(body);
+   const focus=new Laya.Sprite();focus.name='ring-focus:'+r.id;focus.visible=false;focus.mouseEnabled=false;
+   // Two small polished tips identify the actual held ring, without outlining
+   // the ring or drawing across the authoritative gap.
+   const half=Math.asin(C.GAP/(2*(C.R-C.BAND/2)))/C.D;
+   for(const sign of [-1,1]){
+    const p=C.point({x:0,y:0},sign*(half+5),C.R);
+    focus.graphics.drawCircle(p.x,p.y,4,'rgba(42,104,79,0.34)');
+    glint(focus.graphics,p.x,p.y,2.8,'#fff8d8');
+   }
+   focus.cacheAs='normal';root.addChild(focus);
    const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index>=TEACHING_COUNT||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
-   this.rings.set(r.id,{root,body,halo,label,shadow});
+   this.rings.set(r.id,{root,body,halo,focus,label,shadow});
   });
+ }
+ focus(id:string|null):void{
+  if(id===this.focusId)return;
+  const previous=this.focusId&&this.rings.get(this.focusId);
+  if(previous){previous.focus.visible=false;previous.shadow.scale(1,1)}
+  this.focusId=id;
+  const current=id&&this.rings.get(id);
+  if(current){current.focus.visible=true;current.shadow.scale(1.045,1.045)}
  }
  contains(p:Point):boolean{return p.x>=this.rect.x&&p.x<=this.rect.x+this.rect.w&&p.y>=this.rect.y&&p.y<=this.rect.y+this.rect.h}
  attachBackdrop(images:Laya.Sprite[]):void{
@@ -205,8 +227,9 @@ export class Board {
   this.ghosts=this.ghosts.filter(g=>{if(now-g.start<releaseMs)return true;g.rods.destroy(true);return false});
   this.sparks=this.sparks.filter(p=>now-p.start<FEEDBACK.particles);
   this.flashes=this.flashes.filter(p=>now-p.start<(this.quiet?140:FEEDBACK.alignment));
+  const ghosts=new Map(this.ghosts.map(g=>[g.r.id,g]));
   for(const r of s.rings){
-   const v=this.rings.get(r.id)!;const ghost=this.ghosts.find(g=>g.r.id===r.id);
+   const v=this.rings.get(r.id)!;const ghost=ghosts.get(r.id);
    const screen=this.toScreen(r),margin=72*this.zoom;
    v.root.visible=(r.life==='active'||!!ghost)&&screen.x+margin>=this.rect.x&&screen.x-margin<=this.rect.x+this.rect.w&&screen.y+margin>=this.rect.y&&screen.y-margin<=this.rect.y+this.rect.h;
    const t=ghost?Math.min(1,(now-ghost.start)/releaseMs):0;
@@ -217,19 +240,25 @@ export class Board {
    const offset=C.rot({x:0,y:dy},-this.turn);v.root.pos(r.x+offset.x,r.y+offset.y);
    if(v.body.rotation!==r.a)v.body.rotation=r.a;
    if(v.shadow.rotation!==r.a)v.shadow.rotation=r.a;
+   if(v.focus.rotation!==r.a)v.focus.rotation=r.a;
    v.label.alpha=r.id===this.selected?1:.55;
    if(r.id===this.blockedRing&&now<this.blockUntil){
-    v.halo.graphics.clear();
+    if(!v.halo.name){
+     v.halo.name='blocked-edge:'+r.id;
+     // Local immutable paths replace ~356 line commands rebuilt every frame.
+     // Rotation belongs to the sprite; the opening remains visible.
+     for(const radius of [C.R+C.BAND/2+1,C.R-C.BAND/2-1]){
+      const path:unknown[]=[];
+      for(let a=8;a<=352;a+=4){const p=C.point({x:0,y:0},a,radius);path.push([a===8?'moveTo':'lineTo',p.x,p.y])}
+      v.halo.graphics.drawPath(0,0,path,undefined,{strokeStyle:'rgba(234,79,88,0.22)',lineWidth:6});
+      v.halo.graphics.drawPath(0,0,path,undefined,{strokeStyle:'#ed6670',lineWidth:1.8});
+     }
+     v.halo.cacheAs='normal';
+    }
+    v.halo.visible=true;v.halo.rotation=r.a;
     const fade=Math.min(1,(this.blockUntil-now)/180);
     v.halo.alpha=fade;
-    // Trace both band edges, leaving the physical gap visible.
-    const outer:number[]=[],inner:number[]=[];
-    for(let a=8;a<=352;a+=4){const p=C.point({x:0,y:0},r.a+a,C.R+C.BAND/2+1);outer.push(p.x,p.y);const q=C.point({x:0,y:0},r.a+a,C.R-C.BAND/2-1);inner.push(q.x,q.y)}
-    for(const points of [outer,inner])for(let i=2;i<points.length;i+=2){
-     v.halo.graphics.drawLine(points[i-2],points[i-1],points[i],points[i+1],'rgba(234,79,88,0.22)',6);
-     v.halo.graphics.drawLine(points[i-2],points[i-1],points[i],points[i+1],'#ed6670',1.8);
-    }
-   }else if(this.highlightedRing===r.id)v.halo.graphics.clear();
+   }else if(this.highlightedRing===r.id)v.halo.visible=false;
    // Keep every jade opaque when selecting; release fading stays on the root.
    v.body.alpha=1;
   }
