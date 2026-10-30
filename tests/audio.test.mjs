@@ -101,7 +101,7 @@ test('removal and victory replace the oldest saturated voice without changing ga
  a.play('clear');assert.equal(sources.length,5);assert.equal(sources[0].stops,1);
  assert.equal(sources[4].url,'assets/audio/clear.wav');assert.equal(sources[4].volume,.38*2.25*.8);
  a.play('win');assert.equal(sources.length,6);assert.equal(sources[1].stops,1);
- assert.equal(sources[5].url,'assets/audio/win.wav');assert.equal(sources[5].volume,.45*.8);
+ assert.equal(sources[5].url,'assets/audio/win.wav');assert.equal(sources[5].volume,.85*.8);
  assert.equal(sources.filter(v=>!v.isStopped).length,4);
  a.enabled=false;assert.ok(sources.every(v=>v.isStopped));
 });
