@@ -83,12 +83,15 @@ test('新手引导跟随真实选择，可跳过/重学且保存标记不覆盖�
  g.settings();assert.equal(g.modalOpen,true);g.hideModal();assert.equal(g.modalOpen,false);
 });
 
-test('首页只保留主标题和操作入口，设置弹窗关闭后按钮可反复使用',()=>{
+test('首页使用 Logo 图片和操作入口，设置弹窗关闭后按钮可反复使用',()=>{
  g.home();
  const texts=[];function collect(node){if(typeof node.text==='string')texts.push(node.text);if(node.label?.text)texts.push(node.label.text);for(const child of node.children)collect(child)}
  collect(g.scene);
  for(const slogan of ['玉  环  十  境','玉环十境','转一转，环环相扣','一扣入门 · 十境解谜','正式关卡 · 54 镯 · 超级困难','不限时，慢慢解','继续解镯'])assert.ok(!texts.some(s=>s.includes(slogan)),slogan+' 应从首页消失');
- assert.ok(texts.includes('转手镯消除'));
+ assert.ok(!texts.includes('转手镯消除'),'首页标题改由透明 Logo 图片显示');
+ const logo=g.scene.children.find(n=>n.name==='home-logo');
+ assert.ok(logo,'首页必须加载游戏 Logo 图片');
+ assert.equal(logo.mouseEnabled,false,'Logo 不能挡住其他按钮的点击');
  const settings=g.scene.children.find(n=>n.name==='button:settings');
  assert.ok(settings);const overlay=g.overlay;
  for(let n=0;n<3;n++){
