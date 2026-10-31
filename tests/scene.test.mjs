@@ -410,10 +410,13 @@ test('导航按钮先切场景再播放点击反馈，声音不会被场景清�
  finally{g.audio.play=originalPlay;g.audio.stopAll=originalStop;g.audio.enabled=false}
 });
 
-test('图谱滚动按页懒加载，锁定关不可点击，重复打开定位当前页',()=>{
+test('图谱连续跨页无空洞，懒加载保留邻页且锁定关不可点击',()=>{
  const records=g.save.data.records;g.save.data.records={};
  for(let i=10;i<35;i++)g.save.data.records[i]={steps:1,stars:2};
  g.levels();assert.equal(g.atlasOffset,g.atlasHeight);assert.equal(g.atlas.children.length,60);
+ const pageLast=g.atlas.children.find(n=>n.name==='formal-level:20');
+ const nextFirst=g.atlas.children.find(n=>n.name==='formal-level:21');
+ assert.equal(nextFirst.y-(pageLast.y+pageLast.height),16,'跨页间距必须与普通行间距一致');
  const locked=g.atlas.children.find(n=>n.name==='formal-level:27');assert.equal(locked.enabled,false);locked.click();assert.equal(g.mode,'levels');
  const ids=new Set;
  for(let p=0;p<5;p++){
@@ -444,8 +447,26 @@ test('紧凑卡片仅有名称，三颗星或锁；滑动不会误进关卡',()=
  g.atlasMove({pointerId:77,stageX:100,stageY:80});
  g.atlasUp({pointerId:77});card.click();assert.equal(g.mode,'levels');assert.ok(g.atlasOffset>start);
  g.scrollAtlas(-999);assert.equal(g.atlasOffset,0);
- g.scrollAtlas(999999);assert.equal(g.atlasOffset,4*g.atlasHeight);
+ g.scrollAtlas(999999);assert.equal(g.atlasOffset,g.atlasMaxOffset);
 });
+test('图谱滑动跟手、松手惯性收束，滚轮平滑过渡且不重建现有卡片',()=>{
+ const records=g.save.data.records;g.save.data.records={};g.levels();g.scrollAtlas(0);
+ const atlas=g.atlas,card=g.atlas.children.find(n=>n.name==='formal-level:1');
+ g.atlasDown({pointerId:88,stageX:100,stageY:420});
+ g.atlasMove({pointerId:88,stageX:100,stageY:300});
+ const dragged=g.atlasOffset;g.atlasUp({pointerId:88,stageX:100,stageY:300});
+ const target=g.atlasTargetOffset;
+ assert.ok(dragged>0);assert.ok(target>dragged,'快速松手应保留适度惯性');
+ for(let i=0;i<24;i++)h.tick();
+ assert.ok(g.atlasOffset>dragged);assert.ok(Math.abs(g.atlasOffset-target)<8,'惯性应平滑收束到目标位置');
+ assert.equal(g.atlas,atlas,'滚动不能替换整个图谱容器');
+ assert.equal(g.atlas.children.find(n=>n.name==='formal-level:1'),card,'仍在显示范围的卡片应复用');
+ const before=g.atlasOffset;g.scrollAtlas(before+100,true);
+ assert.equal(g.atlasOffset,before,'滚轮目标不应瞬间跳变');
+ h.tick();assert.ok(g.atlasOffset>before,'滚轮由逐帧缓动推进');
+ g.save.data.records=records;g.home();
+});
+
 
 
 test('首页与教学入口恢复上次通关进度，重新读取本地存档后仍可续关',async()=>{

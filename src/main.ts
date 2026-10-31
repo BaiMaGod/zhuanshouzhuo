@@ -39,7 +39,7 @@ class Game {
  controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;eraseButton:Button|null=null;eraseTip:Laya.Text|null=null;toolNoticeBox:Laya.Sprite|null=null;eraseMode=false;eraseTap:{id:string;pointer:number;start:Point}|null=null;
  pointers=new Map<number,Point>();panMode=false;viewLabel:Laya.Text|null=null;panButton:Button|null=null;
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
- atlas:Laya.Sprite|null=null;atlasOffset=0;atlasHeight=0;atlasPage=-1;atlasDrag:{id:number;y:number;offset:number;moved:boolean}|null=null;atlasClickAfter=0;
+ atlas:Laya.Sprite|null=null;atlasOffset=0;atlasTargetOffset=0;atlasHeight=0;atlasViewportHeight=0;atlasPageCount=0;atlasMaxOffset=0;atlasCardHeight=132;atlasPage=-1;atlasPageNodes=new Map<number,Laya.Sprite[]>();atlasDrag:{id:number;y:number;offset:number;moved:boolean;lastY:number;lastTime:number;velocity:number}|null=null;atlasClickAfter=0;atlasTickAt=0;
  hintLeft=1;eraseLeft=0;noticeUntil=0;nextCloudCheck=0;
  homeSignDot:Laya.Sprite|null=null;nextSignBadgeCheck=0;
  private platformViewPending=false;
@@ -172,16 +172,16 @@ class Game {
   });
   Laya.stage.on(Laya.Event.MOUSE_WHEEL,this,(e:Laya.Event)=>{
    const delta=e.delta*40; // LayaAir 3.4 normalizes WheelEvent.deltaY by 0.025; keep native scroll direction.
-   if(this.atlas&&this.mode==='levels'){this.scrollAtlas(this.atlasOffset+delta);return}
+   if(this.atlas&&this.mode==='levels'){this.scrollAtlas(this.atlasTargetOffset+delta,true);return}
    if(this.mode!=='game'||!this.board||this.modalOpen||this.busy)return;
    const p=this.point(pointer(e));if(!this.board.contains(p))return;
    this.releasePointers();this.board.zoomTo(this.board.zoom*Math.exp(-delta*.0015),p);this.syncView();
   });
-  const suspend=()=>{this.atlasDrag=null;this.cancel();this.persistRun();this.audio.suspend()};
+  const suspend=()=>{this.atlasDrag=null;this.atlasTargetOffset=this.atlasOffset;this.cancel();this.persistRun();this.audio.suspend()};
   Laya.stage.on(Laya.Event.BLUR,this,suspend);
   Laya.stage.on(Laya.Event.FOCUS,this,()=>{this.audio.resume();void this.platform.resume()});
   Laya.stage.on(Laya.Event.VISIBILITY_CHANGE,this,()=>{if(!Laya.stage.isVisibility)suspend();else {this.audio.resume();void this.platform.resume()}});
-  Laya.stage.on(Laya.Event.RESIZE,this,()=>{this.atlasDrag=null;this.releasePointers()});
+  Laya.stage.on(Laya.Event.RESIZE,this,()=>{this.atlasDrag=null;this.atlasTargetOffset=this.atlasOffset;this.atlasTickAt=performance.now();this.releasePointers()});
   Laya.stage.on(Laya.Event.KEY_DOWN,this,(e:Laya.Event)=>{
    if(this.mode==='game'&&!this.modalOpen&&e.keyCode===27){this.eraseMode=false;this.syncEraseUI();this.cancel();this.hideModal()}
   });
@@ -202,7 +202,7 @@ class Game {
   if(this.mode!=='game')this.image(this.scene,HOME_BG,W/2,H/2,W,H);
  }
  clear(mode:Game['mode']):void{
-  this.accountStatus=null;this.atlas=null;this.atlasDrag=null;this.atlasPage=-1;
+  this.accountStatus=null;this.atlas=null;this.atlasPageNodes.clear();this.atlasDrag=null;this.atlasPage=-1;this.atlasOffset=0;this.atlasTargetOffset=0;this.atlasHeight=0;this.atlasViewportHeight=0;this.atlasPageCount=0;this.atlasMaxOffset=0;this.atlasTickAt=0;
   this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.board?.destroy();this.board=null;this.model=null;
   // Dispose the fixed decorative wallpaper separately: it lives under the
   // gameplay scene, never inside the tray/ring rendering pass.
@@ -414,55 +414,86 @@ class Game {
   this.scene.addChild(new Button('',30,28,76,66,()=>this.home(),false,'back'));
   text(this.scene,'关卡图谱',160,41,400,70,44,COLORS.ink,'center',true);
   ornament(this.scene,185,140,350);
-  const viewport=new Laya.Sprite();viewport.name='atlas-viewport';viewport.pos(0,170);viewport.size(W,H-205);
-  viewport.scrollRect=new Laya.Rectangle(0,0,W,H-205);this.scene.addChild(viewport);
+  this.atlasViewportHeight=Math.max(1,H-205);
+  const viewport=new Laya.Sprite();viewport.name='atlas-viewport';viewport.pos(0,170);viewport.size(W,this.atlasViewportHeight);
+  viewport.scrollRect=new Laya.Rectangle(0,0,W,this.atlasViewportHeight);this.scene.addChild(viewport);
   this.atlas=new Laya.Sprite();viewport.addChild(this.atlas);
-  this.atlasHeight=H-205;this.atlasPage=-1;
+  // Twenty cards form one compact content block. The next block starts one
+  // normal row-gap after the previous block instead of one full viewport later.
+  this.atlasCardHeight=Math.min(132,Math.max(88,Math.floor((this.atlasViewportHeight-90)/5)-16));
+  this.atlasHeight=80+5*this.atlasCardHeight;
+  const total=C.levels.length-TEACHING_COUNT;
+  this.atlasPageCount=Math.max(1,Math.ceil(total/20));
+  this.atlasMaxOffset=Math.max(0,this.atlasPageCount*this.atlasHeight-this.atlasViewportHeight);
+  this.atlasPage=-1;this.atlasOffset=0;this.atlasTargetOffset=0;this.atlasPageNodes.clear();this.atlasTickAt=performance.now();
   this.scrollAtlas(Math.floor((this.formalCurrent()-TEACHING_COUNT)/20)*this.atlasHeight);
  }
- scrollAtlas(offset:number):void{
+ scrollAtlas(offset:number,smooth=false):void{
   if(!this.atlas)return;
-  const total=C.levels.length-TEACHING_COUNT,pages=Math.max(1,Math.ceil(total/20));
-  this.atlasOffset=Math.max(0,Math.min((pages-1)*this.atlasHeight,offset));
+  const next=Math.max(0,Math.min(this.atlasMaxOffset,offset));
+  this.atlasTargetOffset=next;
+  if(smooth)return;
+  this.atlasOffset=next;this.atlasTickAt=performance.now();this.updateAtlasView();
+ }
+ private updateAtlasView():void{
+  if(!this.atlas||!this.atlasHeight)return;
   this.atlas.y=-this.atlasOffset;
-  const page=Math.floor(this.atlasOffset/this.atlasHeight);
+  const page=Math.floor((this.atlasOffset+this.atlasViewportHeight/2)/this.atlasHeight);
   if(page===this.atlasPage)return;
   this.atlasPage=page;
-  // Keep only the visible page and its neighbours alive, including when scrolling backwards.
-  const parent=this.atlas.parent!;this.atlas.destroy(true);
-  this.atlas=new Laya.Sprite();this.atlas.y=-this.atlasOffset;parent.addChild(this.atlas);
-  const current=this.formalCurrent(),w=148,gap=18,h=Math.min(132,Math.floor((this.atlasHeight-90)/5)-16);
-  for(let p=Math.max(0,page-1);p<=Math.min(pages-1,page+1);p++){
-   for(let j=p*20;j<Math.min(total,(p+1)*20);j++){
-    const index=TEACHING_COUNT+j,slot=j%20,locked=index>current&&!this.save.data.records[index];
-    const x=37+(slot%4)*(w+gap),y=p*this.atlasHeight+12+Math.floor(slot/4)*(h+16);
-    const card=new Button('',x,y,w,h,()=>{if(performance.now()>=this.atlasClickAfter&&!this.atlasDrag?.moved)this.load(index)});
-    card.name='formal-level:'+String(j+1);card.enabled=!locked;this.atlas.addChild(card);
-    if(locked){card.skin.graphics.clear();card.skin.graphics.drawRect(0,0,w,h,'#e4e3e0');}
-    text(card,'第'+(j+1)+'关',4,9,w-8,44,27,locked?'#999b99':COLORS.ink,'center',true);
-    const marks=new Laya.Sprite();marks.mouseEnabled=false;card.addChild(marks);
-    if(locked)icon(marks.graphics,'lock',(w-28)/2,h-42,28,'#999b99');
-    else for(let k=0;k<3;k++)icon(marks.graphics,'star',(w-88)/2+k*31,h-40,26,k<(this.save.data.records[index]?.stars||0)?COLORS.gold:'#b7b9b7');
+  // Keep every visible page plus one nearby page on either side. Existing
+  // cards survive page-boundary crossings; only out-of-range pages are recycled.
+  const radius=Math.max(1,Math.ceil(this.atlasViewportHeight/(2*this.atlasHeight)));
+  const first=Math.max(0,page-radius),last=Math.min(this.atlasPageCount-1,page+radius);
+  for(const [loaded,nodes] of this.atlasPageNodes){
+   if(loaded<first||loaded>last){
+    for(const node of nodes)node.destroy(true);
+    this.atlasPageNodes.delete(loaded);
    }
   }
+  for(let p=first;p<=last;p++)if(!this.atlasPageNodes.has(p))this.renderAtlasPage(p);
+ }
+ private renderAtlasPage(page:number):void{
+  if(!this.atlas)return;
+  const total=C.levels.length-TEACHING_COUNT,current=this.formalCurrent(),w=148,h=this.atlasCardHeight,nodes:Laya.Sprite[]=[];
+  for(let j=page*20;j<Math.min(total,(page+1)*20);j++){
+   const index=TEACHING_COUNT+j,slot=j%20,locked=index>current&&!this.save.data.records[index];
+   const x=37+(slot%4)*(w+18),y=page*this.atlasHeight+12+Math.floor(slot/4)*(h+16);
+   const card=new Button('',x,y,w,h,()=>{if(performance.now()>=this.atlasClickAfter&&!this.atlasDrag?.moved)this.load(index)});
+   card.name='formal-level:'+String(j+1);card.enabled=!locked;this.atlas.addChild(card);nodes.push(card);
+   if(locked){card.skin.graphics.clear();card.skin.graphics.drawRect(0,0,w,h,'#e4e3e0');}
+   text(card,'第'+(j+1)+'关',4,9,w-8,44,27,locked?'#999b99':COLORS.ink,'center',true);
+   const marks=new Laya.Sprite();marks.mouseEnabled=false;card.addChild(marks);
+   if(locked)icon(marks.graphics,'lock',(w-28)/2,h-42,28,'#999b99');
+   else for(let k=0;k<3;k++)icon(marks.graphics,'star',(w-88)/2+k*31,h-40,26,k<(this.save.data.records[index]?.stars||0)?COLORS.gold:'#b7b9b7');
+  }
+  this.atlasPageNodes.set(page,nodes);
  }
  atlasDown(e:GamePointer):void{
   if(!this.atlas||this.mode!=='levels'||(e.button!==undefined&&e.button!==0))return;
   const p=this.point(e);if(p.y<170||p.y>H-35)return;
-  this.atlasDrag={id:e.pointerId,y:p.y,offset:this.atlasOffset,moved:false};
-
+  const now=performance.now();this.atlasTargetOffset=this.atlasOffset;
+  this.atlasDrag={id:e.pointerId,y:p.y,offset:this.atlasOffset,moved:false,lastY:p.y,lastTime:now,velocity:0};
  }
  atlasMove(e:GamePointer):void{
   const drag=this.atlasDrag;if(!drag||drag.id!==e.pointerId)return;
-  const delta=this.point(e).y-drag.y;
+  const p=this.point(e),delta=p.y-drag.y;
   if(Math.abs(delta)>10)drag.moved=true;
-  if(drag.moved){this.atlasClickAfter=performance.now()+300;this.scrollAtlas(drag.offset-delta)}
+  if(drag.moved){
+   const now=performance.now(),elapsed=Math.max(8,now-drag.lastTime);
+   const instant=-(p.y-drag.lastY)/elapsed;
+   drag.velocity=drag.velocity*.35+Math.max(-2.2,Math.min(2.2,instant))*.65;
+   drag.lastY=p.y;drag.lastTime=now;
+   this.atlasClickAfter=now+300;this.scrollAtlas(drag.offset-delta);
+  }
  }
  atlasUp(e:GamePointer):void{
-  if(this.atlasDrag?.id!==e.pointerId)return;
-  if(this.atlasDrag.moved)this.atlasClickAfter=performance.now()+300;
+  const drag=this.atlasDrag;if(!drag||drag.id!==e.pointerId)return;
+  if(drag.moved){
+   this.atlasClickAfter=performance.now()+300;
+   this.scrollAtlas(this.atlasOffset+drag.velocity*180,true);
+  }else this.atlasTargetOffset=this.atlasOffset;
   this.atlasDrag=null;
-
  }
  teachingLevels():void{
   this.clear('levels');
@@ -872,6 +903,15 @@ class Game {
   if(this.platform.rewardBusy)return;
   this.audio.tick(performance.now());
   const now=performance.now();
+  if(this.mode==='levels'&&this.atlas&&!this.atlasDrag){
+   const elapsed=Math.max(0,Math.min(50,now-(this.atlasTickAt||now-16)));this.atlasTickAt=now;
+   const difference=this.atlasTargetOffset-this.atlasOffset;
+   if(Math.abs(difference)>.5){
+    this.atlasOffset+=difference*(1-Math.exp(-elapsed/90));
+    if(Math.abs(this.atlasTargetOffset-this.atlasOffset)<.5)this.atlasOffset=this.atlasTargetOffset;
+    this.updateAtlasView();
+   }else{this.atlasOffset=this.atlasTargetOffset;this.updateAtlasView()}
+  }
   if(this.board?.blockedRing&&now>=this.board.blockUntil){this.board.blockedRing=null;if(this.model)this.board.draw(this.model.state)}
   if(this.noticeUntil&&now>this.noticeUntil){this.noticeUntil=0;if(this.toolNoticeBox){this.toolNoticeBox.visible=this.eraseMode;if(this.eraseMode&&this.eraseTip)this.eraseTip.text='请选择要消除的手镯'}}
   if(!this.model||!this.board||this.mode!=='game')return;
