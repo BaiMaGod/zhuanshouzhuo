@@ -65,6 +65,22 @@ try{
   // Reenter the homepage: its main button must resume the next uncompleted level.
   await button(p,'第2关');assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.index),11);
   await button(p,'button:home');await button(p,'确认返回');await button(p,'关卡图谱');
+  const atlasInfo=await p.evaluate(()=>{
+   const g=window.jadeDebug.game,find=name=>{for(let i=0;i<g.atlas.numChildren;i++){const node=g.atlas.getChildAt(i);if(node.name===name)return node}};
+   const last=find('formal-level:20'),next=find('formal-level:21'),bounds=document.querySelector('canvas').getBoundingClientRect();
+   return{gap:next.y-(last.y+last.height),before:g.atlasOffset,mouse:{x:bounds.left+bounds.width/2,y:bounds.top+bounds.height*.58},atlas:g.atlas};
+  });
+  assert.equal(atlasInfo.gap,16,'real browser atlas pages must have the same gap as adjacent rows');
+  await p.evaluate(atlas=>{window.__atlasBeforeWheel=atlas},atlasInfo.atlas);
+  await p.mouse.move(atlasInfo.mouse.x,atlasInfo.mouse.y);await p.mouse.wheel(0,40);await p.waitForTimeout(32);
+  const wheelMid=await p.evaluate(()=>({offset:window.jadeDebug.game.atlasOffset,target:window.jadeDebug.game.atlasTargetOffset,same:window.jadeDebug.game.atlas===window.__atlasBeforeWheel}));
+  assert.ok(wheelMid.target>atlasInfo.before,'mouse wheel should set a forward scroll target');
+  assert.ok(wheelMid.offset>atlasInfo.before&&wheelMid.offset<wheelMid.target,'wheel movement should ease over frames instead of jumping');
+  assert.equal(wheelMid.same,true,'wheel scrolling must retain the atlas root');
+  await p.waitForTimeout(350);
+  const wheelEnd=await p.evaluate(()=>({offset:window.jadeDebug.game.atlasOffset,target:window.jadeDebug.game.atlasTargetOffset}));
+  assert.ok(Math.abs(wheelEnd.offset-wheelEnd.target)<10,'wheel easing should settle at its target');
+  await p.evaluate(()=>window.jadeDebug.game.scrollAtlas(0));
   await p.screenshot({path:resolve(out,width+'-page1.png')});
 
   // Seed previously earned records as a returning player would have them.
