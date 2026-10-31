@@ -68,10 +68,10 @@ try{
   const atlasInfo=await p.evaluate(()=>{
    const g=window.jadeDebug.game,find=name=>{for(let i=0;i<g.atlas.numChildren;i++){const node=g.atlas.getChildAt(i);if(node.name===name)return node}};
    const last=find('formal-level:20'),next=find('formal-level:21'),bounds=document.querySelector('canvas').getBoundingClientRect();
-   return{gap:next.y-(last.y+last.height),before:g.atlasOffset,mouse:{x:bounds.left+bounds.width/2,y:bounds.top+bounds.height*.58},atlas:g.atlas};
+   window.__atlasBeforeWheel=g.atlas;
+   return{gap:next.y-(last.y+last.height),before:g.atlasOffset,mouse:{x:bounds.left+bounds.width/2,y:bounds.top+bounds.height*.58}};
   });
   assert.equal(atlasInfo.gap,16,'real browser atlas pages must have the same gap as adjacent rows');
-  await p.evaluate(atlas=>{window.__atlasBeforeWheel=atlas},atlasInfo.atlas);
   await p.mouse.move(atlasInfo.mouse.x,atlasInfo.mouse.y);await p.mouse.wheel(0,40);await p.waitForTimeout(32);
   const wheelMid=await p.evaluate(()=>({offset:window.jadeDebug.game.atlasOffset,target:window.jadeDebug.game.atlasTargetOffset,same:window.jadeDebug.game.atlas===window.__atlasBeforeWheel}));
   assert.ok(wheelMid.target>atlasInfo.before,'mouse wheel should set a forward scroll target');
