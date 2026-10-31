@@ -67,7 +67,7 @@ try{
  const top=[
   ['home', {x:28,y:26,w:76,h:64},true],
   ['restart',{x:116,y:26,w:76,h:64},true],
-  ['sound',{x:528,y:26,w:76,h:64},false],
+  ['sound',{x:528,y:26,w:76,h:64},true],
   ['help',{x:616,y:26,w:76,h:64},true]
  ];
  for(const [name,rect,modal] of top){
