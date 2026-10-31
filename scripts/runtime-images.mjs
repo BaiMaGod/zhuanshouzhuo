@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 export const RUNTIME_IMAGES=[
  ...['amber','peach','celadon','ice','ivory'].map(n=>'jade-v2/'+n+'.png'),
  'art-v3/clasp.png','art-rose/tray.png','art-rose/hint-hand.png',
- 'art-rose/home-bg.jpg','shadow.png',
+ 'art-rose/home-bg.jpg','art-rose/home-logo.webp','shadow.png',
  ...['signin-shortcut','bag-shortcut','signin-panel','bag-panel','hint-tool','erase-tool'].map(n=>'art-rose/'+n+'.webp')
 ];
 export const IMAGE_BUDGET=3*1024*1024;

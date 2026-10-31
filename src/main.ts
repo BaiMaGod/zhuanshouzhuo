@@ -26,9 +26,10 @@ const W=720;
 let H=1280,RENDER_W=720,RENDER_SCALE=1;
 const TRAY='assets/art-rose/tray.png';
 const HOME_BG='assets/art-rose/home-bg.jpg';
+const HOME_LOGO='assets/art-rose/home-logo.webp';
 // Build pipeline injects package.json's current version for every target.
 const GAME_VERSION='__GAME_VERSION__';
-const ASSETS=[HINT_HAND_ASSET,...JADE_ASSETS,...FEATURE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,'assets/art-v3/clasp.png'];
+const ASSETS=[HINT_HAND_ASSET,...JADE_ASSETS,...FEATURE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,HOME_LOGO,'assets/art-v3/clasp.png'];
 class Game {
  readonly debugMode=debugHintEnabled();
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
@@ -228,8 +229,9 @@ class Game {
   const settingsButton=new Button('',608,28,76,66,()=>this.settings(),false,'settings');
   settingsButton.name='button:settings';this.scene.addChild(settingsButton);this.homeSettingsButton=settingsButton;
   const titleY=H<1350?132:160;
-  text(this.scene,'转手镯消除',44,titleY,592,88,64,COLORS.ink,'center',true);
-  const top=titleY+112,bottom=H-438,cy=(top+bottom)/2,plateH=Math.min(670,bottom-top);
+  // Keep the transparent wordmark clear of the top buttons and jade plate.
+  this.image(this.scene,HOME_LOGO,W/2,titleY+73,560,210);
+  const top=titleY+192,bottom=H-438,cy=(top+bottom)/2,plateH=Math.min(670,bottom-top);
   this.image(this.scene,TRAY,360,cy,636,plateH);
   this.homePreview=new Board(this.scene,{x:118,y:cy-126,w:484,h:252});this.homePreview.showLabels=false;
   const state=C.make(0);this.homePreview.load(state);this.homePreview.draw(state);
