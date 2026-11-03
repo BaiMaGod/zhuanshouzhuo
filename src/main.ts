@@ -241,7 +241,12 @@ class Game {
   // Keep the transparent wordmark clear of the top buttons and jade plate.
   const logo=new Laya.Sprite();logo.name='home-logo';logo.pos(W/2,titleY+80);logo.mouseEnabled=false;this.scene.addChild(logo);
   const logoPartHeight=187/HOME_LOGO_PARTS.length;
-  for(let i=0;i<HOME_LOGO_PARTS.length;i++)this.image(logo,HOME_LOGO_PARTS[i],0,-93.5+logoPartHeight*(i+0.5),560,logoPartHeight);
+  // Blend the dark embossed logo contours toward the wallpaper's warm blush palette.
+  const peachTone=[0.6,0,0,0,102, 0,0.6,0,0,89, 0,0,0.6,0,86, 0,0,0,1,0];
+  for(let i=0;i<HOME_LOGO_PARTS.length;i++){
+   const slice=this.image(logo,HOME_LOGO_PARTS[i],0,-93.5+logoPartHeight*(i+0.5),560,logoPartHeight);
+   slice.filters=[new Laya.ColorFilter(peachTone)];
+  }
   const top=titleY+192,bottom=H-438,cy=(top+bottom)/2,plateH=Math.min(670,bottom-top);
   this.image(this.scene,TRAY,360,cy,636,plateH);
   this.homePreview=new Board(this.scene,{x:118,y:cy-126,w:484,h:252});this.homePreview.showLabels=false;
