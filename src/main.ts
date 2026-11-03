@@ -472,7 +472,7 @@ class Game {
   if(!this.atlas)return;
   const total=C.levels.length-TEACHING_COUNT,current=this.formalCurrent(),w=148,h=this.atlasCardHeight,nodes:Laya.Sprite[]=[];
   for(let j=page*20;j<Math.min(total,(page+1)*20);j++){
-   const index=TEACHING_COUNT+j,slot=j%20,locked=index>current&&!this.save.data.records[index];
+   const index=TEACHING_COUNT+j,slot=j%20,locked=!this.debugMode&&index>current&&!this.save.data.records[index];
    const x=37+(slot%4)*(w+18),y=page*this.atlasHeight+12+Math.floor(slot/4)*(h+16);
    const card=new Button('',x,y,w,h,()=>{if(performance.now()>=this.atlasClickAfter&&!this.atlasDrag?.moved)this.load(index)});
    card.name='formal-level:'+String(j+1);card.enabled=!locked;this.atlas.addChild(card);nodes.push(card);
@@ -518,17 +518,17 @@ class Game {
   ornament(this.scene,185,202,350);
   const rowH=Math.min(170,Math.floor((H-382)/5)-12);
   for(let i=0;i<TEACHING_COUNT;i++){
-   const x=i%2?378:42,y=240+Math.floor(i/2)*(rowH+12),locked=i>this.save.data.unlocked;
+   const x=i%2?378:42,y=240+Math.floor(i/2)*(rowH+12),locked=!this.debugMode&&i>this.save.data.unlocked;
    const entry=new Button('',x,y,300,rowH,()=>this.load(i));
    entry.name='teaching-level:'+String(i+1);entry.enabled=!locked;this.scene.addChild(entry);
    text(entry,'第'+(i+1)+'关',20,8,260,48,31,COLORS.ink,'left',true);
    text(entry,C.levels[i].name,20,56,260,38,23,COLORS.ink,'left');
    text(entry,locked?'尚未解锁':this.save.data.records[i]?'已完成 · 再次练习':'点击开始练习',20,rowH-44,260,34,19,COLORS.muted,'left');
   }
-  text(this.scene,'完成前一关后，后续教程会逐步开放',64,H-87,592,44,21,COLORS.muted);
+  text(this.scene,this.debugMode?'Debug 模式 · 全部关卡已解锁':'完成前一关后，后续教程会逐步开放',64,H-87,592,44,21,COLORS.muted);
  }
  load(i:number,restart=false):void{
-  if(i<0||i>=C.levels.length||(i<TEACHING_COUNT&&i>this.save.data.unlocked))return;
+  if(i<0||i>=C.levels.length||(!this.debugMode&&i<TEACHING_COUNT&&i>this.save.data.unlocked))return;
   this.clear('game');this.settled=false;this.model=new GameModel(i);if(debugEnabled())this.save.taint();
   this.hintLeft=1;this.eraseLeft=0;
   if(this.formal){
