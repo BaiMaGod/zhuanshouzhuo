@@ -230,7 +230,7 @@ class Game {
   settingsButton.name='button:settings';this.scene.addChild(settingsButton);this.homeSettingsButton=settingsButton;
   const titleY=H<1350?132:160;
   // Keep the transparent wordmark clear of the top buttons and jade plate.
-  const logo=this.image(this.scene,HOME_LOGO,W/2,titleY+73,560,210);
+  const logo=this.image(this.scene,HOME_LOGO,W/2,titleY+80,560,187);
   logo.name='home-logo';
   const top=titleY+192,bottom=H-438,cy=(top+bottom)/2,plateH=Math.min(670,bottom-top);
   this.image(this.scene,TRAY,360,cy,636,plateH);
