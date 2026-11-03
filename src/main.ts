@@ -26,10 +26,19 @@ const W=720;
 let H=1280,RENDER_W=720,RENDER_SCALE=1;
 const TRAY='assets/art-rose/tray.png';
 const HOME_BG='assets/art-rose/home-bg.jpg';
-const HOME_LOGO='assets/art-rose/home-logo.webp';
+const HOME_LOGO_PARTS=[
+ 'assets/art-rose/home-logo-part-1.webp',
+ 'assets/art-rose/home-logo-part-2.webp',
+ 'assets/art-rose/home-logo-part-3.webp',
+ 'assets/art-rose/home-logo-part-4.webp',
+ 'assets/art-rose/home-logo-part-5.webp',
+ 'assets/art-rose/home-logo-part-6.webp',
+ 'assets/art-rose/home-logo-part-7.webp',
+ 'assets/art-rose/home-logo-part-8.webp'
+];
 // Build pipeline injects package.json's current version for every target.
 const GAME_VERSION='__GAME_VERSION__';
-const ASSETS=[HINT_HAND_ASSET,...JADE_ASSETS,...FEATURE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,HOME_LOGO,'assets/art-v3/clasp.png'];
+const ASSETS=[HINT_HAND_ASSET,...JADE_ASSETS,...FEATURE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,...HOME_LOGO_PARTS,'assets/art-v3/clasp.png'];
 class Game {
  readonly debugMode=debugHintEnabled();
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
@@ -230,8 +239,9 @@ class Game {
   settingsButton.name='button:settings';this.scene.addChild(settingsButton);this.homeSettingsButton=settingsButton;
   const titleY=H<1350?132:160;
   // Keep the transparent wordmark clear of the top buttons and jade plate.
-  const logo=this.image(this.scene,HOME_LOGO,W/2,titleY+80,560,187);
-  logo.name='home-logo';
+  const logo=new Laya.Sprite();logo.name='home-logo';logo.pos(W/2,titleY+80);logo.mouseEnabled=false;this.scene.addChild(logo);
+  const logoPartHeight=187/HOME_LOGO_PARTS.length;
+  for(let i=0;i<HOME_LOGO_PARTS.length;i++)this.image(logo,HOME_LOGO_PARTS[i],0,-93.5+logoPartHeight*(i+0.5),560,logoPartHeight);
   const top=titleY+192,bottom=H-438,cy=(top+bottom)/2,plateH=Math.min(670,bottom-top);
   this.image(this.scene,TRAY,360,cy,636,plateH);
   this.homePreview=new Board(this.scene,{x:118,y:cy-126,w:484,h:252});this.homePreview.showLabels=false;
