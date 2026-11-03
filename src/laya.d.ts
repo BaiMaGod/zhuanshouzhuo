@@ -14,11 +14,9 @@ declare namespace Laya {
  const SoundManager:{playMusic(url:string,loops?:number):SoundChannel;playSound(url:string,loops?:number,complete?:()=>void,startTime?:number):SoundChannel;autoStopMusic:boolean};
 
  function init(width:number,height:number):Promise<void>;
- class ColorFilter {constructor(mat?:number[])}
  class Sprite {
   x:number;y:number;width:number;height:number;rotation:number;alpha:number;visible:boolean;
   mouseEnabled:boolean;mouseThrough:boolean;cacheAs:string;zOrder:number;name:string;
-  filters:ColorFilter[];
   scaleX:number;scaleY:number;texture:Texture|null;graphics:Graphics;
   parent:Sprite|null;scrollRect:Rectangle|null;
   constructor();
