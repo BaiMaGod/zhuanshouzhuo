@@ -46,3 +46,45 @@ test('reduced motion skips moving shards and immediately reveals earned stars, w
  g.home();wait(50);assert.equal(g.victory,null);assert.equal(g.modalOpen,false);
  delete globalThis.matchMedia;
 });
+
+test('five jade materials use their own petal rows and release input before petals finish',()=>{
+ for(let row=0;row<5;row++){
+  g.load(10,true);
+  g.eraseLeft=1;
+  const board=g.board,ring=g.model.state.rings[row];
+  g.eraseRing(ring.id);
+  wait(288);
+  const fresh=board.effects.children.filter(node=>{
+   const mesh=node.graphics.ops[0];
+   return mesh?.[1]==='assets/art-rose/jade-petals.png'&&Math.abs(C.dist(node,ring)-C.R)<2
+    &&Math.abs(mesh[5][1]-row/5)<1e-6&&node.alpha>.9;
+  });
+  assert.equal(fresh.length,24,'each jade releases a full arc in its own color');
+  assert.equal(board.animating,true);
+  wait(16);
+  assert.equal(board.animating,false,'only the departing jade holds input');
+  assert.equal(board.hasFeedback,true,'petals are still visible after input unlocks');
+ }
+ wait(800);
+ assert.equal(g.board.effects.numChildren,0);
+ assert.equal(g.board.hasFeedback,false);
+});
+
+test('simultaneous releases keep a complete petal arc per ring within the budget',()=>{
+ g.load(10,true);
+ const board=g.board,before=C.clone(g.model.state);
+ const ids=before.rings.slice(0,8).map(r=>r.id);
+ for(const id of ids)g.model.removeWithTool(id);
+ board.release(before,g.model.state,ids);
+ board.draw(g.model.state);
+ wait(288);
+ assert.equal(board.petals.count,128);
+ for(const id of ids){
+  const ring=C.ring(g.model.state,id);
+  const aroundRing=board.effects.children.filter(node=>node.graphics.ops[0]?.[1]==='assets/art-rose/jade-petals.png'&&Math.abs(C.dist(node,ring)-C.R)<2);
+  assert.ok(aroundRing.length>=16,'each departing jade has an arc at its original radius');
+ }
+ g.load(10,true);
+ assert.equal(g.board.effects.numChildren,0);
+ assert.equal(board.petals.count,0);
+});

@@ -1,15 +1,24 @@
 import C0 from './core.js';
 import type {CoreAPI,State,Point,Ring,Block} from './types.js';
 import {JADE_NAMES,drawJade} from './jade.js';
+import type {JadeName} from './jade.js';
+import {JadePetals} from './jade-petals.js';
 import {trayFit} from './tray-layout.js';
 import {TEACHING_COUNT} from './levels.js';
 import {THEME} from './ui.js';
 import {FEEDBACK,reducedMotion,easeOut,glint} from './feedback.js';
 const C=C0 as unknown as CoreAPI;
-export interface Ghost {r:Ring;start:number;rods:Laya.Sprite}
-interface RingView {root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite}
+export interface Ghost {r:Ring;start:number;rods:Laya.Sprite;glow:Laya.Sprite|null}
+interface RingView {material:JadeName;root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite}
+const RELEASE_GLOW:Record<JadeName,string> = {
+ amber:'252,210,72', peach:'253,179,158', celadon:'174,221,164',
+ ice:'166,231,219', ivory:'255,244,207'
+};
+const HALF_GAP = Math.asin(C.GAP/(2*(C.R-C.BAND/2)))/C.D;
+
 export class Board {
  viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();effects=new Laya.Sprite();
+ private petals=new JadePetals(this.effects);
  backdrop:Laya.Sprite|null=null;
  rings=new Map<string,RingView>();
  center:Point={x:0,y:0}; screen:Point;zoom=1;fitZoom=1;bounds={w:1,h:1};turn=0;selected:string|null=null;
@@ -43,6 +52,7 @@ export class Board {
   this.ghosts=[];this.sparks=[];this.flashes=[];this.clearAt=-Infinity;this.releaseAt=-Infinity;this.streak=0;
   this.quiet=reducedMotion();this.hint=null;this.blocked=null;this.blockedRing=null;this.blockUntil=0;
   this.effects.graphics.clear();
+  this.petals.reset();
   for(let i=this.effects.numChildren-1;i>=0;i--)this.effects.getChildAt(i).destroy(true);
   const xs=s.rings.map(r=>r.x),ys=s.rings.map(r=>r.y);
   const dx=Math.max(...xs)-Math.min(...xs),dy=Math.max(...ys)-Math.min(...ys);
@@ -66,7 +76,8 @@ export class Board {
    shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-54,-56,110,110);
    const offset=C.rot({x:1.7,y:3.6},-this.turn);shadow.pos(offset.x,offset.y);root.addChild(shadow);
    const halo=new Laya.Sprite();halo.visible=false;root.addChild(halo);
-   const body=new Laya.Sprite();drawJade(body.graphics,JADE_NAMES[i%5]);
+   const material=JADE_NAMES[i%JADE_NAMES.length];
+   const body=new Laya.Sprite();drawJade(body.graphics,material);
    // A body never changes its local mesh; only its sprite rotation changes.
    // Rasterize once into a small offscreen surface, even on a 54-ring board.
    body.cacheAs='normal';root.addChild(body);
@@ -81,7 +92,7 @@ export class Board {
    }
    focus.cacheAs='normal';root.addChild(focus);
    const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index>=TEACHING_COUNT||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
-   this.rings.set(r.id,{root,body,halo,focus,label,shadow});
+   this.rings.set(r.id,{material,root,body,halo,focus,label,shadow});
   });
  }
  focus(id:string|null):void{
@@ -147,22 +158,45 @@ export class Board {
  release(before:State,after:State,ids:string[]):void{
   const now=performance.now();this.quiet=reducedMotion();
   this.streak=now-this.releaseAt<1800?Math.min(3,this.streak+1):1;this.releaseAt=now;
-  for(const id of ids.slice(0,FEEDBACK.maxGhosts)){
+  const departing=ids.slice(0,FEEDBACK.maxGhosts);
+  const petalCount=this.quiet||!departing.length?0:this.petals.countFor(departing.length);
+  for(const id of departing){
    const r=C.ring(after,id)!;
    // Batch each departing clasp once; don't clone state/create nodes per frame.
    const rods=new Laya.Sprite();rods.mouseEnabled=false;
    const state=C.clone(before);C.ring(state,id)!.a=r.a;
    this.drawRods(state,rods.graphics,id);this.effects.addChild(rods);
-   this.ghosts.push({r:{...r},start:now,rods});
+   const material=this.rings.get(id)!.material;
+   const glow=this.quiet?null:this.releaseGlow(r,material);
+   this.ghosts.push({r:{...r},start:now,rods,glow});
    for(const z of before.rods)for(const e of C.endpoints(before,z))if(e.id===id)this.flash(e.p,now);
-   if(!this.quiet)for(let k=0;k<10+this.streak*2;k++){
+   if(petalCount)this.petals.emit(r,r.a,HALF_GAP,C.R,material,now,petalCount);
+   if(!this.quiet)for(let k=0;k<2+this.streak;k++){
     const p=C.point(r,k*137.5,34+(k%3)*5);
     this.sparks.push({...p,start:now,seed:k,strength:this.streak});
    }
   }
-  while(this.ghosts.length>FEEDBACK.maxGhosts)this.ghosts.shift()!.rods.destroy(true);
+  while(this.ghosts.length>FEEDBACK.maxGhosts)this.disposeGhost(this.ghosts.shift()!);
   this.sparks=this.sparks.slice(-FEEDBACK.maxParticles);
   if(after.rings.every(r=>r.life!=='active')&&this.clearAt===-Infinity)this.clearAt=now;
+ }
+ private releaseGlow(r:Ring,material:JadeName):Laya.Sprite{
+  const glow=new Laya.Sprite(),arc:unknown[]=[];
+  glow.mouseEnabled=false;
+  for(let i=0;i<=32;i++){
+   const angle=r.a+HALF_GAP+(360-2*HALF_GAP)*i/32;
+   const point=C.point(r,angle,C.R);
+   arc.push([i===0?'moveTo':'lineTo',point.x,point.y]);
+  }
+  const color=RELEASE_GLOW[material];
+  glow.graphics.drawPath(0,0,arc,undefined,{strokeStyle:'rgba('+color+',0.22)',lineWidth:C.BAND+5});
+  glow.graphics.drawPath(0,0,arc,undefined,{strokeStyle:'rgba('+color+',0.5)',lineWidth:C.BAND-2});
+  this.effects.addChild(glow);
+  return glow;
+ }
+ private disposeGhost(ghost:Ghost):void{
+  ghost.rods.destroy(true);
+  ghost.glow?.destroy(true);
  }
  private flash(p:Point,now:number):void{
   this.flashes.push({...p,start:now});this.flashes=this.flashes.slice(-32);
@@ -174,7 +208,7 @@ export class Board {
   });
  }
  get animating():boolean {return this.ghosts.length>0||performance.now()-this.clearAt<(this.quiet?180:FEEDBACK.clear)}
- get hasFeedback():boolean{return this.animating||this.sparks.length>0||this.flashes.length>0}
+ get hasFeedback():boolean{return this.animating||this.petals.count>0||this.sparks.length>0||this.flashes.length>0}
  private line(g:Laya.Graphics,p:Point,q:Point,c:string,w:number):void{g.drawLine(p.x,p.y,q.x,q.y,c,w)}
  private sleeve(g:Laya.Graphics,p:Point,a:number,state:string):void{
   // Rounded silver sleeve retains its hollow opening, pose and complete outline.
@@ -224,20 +258,20 @@ export class Board {
  draw(s:State,now=performance.now()):void{
   this.lastState=s;
   const releaseMs=this.quiet?150:FEEDBACK.release;
-  this.ghosts=this.ghosts.filter(g=>{if(now-g.start<releaseMs)return true;g.rods.destroy(true);return false});
+  this.ghosts=this.ghosts.filter(g=>{if(now-g.start<releaseMs)return true;this.disposeGhost(g);return false});
   this.sparks=this.sparks.filter(p=>now-p.start<FEEDBACK.particles);
   this.flashes=this.flashes.filter(p=>now-p.start<(this.quiet?140:FEEDBACK.alignment));
+  this.petals.draw(now,C.rot({x:0,y:-1},-this.turn));
   const ghosts=new Map(this.ghosts.map(g=>[g.r.id,g]));
   for(const r of s.rings){
    const v=this.rings.get(r.id)!;const ghost=ghosts.get(r.id);
    const screen=this.toScreen(r),margin=72*this.zoom;
    v.root.visible=(r.life==='active'||!!ghost)&&screen.x+margin>=this.rect.x&&screen.x-margin<=this.rect.x+this.rect.w&&screen.y+margin>=this.rect.y&&screen.y-margin<=this.rect.y+this.rect.h;
    const t=ghost?Math.min(1,(now-ghost.start)/releaseMs):0;
-   v.root.alpha=ghost?(this.quiet?1-t:1-Math.max(0,(t-.18)/.82)**1.25):1;
-   const lift=ghost&&!this.quiet?easeOut(t)*-14:0;
-   const dy=lift;
-   const scale=ghost&&!this.quiet?1+Math.sin(t*Math.PI)*.045:1;v.root.scale(scale,scale);
-   const offset=C.rot({x:0,y:dy},-this.turn);v.root.pos(r.x+offset.x,r.y+offset.y);
+   // Cross-fade in place so the petal arc follows the original jade silhouette.
+   const dissolve=this.quiet?t:Math.max(0,(t-.28)/.72);
+   v.root.alpha=ghost?1-dissolve*dissolve*(3-2*dissolve):1;
+   v.root.pos(r.x,r.y);
    if(v.body.rotation!==r.a)v.body.rotation=r.a;
    if(v.shadow.rotation!==r.a)v.shadow.rotation=r.a;
    if(v.focus.rotation!==r.a)v.focus.rotation=r.a;
@@ -275,20 +309,17 @@ export class Board {
   // Reuse the effects layer and departing clasp nodes through their lifetime.
   this.effects.graphics.clear();
   for(const ghost of this.ghosts){
-   const t=(now-ghost.start)/releaseMs,offset=C.rot({x:0,y:this.quiet?0:easeOut(t)*-14},-this.turn);
-   ghost.rods.alpha=1-t;ghost.rods.pos(offset.x,offset.y);
-   if(!this.quiet){
-    const g=this.effects.graphics,r=ghost.r,pulse=Math.sin(Math.min(1,t/.7)*Math.PI);
-    // A soft mint glint at the opening, never a selected-ring outline.
-    const p=C.point(r,r.a,44);g.drawCircle(p.x,p.y,8+pulse*6,'rgba(154,211,188,'+(pulse*.18)+')');
-    glint(g,p.x,p.y,3+pulse*3,'rgba(255,250,224,'+(1-t)+')');
-   }
+   const age=now-ghost.start;
+   ghost.rods.alpha=1-age/releaseMs;
+   if(ghost.glow)ghost.glow.alpha=Math.sin(Math.PI*Math.min(1,(age+20)/210));
   }
   for(const p of this.sparks){
-   const t=(now-p.start)/FEEDBACK.particles,a=p.seed*137.5;
+   const age=now-p.start;
+   if(age<380)continue;
+   const t=(age-380)/(FEEDBACK.particles-380),a=p.seed*137.5;
    const q=C.point(p,a,(8+p.strength*4)*easeOut(t));q.y-=12*t;
-   const alpha=(1-t)**2,r=(1-t)*(p.seed%3===0?3.2:1.8);
-   glint(this.effects.graphics,q.x,q.y,r,(p.seed%2?'rgba(116,179,157,':'rgba(206,164,97,')+alpha+')');
+   const alpha=Math.sin(Math.PI*t)**2*.65,r=(1-t)*(p.seed%3===0?3.2:1.8);
+   glint(this.effects.graphics,q.x,q.y,r,'rgba(206,164,97,'+alpha+')');
   }
   for(const p of this.flashes){
    const t=(now-p.start)/(this.quiet?140:FEEDBACK.alignment),alpha=Math.sin(Math.PI*t);
@@ -299,9 +330,9 @@ export class Board {
   if(this.hint){const d=8*(1+Math.sin(now/170)*.09),p=this.hint;this.effects.graphics.drawPoly(p.x,p.y,[0,-d,d,0,0,d,-d,0],null,THEME.pressed,1.1)}
  }
  private drawClear(now:number):void{
-  const t=(now-this.clearAt)/FEEDBACK.clear;
-  if(t<.2)return;
-  const u=(t-.2)/.8,g=this.effects.graphics,c=this.center,alpha=Math.sin(u*Math.PI);
+  const age=now-this.clearAt;
+  if(age<FEEDBACK.clearBloom)return;
+  const u=(age-FEEDBACK.clearBloom)/(FEEDBACK.clear-FEEDBACK.clearBloom),g=this.effects.graphics,c=this.center,alpha=Math.sin(u*Math.PI);
   // Local celebration follows the jade tray camera, without a screen flash.
   for(let k=0;k<3;k++)g.drawCircle(c.x,c.y,(45+easeOut(u)*100+k*14),null,'rgba(174,203,172,'+(alpha*(.24-k*.055))+')',1.6-k*.3);
   for(let k=0;k<18;k++){
@@ -310,7 +341,7 @@ export class Board {
    else g.drawPoly(p.x,p.y,[0,-r*1.5,r*.8,0,0,r*1.5,-r*.8,0],'rgba(213,151,170,'+(alpha*.6)+')');
   }
  }
- destroy():void{this.backdrop?.destroy(true);this.backdrop=null;this.viewport.destroy(true)}
+ destroy():void{this.petals.destroy();this.backdrop?.destroy(true);this.backdrop=null;this.viewport.destroy(true)}
 }
 
 

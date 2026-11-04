@@ -1,5 +1,5 @@
 // Presentation timing only. No rule, scoring or angular tolerance lives here.
-export const FEEDBACK={release:460,particles:760,alignment:360,clear:1080,maxGhosts:32,maxParticles:128};
+export const FEEDBACK={release:300,particles:800,alignment:360,clearBloom:720,clear:1080,maxGhosts:32,maxParticles:128};
 export function reducedMotion():boolean{
  return !!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }

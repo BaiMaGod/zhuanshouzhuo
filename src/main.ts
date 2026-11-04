@@ -1,5 +1,6 @@
 import {Core as C,GameModel} from './model.js';
 import {Board} from './renderer.js';
+import {PETAL_ASSET} from './jade-petals.js';
 import {Victory} from './victory.js';
 import type {VictoryOptions} from './victory.js';
 import {text,panel,Button,ornament,COLORS,THEME,icon,flower,round} from './ui.js';
@@ -38,7 +39,7 @@ const HOME_LOGO_PARTS=[
 ];
 // Build pipeline injects package.json's current version for every target.
 const GAME_VERSION='__GAME_VERSION__';
-const ASSETS=[HINT_HAND_ASSET,...JADE_ASSETS,...FEATURE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,...HOME_LOGO_PARTS,'assets/art-v3/clasp.png'];
+const ASSETS=[HINT_HAND_ASSET,PETAL_ASSET,...JADE_ASSETS,...FEATURE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,...HOME_LOGO_PARTS,'assets/art-v3/clasp.png'];
 class Game {
  readonly debugMode=debugHintEnabled();
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
