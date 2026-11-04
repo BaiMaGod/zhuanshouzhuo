@@ -80,7 +80,8 @@ export class JadePetals {
    const lift = drift*(5+seed*8);
    sprite.pos(center.x+Math.cos(angle)*radius+up.x*lift,center.y+Math.sin(angle)*radius+up.y*lift);
    sprite.rotation = petal.angle+90+(seed-.5)*(54+drift*220);
-   sprite.scale((.82+seed*.3)*(1-drift*.24));
+   const size = (.82+seed*.3)*(1-drift*.24);
+   sprite.scale(size,size);
    sprite.alpha = emerge*fade**1.5;
    this.active[alive++] = petal;
   }

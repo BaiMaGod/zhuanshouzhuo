@@ -60,6 +60,8 @@ test('five jade materials use their own petal rows and release input before peta
     &&Math.abs(mesh[5][1]-row/5)<1e-6&&node.alpha>.9;
   });
   assert.equal(fresh.length,24,'each jade releases a full arc in its own color');
+  assert.ok(fresh.every(node=>Number.isFinite(node.scaleY)&&node.scaleY===node.scaleX),
+   'real LayaAir requires both scale arguments for visible petals');
   assert.equal(board.animating,true);
   wait(16);
   assert.equal(board.animating,false,'only the departing jade holds input');
