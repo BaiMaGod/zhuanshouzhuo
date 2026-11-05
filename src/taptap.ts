@@ -275,6 +275,8 @@ export class TapPlatform {
  }
  private async uploadSnapshot(create:boolean):Promise<void>{
   if(!this.api||!this.capabilities.cloud)throw {code:'CLOUD_SAVE_UNAVAILABLE',message:'TapTap 云存档接口不可用'};
+  const cooldown=Math.max(0,this.lastAttempt+WINDOW-Date.now());
+  if(cooldown>0)await new Promise<void>(resolve=>setTimeout(resolve,cooldown));
   const revision=this.save.revision,owner=this.save.owner,snapshot=this.save.exportCloud();
   const filePath=this.api.env!.USER_DATA_PATH+'/jade_save.json';
   await this.call('cloud',this.api.getFileSystemManager!(),'writeFile',{filePath,data:JSON.stringify(snapshot),encoding:'utf8'});
