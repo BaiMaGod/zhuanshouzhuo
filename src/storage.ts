@@ -88,8 +88,10 @@ export class Save {
   this.changed();if(error){this.storageError=error;this.onChange()}
  }
  persist():void {
-  try{Laya.LocalStorage.setItem(this.key,JSON.stringify(this.data));this.storageError=null;this.changed()}
-  catch(error){this.storageError=error;this.onChange()}
+  let error:unknown=null;
+  try{Laya.LocalStorage.setItem(this.key,JSON.stringify(this.data))}catch(e){error=e}
+  this.changed();
+  if(error){this.storageError=error;this.onChange()}
  }
  // Device/account-scoped onboarding gate; do not change the versioned cloud save.
  shouldAutoStartTutorial():boolean{
