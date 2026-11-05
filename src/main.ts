@@ -989,7 +989,10 @@ class Game {
    if(this.platform.pendingCloud&&!this.platform.requiresCloud)this.showCloudConflict();
    else if(this.platform.requiresCloud&&!this.platform.playAllowed)this.showCloudRestoreBlocked();
   }
-  if(this.platform.cloudBlocked&&!this.modalOpen&&!this.cloudSyncModal)this.showCloudSyncBlocked();
+  if(this.platform.cloudBlocked&&!this.modalOpen){this.cloudSyncModal=false;this.showCloudSyncBlocked()}
+  if(this.platform.requiresCloud&&!this.platform.playAllowed&&!this.modalOpen&&this.mode==='home'&&this.platform.states.cloud!=='busy'){
+   this.cloudRestoreModal=false;this.showCloudRestoreBlocked();
+  }
   if(this.mode==='home'&&this.homeSignDot&&Date.now()>=this.nextSignBadgeCheck){
    this.nextSignBadgeCheck=Date.now()+60000;
    const state=this.save.dailySignInStatus();
