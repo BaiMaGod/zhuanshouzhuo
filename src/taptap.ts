@@ -34,7 +34,7 @@ export function tapCall<T>(manager:Manager,method:string,options:Options={},boar
  });
 }
 export class TapPlatform {
- status='本地存档';ready=false;adBusy=false;shareBusy=false;syncing=false;
+ status='本地存档';ready=false;adBusy=false;shareBusy=false;syncing=false;cloudBlocked=false;
  states:Record<Capability,CapabilityState>={login:'unsupported',cloud:'unsupported',leaderboard:'unsupported',ads:'unsupported',report:'unsupported'};
  diagnostics:Diagnostic[]=[];
  readonly trace=new TapDiagnostics();
@@ -45,10 +45,10 @@ export class TapPlatform {
  canRestore:()=>boolean=()=>true;
  private archive:Archive|null=null;
  private lastAttempt=-Infinity;private retryAt=0;private ad:Ad|null=null;
- private loginTask:Promise<void>|null=null;private syncTask:Promise<void>|null=null;
+ private loginTask:Promise<void>|null=null;private syncTask:Promise<void>|null=null;private retryTask:Promise<void>|null=null;
  private ranked={levels:0,stars:0};private rankAt=-Infinity;private rankBusy=false;
  private retryTimer:ReturnType<typeof setTimeout>|null=null;private reportSent=false;private disposed=false;
- private sessionOwner='';
+ private sessionOwner='';private uncertainWrite=false;
  private autoEnabled=false;private discoveryUntil=0;private reconnectAttempt=0;
  private reconnectTimer:ReturnType<typeof setTimeout>|null=null;private readyCostTime:number|null=null;
  constructor(readonly save:Save,readonly debug=false,private readonly suppliedAPI?:TapAPI,readonly config=TAP_CONFIG){
@@ -59,13 +59,13 @@ export class TapPlatform {
  get api():TapAPI|undefined{return this.suppliedAPI??runtime()}
  private ensureSession():boolean{
   if(this.sessionOwner)return true;
-  const c=this.capabilities;
-  // Without a usable cloud archive, keep the stable legacy device save scope.
-  // A per-launch random owner would make local-only progress disappear on relaunch.
-  if(!c.cloud)return true;
+  if(this.requiresCloud&&!this.capabilities.cloud)return false;
+  if(!this.capabilities.cloud)return true;
   if(!this.canRestore())return false;
   this.save.beginContainerSession();this.sessionOwner=this.save.owner;return true;
  }
+ get requiresCloud():boolean{return this.config.target==='taptap-h5'}
+ get playAllowed():boolean{return !this.requiresCloud||(this.ready&&!this.cloudBlocked&&this.states.cloud==='ready')}
  get available():boolean{return Object.values(this.capabilities).some(Boolean)}
  get capabilities():Record<Capability,boolean>{return {
   login:typeof this.api?.login==='function',
@@ -108,7 +108,7 @@ export class TapPlatform {
  private scheduleReconnect():void{
   if(!this.autoEnabled||this.disposed||this.reconnectTimer)return;
   const missingLogin=!this.capabilities.cloud&&this.capabilities.login&&this.states.login!=='ready'&&!this.authTask&&!this.blocked.has('login');
-  const missingCloud=this.capabilities.cloud&&!this.ready&&!this.pendingCloud&&!this.blocked.has('cloud');
+  const missingCloud=(this.requiresCloud||this.capabilities.cloud)&&!this.ready&&!this.pendingCloud&&!this.blocked.has('cloud');
   let delay:number;
   if((!this.sessionOwner||!missingLogin&&missingCloud)&&!this.canRestore())delay=1000;
   else if(missingLogin||missingCloud){if(this.reconnectAttempt>=3)return;delay=[5000,15000,30000][this.reconnectAttempt++]!;}
@@ -122,7 +122,13 @@ export class TapPlatform {
   return tapCall<T>(manager,method,options,board,timeout,{log:this.trace,capability,signal:this.lifecycle.signal});
  }
  exportDiagnostics(version:string):string{return this.trace.export(version,this.states)}
- localChanged():void{if(this.ready&&!this.syncing){this.state('待同步');this.scheduleSync()}}
+ localChanged():void{
+  if(!this.save.storageHealthy){
+   this.cloudBlocked=true;this.failure('cloud','local-cache',this.save.storageError||Error('本机待同步缓存写入失败'));
+   this.state('本机进度缓存异常，请检查存储后重试');return;
+  }
+  if(this.ready&&!this.syncing&&!this.cloudBlocked){this.state('待同步');this.scheduleSync()}
+ }
  login(manual=false):Promise<void>{
   if(this.disposed)return Promise.resolve();
   if(this.loginTask)return this.loginTask;
@@ -133,13 +139,17 @@ export class TapPlatform {
  private async connect():Promise<void>{
   if(!this.api||this.disposed)return;
   this.refreshCapabilities();
-  if(!this.ensureSession()){this.state('回首页后同步');return}
-  // H5 cloud APIs bind the container user. The independent code request is not
-  // an authentication prerequisite in the official H5 cloud-save workflow.
+  if(this.requiresCloud&&!this.capabilities.cloud){
+   this.failure('cloud','capability-check',{code:'CLOUD_SAVE_UNAVAILABLE',message:'当前 TapTap 客户端未提供完整云存档接口'});
+   this.state('TapTap 云存档接口不可用，无法进入游戏');return;
+  }
+  if(!this.ensureSession()){this.state('等待安全场景恢复云存档');return}
+  // The H5 cloud-save API is container-owned. The independent login code is
+  // diagnostic only and must never be treated as a stable account identifier.
   const authentication=this.loginOnly();
   if(this.capabilities.cloud){
    if(!this.ready&&!this.pendingCloud&&!this.blocked.has('cloud'))await this.restore();
-   else if(this.ready)await this.sync();
+   else if(this.ready&&!this.cloudBlocked)await this.sync();
   }else await authentication;
   if(this.readyCostTime!==null&&!this.disposed)void this.reportReady(this.readyCostTime);
  }
@@ -171,26 +181,52 @@ export class TapPlatform {
  pendingCloud:unknown=null;
  private async restore():Promise<void>{
   if(!this.capabilities.cloud)return;
-  if(!this.canRestore()){this.states.cloud='idle';this.state('回首页后同步');return}
-  if(this.syncTask)await this.syncTask;
-  this.ready=false;this.states.cloud='busy';this.state('正在读取云存档…');
+  if(!this.canRestore()){this.states.cloud='idle';this.state('等待安全场景恢复云存档');return}
+  this.ready=false;this.cloudBlocked=false;this.states.cloud='busy';this.state('正在读取云存档…');
   try{
    const {slot,value}=await this.download();
    if(this.disposed)return;
-   if(!this.canRestore()){this.states.cloud='idle';this.state('回首页后同步');return}
-   // Container-owned archive UUID is the local identity boundary. Neither a login
-   // code nor an unverified openid is used as an account identifier.
-   const owner=slot?'archive:'+slot.uuid:this.sessionOwner;
-   const remote=value===null?null:containerCloud(value,owner);
+   if(!this.canRestore()){this.states.cloud='idle';this.state('等待安全场景恢复云存档');return}
+   if(!slot){
+    // A valid empty list is a new cloud user, not an error. Create the first
+    // archive now; never unlock gameplay while the first archive is absent.
+    if(!this.sessionOwner)throw Error('新用户云存档会话身份缺失');
+    this.save.bindAccount(this.sessionOwner,false);
+    this.archive=null;this.lastAttempt=this.save.lastAttemptAt;
+    this.syncing=true;this.state('正在创建首次云存档…');
+    try{await this.uploadSnapshot(true)}finally{this.syncing=false}
+    this.ready=true;this.cloudBlocked=false;this.states.cloud='ready';this.state('首次云存档已创建');
+    return;
+   }
+   // The archive UUID is the stable local namespace. Never import another
+   // session/guest cache into this account.
+   const owner='archive:'+slot.uuid;
+   const remote=containerCloud(value,owner);
    if(this.save.owner!==owner){this.ranked={levels:0,stars:0};this.rankAt=-Infinity}
-   this.save.bindAccount(owner,this.save.owner===this.sessionOwner);this.archive=slot;
-   if(remote&&this.save.hasRunConflict(remote)){this.pendingCloud=remote;this.states.cloud='idle';this.state('存档冲突待选择');return}
-   if(remote)this.save.mergeCloud(remote);
-   else if(this.save.hasGuestProgress())this.save.importGuest();
-   this.pendingCloud=null;this.ready=true;this.states.cloud='ready';this.state('云存档已连接');await this.sync();
-  }catch(e){if(!this.disposed){this.failure('cloud','restore',e);this.state('云档读取失败，请查看平台检查')}}
+   this.save.bindAccount(owner,false);this.archive=slot;this.lastAttempt=this.save.lastAttemptAt;
+   const localRevision=this.save.revision,localBase=this.save.baseRevision,localDirty=this.save.cloudDirty;
+   const remoteRevision=remote.meta.revision;
+   if(localDirty&&localRevision>remoteRevision&&localBase===remoteRevision){
+    // This is the only restart case in which a local transaction is safe to
+    // replay: it is based exactly on the cloud revision just downloaded.
+    containerCloud(this.save.exportCloud(),owner);
+    const wait=Math.max(0,this.lastAttempt+WINDOW-Date.now());
+    if(wait>0){this.state('等待云存档写入冷却…');await new Promise<void>(resolve=>setTimeout(resolve,wait))}
+    this.syncing=true;this.state('正在补传上次未确认的进度…');
+    try{await this.uploadSnapshot(false)}finally{this.syncing=false}
+   }else{
+    // Cloud is authoritative. This also resolves an upload that reached the
+    // server before the app closed but whose local acknowledgement was missed.
+    this.save.replaceCloud(remote);
+   }
+   this.pendingCloud=null;this.ready=true;this.cloudBlocked=false;this.states.cloud='ready';this.state('云存档已恢复');
+  }catch(e){
+   if(!this.disposed){this.ready=false;this.failure('cloud','restore',e);this.state('云档读取失败，请检查网络后重试')}
+  }
  }
  resolveConflict(useCloud:boolean):void{
+  // Legacy conflict UI is retained for non-strict preview builds only.
+  if(this.requiresCloud){this.pendingCloud=null;return}
   if(!this.pendingCloud)return;
   try{this.save.mergeCloud(this.pendingCloud,useCloud);this.pendingCloud=null;this.ready=true;this.states.cloud='ready';this.state('待同步');void this.sync()}
   catch(e){this.failure('cloud','resolveConflict',e)}
@@ -208,38 +244,93 @@ export class TapPlatform {
   return {slot,value:JSON.parse(data)};
  }
  private scheduleSync():void{
-  if(this.retryTimer||!this.ready||this.disposed||this.blocked.has('cloud')||!this.save.cloudDirty)return;
+  if(this.retryTimer||!this.ready||this.disposed||this.cloudBlocked||this.blocked.has('cloud')||!this.save.cloudDirty)return;
   const delay=Math.max(0,this.lastAttempt+WINDOW-Date.now(),this.retryAt-Date.now());
   this.retryTimer=setTimeout(()=>{this.retryTimer=null;void this.sync()},delay);
-  // Node test runners can exit; browsers ignore this optional method.
   (this.retryTimer as unknown as {unref?:()=>void}).unref?.();
  }
  sync():Promise<void>{
-  // Ranking does not depend on cloud restore, uploads or conflicts. Only records
-  // from this launch/current container archive may reach it.
-  void this.submitScores();
+  if(this.cloudBlocked)return Promise.resolve();
+  if(this.ready)void this.submitScores();
   if(this.syncTask)return this.syncTask;
-  this.syncTask=this.syncNow().finally(()=>{this.syncTask=null;this.scheduleSync()});return this.syncTask;
+  this.syncTask=this.syncNow(false).finally(()=>{this.syncTask=null;this.scheduleSync()});return this.syncTask;
  }
- private async syncNow():Promise<void>{
-  if(!this.api||!this.capabilities.cloud||!this.ready||this.syncing||!this.save.cloudDirty||this.disposed||this.blocked.has('cloud'))return;
-  if(Date.now()<this.retryAt||Date.now()-this.lastAttempt<WINDOW){this.scheduleSync();return}
-  this.syncing=true;this.lastAttempt=Date.now();this.states.cloud='busy';this.state('正在同步…');
-  const revision=this.save.revision,owner=this.save.owner;
+ private async syncNow(force:boolean):Promise<void>{
+  if(!this.api||!this.capabilities.cloud||!this.ready||this.syncing||!this.save.cloudDirty||this.disposed||this.blocked.has('cloud')||this.cloudBlocked)return;
+  if(!force&&(Date.now()<this.retryAt||Date.now()-this.lastAttempt<WINDOW)){this.scheduleSync();return}
+  this.syncing=true;this.states.cloud='busy';this.state('正在后台同步云存档…');
   try{
-   const filePath=this.api.env!.USER_DATA_PATH+'/jade_save.json';
-   await this.call('cloud',this.api.getFileSystemManager!(),'writeFile',{filePath,data:JSON.stringify(this.save.exportCloud()),encoding:'utf8'});
-   const result=await this.call<{uuid?:string;fileId:string}>('cloud',this.api.getCloudSaveManager!(),this.archive?'updateArchive':'createArchive',{
-    ...(this.archive?{archiveUUID:this.archive.uuid}:{}),archiveMetaData:{name:SLOT,summary:'Jade bracelet progress',extra:JSON.stringify({revision,savedAt:Date.now()})},archiveFilePath:filePath
-   });
-   const uuid=this.archive?.uuid||result.uuid;if(!uuid||!result.fileId)throw Error('云档上传响应格式错误');
-   if(this.disposed||this.save.owner!==owner)return;
-   this.archive={name:SLOT,uuid,fileId:result.fileId};
-   // Keep local unsynced progress addressable by the container's stable slot ID.
-   this.save.moveAccount('archive:'+uuid);
-   this.save.markSynced(revision);this.retryAt=0;this.states.cloud='ready';this.state(this.save.cloudDirty?'待同步':'云存档已同步');
-  }catch(e){if(!this.disposed){this.retryAt=Date.now()+WINDOW;this.failure('cloud','upload',e);this.state('云同步失败，请查看平台检查')}}
-  finally{this.syncing=false}
+   await this.uploadSnapshot(false);
+   this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
+   this.states.cloud='ready';this.state(this.save.cloudDirty?'有新进度待同步':'云存档已同步');
+  }catch(e){
+   if(!this.disposed){
+    const d=detail(e),rateLimited=d.code==='400001';
+    this.retryAt=Math.max(this.lastAttempt+WINDOW,Date.now()+(rateLimited?WINDOW:0));
+    this.uncertainWrite=true;this.cloudBlocked=true;
+    this.failure('cloud','upload',e);this.state('云存档同步异常，游戏已暂停');
+   }
+  }finally{this.syncing=false}
+ }
+ private async uploadSnapshot(create:boolean):Promise<void>{
+  if(!this.api||!this.capabilities.cloud)throw {code:'CLOUD_SAVE_UNAVAILABLE',message:'TapTap 云存档接口不可用'};
+  const revision=this.save.revision,owner=this.save.owner,snapshot=this.save.exportCloud();
+  const filePath=this.api.env!.USER_DATA_PATH+'/jade_save.json';
+  await this.call('cloud',this.api.getFileSystemManager!(),'writeFile',{filePath,data:JSON.stringify(snapshot),encoding:'utf8'});
+  const attempted=Date.now();this.save.markAttempt(attempted);this.lastAttempt=attempted;
+  const useCreate=create||!this.archive;
+  const result=await this.call<{uuid?:string;fileId:string}>('cloud',this.api.getCloudSaveManager!(),useCreate?'createArchive':'updateArchive',{
+   ...(!useCreate&&this.archive?{archiveUUID:this.archive.uuid}:{}),
+   archiveMetaData:{name:SLOT,summary:'Jade bracelet progress',extra:JSON.stringify({revision,savedAt:Date.now()})},
+   archiveFilePath:filePath
+  });
+  const uuid=this.archive?.uuid||result.uuid;
+  if(!uuid||!result.fileId){this.uncertainWrite=true;throw Error('云档上传响应格式不完整，需重新查询确认')}
+  if(this.disposed||this.save.owner!==owner)return;
+  this.archive={name:SLOT,uuid,fileId:result.fileId};
+  this.save.moveAccount('archive:'+uuid);
+  this.save.markSynced(revision);
+  this.uncertainWrite=false;this.retryAt=0;
+ }
+ async retrySync():Promise<void>{
+  if(this.disposed||!this.requiresCloud||!this.ready)return;
+  if(this.retryTask)return this.retryTask;
+  this.retryTask=(async()=>{
+   this.blocked.delete('cloud');
+   const wait=Math.max(0,this.lastAttempt+WINDOW-Date.now(),this.retryAt-Date.now());
+   if(wait>0){this.state('等待云存档写入冷却…');await new Promise<void>(resolve=>setTimeout(resolve,wait))}
+   if(this.uncertainWrite)await this.reconcileUncertainWrite();
+   if(this.cloudBlocked)await this.syncNow(true);
+  })().catch(e=>{
+   if(!this.disposed){this.cloudBlocked=true;this.failure('cloud','retry-reconcile',e);this.state('云存档仍未确认，请检查网络后重试')}
+  }).finally(()=>{this.retryTask=null});
+  return this.retryTask;
+ }
+ private async reconcileUncertainWrite():Promise<void>{
+  const {slot,value}=await this.download();
+  if(!slot){
+   if(this.archive)throw Error('原云存档暂时无法在云端列表中确认，禁止重复创建');
+   this.uncertainWrite=false;return;
+  }
+  const owner='archive:'+slot.uuid,remote=containerCloud(value,owner);
+  if(this.save.owner!==owner){
+   const preserve=this.save.owner===this.sessionOwner;
+   this.save.bindAccount(owner,preserve);
+  }
+  this.archive=slot;
+  const localRevision=this.save.revision,remoteRevision=remote.meta.revision;
+  if(remoteRevision>=localRevision){
+   this.save.replaceCloud(remote);this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
+   this.ready=true;this.states.cloud='ready';this.state('云存档已确认');return;
+  }
+  if(this.save.cloudDirty&&this.save.baseRevision===remoteRevision){
+   // The server is still at the transaction's base revision; the next update
+   // can safely submit the latest complete local snapshot.
+   this.lastAttempt=this.save.lastAttemptAt;return;
+  }
+  // A different cloud revision won. Do not overwrite it with a stale cache.
+  this.save.replaceCloud(remote);this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
+  this.ready=true;this.states.cloud='ready';this.state('已恢复云端最新进度');
  }
  async submitScores():Promise<void>{
   if(!this.capabilities.leaderboard||this.debug||this.rankBusy||this.disposed)return;
