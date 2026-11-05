@@ -63,8 +63,11 @@ export class Save {
    }
   } catch {}
  }
- readRun(index:number):{state:State;hint:number;erase:number;hintProgress?:number}|null{
-  const cached=this.runDataCache.get(index);if(cached)return JSON.parse(JSON.stringify(cached));
+ readRun(index:number):{version:number;levelRevision:number;state:State;hint:number;erase:number;hintProgress?:number}|null{
+  const cached=this.runDataCache.get(index);
+  // Export the same versioned envelope for a live run and a disk-loaded run.
+  // A cached bare state is not a valid cloud archive and would block restore.
+  if(cached)return {version:1,levelRevision:Core.levels[index].revision||0,...JSON.parse(JSON.stringify(cached))};
   try{
    const r=JSON.parse(Laya.LocalStorage.getItem(this.key+'-run-'+index)||'null');
    if(!validRun(r,index))return null;

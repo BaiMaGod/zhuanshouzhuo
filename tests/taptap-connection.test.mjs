@@ -9,7 +9,7 @@ const settle=()=>new Promise(r=>setImmediate(r));
 function fixture(){
  let calls=0,reads=0;const auth=[];
  const api={login:o=>{calls++;auth.push(o)},env:{USER_DATA_PATH:'tapfile://usr'},
-  getCloudSaveManager:()=>({getArchiveList:o=>{reads++;o.success({saves:[]})}}),getFileSystemManager:()=>({})};
+  getCloudSaveManager:()=>({getArchiveList:o=>{reads++;o.success({saves:[]})},createArchive:o=>o.success({uuid:'slot',fileId:'file'})}),getFileSystemManager:()=>({writeFile:o=>o.success({})})};
  return {api,auth,get calls(){return calls},get reads(){return reads}};
 }
 test('native no-callback timeout does not retry or hide a restored cloud archive',async t=>{
@@ -37,8 +37,8 @@ test('manual retry starts one new native call and ignores timed-out native succe
  }finally{p.dispose()}
 });
 test('concurrent cloud requests are deduplicated while native login is pending',async()=>{
- const f=fixture();let answer;
- f.api.getCloudSaveManager=()=>({getArchiveList:o=>{answer=o}});
+ const f=fixture();let answer;const cloud=f.api.getCloudSaveManager;
+ f.api.getCloudSaveManager=()=>({...cloud(),getArchiveList:o=>{answer=o}});
  const p=new TapPlatform(new Save(),false,f.api);
  try{
   const a=p.start(),b=p.login(true);assert.equal(a,b);assert.equal(f.calls,1);
@@ -47,13 +47,13 @@ test('concurrent cloud requests are deduplicated while native login is pending',
 });
 test('permanent cloud errors stop automatic requests and manual retry can recover',async t=>{
  t.mock.timers.enable({apis:['Date','setTimeout'],now:100000});
- const f=fixture();let reads=0;
+ const f=fixture();let reads=0;const cloud=f.api.getCloudSaveManager;
  f.api.login=o=>o.success({code:'once'});
- f.api.getCloudSaveManager=()=>({getArchiveList:o=>{reads++;o.fail({errno:403,errMsg:'permission denied'})}});
+ f.api.getCloudSaveManager=()=>({...cloud(),getArchiveList:o=>{reads++;o.fail({errno:403,errMsg:'permission denied'})}});
  const p=new TapPlatform(new Save(),false,f.api);
  try{
   await p.start();t.mock.timers.tick(60000);await settle();assert.equal(reads,1);assert.equal(p.ready,false);
-  f.api.getCloudSaveManager=()=>({getArchiveList:o=>{reads++;o.success({saves:[]})}});
+  f.api.getCloudSaveManager=()=>({...cloud(),getArchiveList:o=>{reads++;o.success({saves:[]})}});
   await p.login(true);assert.equal(reads,2);assert.equal(p.ready,true);
  }finally{p.dispose()}
 });
@@ -71,8 +71,8 @@ test('transient cloud failure retries at most three times per connection cycle',
 });
 test('cloud initialization failure can recover after native login without a second native call',async t=>{
  t.mock.timers.enable({apis:['Date','setTimeout'],now:100000});
- const f=fixture();let reads=0;
- f.api.getCloudSaveManager=()=>({getArchiveList:o=>{reads++;if(reads===1)o.fail({errno:400100});else o.success({saves:[]})}});
+ const f=fixture();let reads=0;const cloud=f.api.getCloudSaveManager;
+ f.api.getCloudSaveManager=()=>({...cloud(),getArchiveList:o=>{reads++;if(reads===1)o.fail({errno:400100});else o.success({saves:[]})}});
  const p=new TapPlatform(new Save(),false,f.api);
  try{
   await p.start();assert.equal(p.ready,false);f.auth[0].success({code:'once'});await settle();

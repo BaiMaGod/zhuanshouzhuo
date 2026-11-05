@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {installHarness} from './scene-harness.mjs';
 const settle=()=>new Promise(r=>setImmediate(r));
-test('8-second recovery window offers local play and late cloud data waits for home',async t=>{
+test('8-second restore timeout blocks local play until late cloud data is validated',async t=>{
  t.mock.timers.enable({apis:['Date','setTimeout'],now:100000});
  const h=installHarness();
  const {Save}=await import('../dist/js/storage.js');
@@ -15,14 +15,17 @@ test('8-second recovery window offers local play and late cloud data waits for h
  try{
   assert.equal(reads.length,1);t.mock.timers.tick(7999);await settle();assert.equal(g.modalOpen,false);
   t.mock.timers.tick(1);await settle();assert.equal(g.modalOpen,true);
-  const button=g.modalCard.children.find(c=>c.label?.text==='继续本地游戏');assert.ok(button);button.click();
-  assert.equal(g.mode,'game');assert.equal(g.model.index,0);
-  const board=g.model;
-  reads[0].success({saves:[{name:'jade_save_v1',uuid:'late-slot',fileId:'file'}]});await settle();h.tick();
-  assert.equal(g.model,board);assert.equal(g.save.data.records[12],undefined);assert.equal(g.platform.ready,false);assert.equal(uploads,0);
-  g.home();const pending=g.platform.resume();await settle();assert.equal(reads.length,2);
-  reads[1].success({saves:[{name:'jade_save_v1',uuid:'late-slot',fileId:'file'}]});await pending;h.tick();
-  assert.equal(g.platform.ready,true);assert.equal(g.save.owner,'archive:late-slot');assert.equal(g.save.data.records[12].stars,3);
+  assert.equal(g.mode,'home');assert.equal(g.platform.ready,false);assert.equal(g.platform.playAllowed,false);
+  assert.ok(g.modalCard.children.some(c=>c.label?.text==='重试连接'));
+  assert.equal(g.modalCard.children.some(c=>c.label?.text==='继续本地游戏'),false);
+  assert.equal(g.save.data.records[12],undefined);
+  // The original request may complete after the warning appears. Since the
+  // user remains at home, it may finish validation and then unlock gameplay.
+  reads[0].success({saves:[{name:'jade_save_v1',uuid:'late-slot',fileId:'file'}]});
+  await settle();h.tick();await settle();
+  assert.equal(g.platform.ready,true);assert.equal(g.platform.playAllowed,true);
+  assert.equal(g.save.owner,'archive:late-slot');assert.equal(g.save.data.records[12].stars,3);
+  assert.equal(g.mode,'home');assert.equal(g.modalOpen,false);assert.equal(uploads,0);
   g.showPlatformCheck();assert.equal(g.platformLive.labels.length,5);
   const card=g.modalCard;t.mock.timers.tick(1000);h.tick();assert.equal(g.modalCard,card);
  }finally{g.platform.dispose();delete globalThis.tap}

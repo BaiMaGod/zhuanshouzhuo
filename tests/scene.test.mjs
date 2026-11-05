@@ -152,7 +152,7 @@ test('所有关卡没有旋转按钮、撤销、选中圆圈，正式关可用�
  for(const a of route){const r=C.ring(g.model.state,a.id);b.zoomTo(b.fitZoom*3,{x:360,y:500});const delta=C.rot({x:r.x-b.center.x,y:r.y-b.center.y},b.turn);b.panTo({x:360-delta.x*b.zoom,y:500-delta.y*b.zoom});const start=r.a+50,event=q=>({stageX:q.x*.75,stageY:q.y*.75,pointerId:88,button:0});const first=b.toScreen(C.point(r,start));g.down(event(first));assert.equal(g.drag?.id,a.id);const n=Math.ceil(Math.abs(a.delta)/4);for(let k=1;k<=n;k++)g.move(event(b.toScreen(C.point(r,start+a.delta*k/n))));g.up(event(first));
   // Ordinary release ends within 640ms; the final clear includes its tray celebration.
   for(let k=0;k<(g.model.cleared?70:40);k++)h.tick();assert.ok(!b.animating);for(const v of b.rings.values())assert.equal(v.halo.graphics.ops.length,0);}
- assert.ok(g.model.cleared);assert.ok(g.settled);assert.equal(g.model.state.steps,route.length);g.load(LEGACY_FORMAL_INDEX);assert.equal(g.model.state.rings.filter(r=>r.life==='active').length,54);
+ assert.ok(g.model.cleared);assert.ok(g.settled);assert.equal(g.model.state.steps,route.length);g.load(LEGACY_FORMAL_INDEX,true);assert.equal(g.model.state.rings.filter(r=>r.life==='active').length,54);
 });
 
 test('正式关复用首页背景图，但不会随玉盘一起缩放或覆盖手镯',()=>{
@@ -196,7 +196,7 @@ test('花园、玉盘与玉镯共用视角，缩放平移和撤销不会改变�
 });
 
 test('正式提示只显示方向手指，不改步数或扣位；跟随视角且拖动和重开清理',async()=>{
- g.load(LEGACY_FORMAL_INDEX);const before=C.clone(g.model.state);
+ g.load(LEGACY_FORMAL_INDEX,true);const before=C.clone(g.model.state);
  await g.hint();assert.ok(g.guide?.action);assert.equal(g.guide.id,'9D');
  assert.equal(g.modalOpen,false);assert.deepEqual(g.model.state,before);
  for(let k=0;k<10;k++)h.tick();assert.equal(g.guide.hand.visible,true);

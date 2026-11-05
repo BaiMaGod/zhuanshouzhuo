@@ -116,6 +116,14 @@ test('cloud validation rejects foreign account, bad score and malformed board be
  const badRun=structuredClone(original);badRun.runs[10]={state:{}};assert.throws(()=>s.mergeCloud(badRun));
  assert.deepEqual(s.exportCloud(),original);
 });
+test('active and restored formal runs export complete versioned cloud records',()=>{
+ const s=saveFor('run-cloud-envelope');s.writeRun(10,Core.make(10),1,1);
+ const active=s.exportCloud();assert.equal(active.runs[10].version,1);
+ assert.equal(active.runs[10].levelRevision,Core.levels[10].revision||0);
+ const reopened=saveFor('run-cloud-envelope');assert.deepEqual(reopened.exportCloud().runs[10],active.runs[10]);
+ const restored=saveFor('run-cloud-receiver'),cloud=structuredClone(active);cloud.owner=restored.owner;
+ restored.replaceCloud(cloud);assert.deepEqual(restored.exportCloud().runs[10],active.runs[10]);
+});
 test('different whole-board saves require conflict choice; records merge safely',()=>{
  const s=saveFor('conflict');s.writeRun(10,Core.make(10),1,1);
  const cloud=s.exportCloud();cloud.runs[10].hint=0;cloud.progress.records[11]={steps:5,stars:2};
@@ -248,7 +256,7 @@ test('cloud uploads coalesce at 65 seconds, pause only after failure, then retry
 
 test('ranking works without cloud or login and submits only improved absolute records',async t=>{
  t.mock.timers.enable({apis:['Date','setTimeout'],now:2000000});
- const m=mockRuntime(),s=new Save(),p=new TapPlatform(s,false,{getLeaderboardManager:m.api.getLeaderboardManager},config);
+ const m=mockRuntime(),s=new Save('ranking-isolated'),p=new TapPlatform(s,false,{getLeaderboardManager:m.api.getLeaderboardManager},config);
  s.win(33,100,1);await p.submitScores();assert.deepEqual(m.submissions[0],[{leaderboardId:'levels',score:1},{leaderboardId:'stars',score:1}]);
  t.mock.timers.tick(65000);s.win(33,1,1);await p.submitScores();assert.deepEqual(m.submissions[1],[{leaderboardId:'stars',score:3}]);
  t.mock.timers.tick(65000);s.win(33,100,1);await p.submitScores();assert.equal(m.submissions.length,2);p.dispose();
@@ -373,7 +381,7 @@ test('TapTap H5 timeout after server commit preserves newer operations made duri
  await p.sync();assert.equal(p.cloudBlocked,true);assert.equal(save.cloudDirty,true);assert.notEqual(save.inFlightRevision,null);
  p.lastAttempt=-Infinity;p.retryAt=0;await p.retrySync();
  assert.equal(p.cloudBlocked,false);assert.equal(save.cloudDirty,false);assert.equal(updates,2);
- const cloud=JSON.parse(m.files.get('cloud'));assert.equal(cloud.progress.records[49].stars,2);assert.equal(cloud.progress.records[50].stars,3);
+ const cloud=JSON.parse(m.files.get('cloud'));assert.equal(cloud.progress.records[49].stars,3);assert.equal(cloud.progress.records[50].stars,3);
  assert.equal(cloud.meta.revision,save.revision);assert.equal(m.archives.length,1);p.dispose();
 });
 
