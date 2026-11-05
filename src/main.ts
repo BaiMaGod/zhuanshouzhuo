@@ -182,13 +182,13 @@ class Game {
   }
  }
  async watchReward(index:number,kind:RewardKind,source:RewardSource='video'):Promise<void>{
-  if(this.busy||this.platform.rewardBusy||!this.model||this.model.index!==index||!this.save.canClaim(index,kind,source))return;
+  if(this.progressRestoreBlocked()||this.busy||this.platform.rewardBusy||!this.model||this.model.index!==index||!this.save.canClaim(index,kind,source))return;
   if(source==='share'&&!this.platform.shareAvailable){this.toolNotice('分享暂不可用，请稍后再试');return}
   const model=this.model;this.releasePointers();this.stopGuide(false);this.audio.stopAll();this.busy=true;
   try{
    const completed=source==='share'?await this.platform.shareReward(JSON.stringify({level:index-TEACHING_COUNT+1,tool:kind})):await this.platform.rewarded();
    // A late callback from an old board must not affect a restarted/new run.
-   if(this.model!==model)return;
+   if(this.model!==model||this.progressRestoreBlocked())return;
    if(completed&&this.save.claim(index,kind,source)){
     this.persistRun();this.toolNotice('已获得1次'+(kind==='hint'?'提示':'消除'));void this.platform.sync();
    }else if(completed===false)this.toolNotice(source==='share'?'未完成分享，未领取奖励':'未完整观看，未领取奖励');
@@ -833,7 +833,7 @@ class Game {
   if(delta!==null){const res=this.perform(id,delta);if(!res.blocked)this.haptics.pulse('snap')}
  }
  manual(delta:number):void{
-  if(this.formal||!this.model||!this.model.selected||this.busy||this.board?.animating||this.modalOpen)return;
+  if(this.progressRestoreBlocked()||this.formal||!this.model||!this.model.selected||this.busy||this.board?.animating||this.modalOpen)return;
   this.guideSelect(this.model.selected);this.audio.resetContact();this.model.begin();this.board!.hint=null;this.perform(this.model.selected,delta);
  }
  perform(id:string,d:number):Result{
