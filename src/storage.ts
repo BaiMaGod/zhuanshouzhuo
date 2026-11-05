@@ -182,7 +182,12 @@ export class Save {
   }
   this.runCache.clear();this.persist();
  }
- hasGuestProgress():boolean{return Object.keys(new Save().data.records).length>0||!!new Save().readRun(10)}
+ hasGuestProgress():boolean{
+  const guest=new Save();
+  if(Object.keys(guest.data.records).length>0)return true;
+  for(let i=TEACHING_COUNT;i<Core.levels.length;i++)if(guest.readRun(i))return true;
+  return false;
+ }
  importGuest():void{
   const guest=new Save().exportCloud();guest.owner=this.owner;
   // Legacy preview progress may have been produced with Debug; never rank it.
