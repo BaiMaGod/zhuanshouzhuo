@@ -376,3 +376,13 @@ test('TapTap H5 timeout after server commit preserves newer operations made duri
  const cloud=JSON.parse(m.files.get('cloud'));assert.equal(cloud.progress.records[49].stars,2);assert.equal(cloud.progress.records[50].stars,3);
  assert.equal(cloud.meta.revision,save.revision);assert.equal(m.archives.length,1);p.dispose();
 });
+
+
+test('Save marks only the uploaded revision as confirmed and retains newer local changes',()=>{
+ const save=saveFor('revision-ack');save.win(52,2,3);const uploaded=save.revision;
+ save.win(53,3,4);const latest=save.revision;
+ save.markAttempt(Date.now(),uploaded);save.markSynced(uploaded);
+ assert.equal(save.baseRevision,uploaded);assert.equal(save.revision,latest);assert.equal(save.cloudDirty,true);
+ save.markAttempt(Date.now(),latest);save.markSynced(latest);
+ assert.equal(save.baseRevision,latest);assert.equal(save.cloudDirty,false);assert.equal(save.inFlightRevision,null);
+});
