@@ -264,9 +264,9 @@ export class Save {
 function validateMeta(value:unknown):SaveMeta{
  const m=value as SaveMeta;
  if(!m||!Number.isSafeInteger(m.revision)||m.revision<0||typeof m.dirty!=='boolean'||typeof m.tainted!=='boolean'||!m.rewards||typeof m.rewards!=='object')throw Error('Invalid save metadata');
- const hasBase=Number.isSafeInteger(m.baseRevision)&&m.baseRevision!>=0&&m.baseRevision!<=m.revision;
+ const hasBase=Number.isSafeInteger(m.baseRevision)&&m.baseRevision! >= 0 && m.baseRevision! <= m.revision;
  const baseRevision=hasBase?m.baseRevision!:m.revision;
- const lastAttemptAt=Number.isFinite(m.lastAttemptAt)&&m.lastAttemptAt!>=0?m.lastAttemptAt!:0;
+ const lastAttemptAt=Number.isFinite(m.lastAttemptAt)&&m.lastAttemptAt! >= 0 ? m.lastAttemptAt! : 0;
  const rewards:SaveMeta['rewards']={};
  for(const [i,items] of Object.entries(m.rewards)){
   if(!/^(?:0|[1-9]\d*)$/.test(i)||Number(i)>=Core.levels.length||!items||typeof items!=='object')throw Error('Invalid reward');
