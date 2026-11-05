@@ -1,12 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {installHarness} from './scene-harness.mjs';
 const settle=()=>new Promise(r=>setImmediate(r));
 test('8-second restore timeout blocks local play until late cloud data is validated',async t=>{
  t.mock.timers.enable({apis:['Date','setTimeout'],now:100000});
  const h=installHarness();
  const {Save}=await import('../dist/js/storage.js');
- const {TAP_CONFIG}=await import('../dist/js/taptap-config.js');
+ const version=JSON.parse(readFileSync(new URL('../dist/version.json',import.meta.url),'utf8')).version;
+ const {TAP_CONFIG}=await import('../dist/js/taptap-config.js?v='+version);
  const originalTarget=TAP_CONFIG.target;TAP_CONFIG.target='taptap-h5';
  const remote=new Save('startup-timeout-fixture');remote.owner='legacy-owner';remote.win(12,3,2);
  const snapshot=JSON.stringify(remote.exportCloud());const reads=[];let uploads=0;
