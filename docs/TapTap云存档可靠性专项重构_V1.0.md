@@ -113,6 +113,8 @@ TapTap 返回结构有效的空列表（例如 `saves: []`）代表正常的新�
 | `snapshot` | 最新完整游戏进度 |
 | `dirty` | 是否有尚未确认的修改 |
 | `lastAttemptAt` | 最近一次云端写入请求时间 |
+| `inFlightRevision` | 最近一次发起云端写入的快照版本 |
+| `inFlightBaseRevision` | 该次上传快照所基于的云端版本 |
 | `status` | pending / uploading / failed / confirmed |
 
 云端快照的 `revision` 表示服务端已确认版本；云端不应携带本地 `dirty=true` 状态。
@@ -123,6 +125,7 @@ TapTap 返回结构有效的空列表（例如 `saves: []`）代表正常的新�
 
 - 若云端 revision 等于本地 revision：视为上次写入已成功但客户端可能未记录回执，清除本地 dirty。
 - 若本地 dirty=true，且本地 baseRevision 等于云端 revision，且本地 revision 更高：该事务基于当前云端版本，可在遵守 65 秒冷却后补传；补传成功前不进入游戏。
+- 若云端 revision 等于本地 inFlightRevision，说明上一次上传快照很可能已在服务端提交、只是客户端未收到回执；先将该 in-flight revision 记为已确认，再保留并补传更高的本地 revision，不能因超时丢弃上传期间的新操作。
 - 若云端 revision 高于本地事务的 baseRevision，或无法验证事务归属/基准版本：云端优先，本地事务不得覆盖云端；以云端快照重建本地缓存。
 - 若本地缓存不存在或被系统清理：直接恢复云端最后一次确认的版本。
 - 旧版本缓存没有可靠 baseRevision 时，不得猜测它可安全续传；按云端权威规则处理，并保留诊断信息。
