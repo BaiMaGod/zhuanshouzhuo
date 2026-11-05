@@ -111,8 +111,8 @@ class Game {
   if(this.modalOpen||this.localRecoveryAccepted)return;
   this.platformViewPending=false;
   this.modal('发现本机历史进度',[
-   '当前客户端暂时没有可用的云存档接口。',
-   '这份本机备份可能来自上一次未同步的游戏会话或旧版本。'
+   '检测到一份尚未合并的本机历史进度。',
+   '它可能来自上一次未同步的游戏会话或此前使用过的账号；确认后会与当前进度合并。'
   ],[
    {label:'恢复本机进度',action:()=>this.restoreLocalBackup(autoTutorial),primary:true},
    {label:'稍后再说',action:()=>this.hideModal(),primary:false}
@@ -129,7 +129,7 @@ class Game {
   const finish=()=>{
    this.audio.enabled=this.save.data.sound;this.home();
    if(this.platform.pendingCloud)this.showCloudConflict(autoTutorial);
-   else if(!this.platform.capabilities.cloud&&this.localBackupAvailable()&&!this.localRecoveryAccepted)this.showLocalRecoveryPrompt(autoTutorial);
+   else if(this.localBackupAvailable()&&!this.localRecoveryAccepted)this.showLocalRecoveryPrompt(autoTutorial);
    else if(autoTutorial)this.beginFirstVisit();
   };
   const settle=()=>{
@@ -1005,7 +1005,7 @@ class Game {
    this.platformViewPending=false;this.audio.enabled=this.save.data.sound;this.home();
    if(this.platform.pendingCloud)this.showCloudConflict();
    else if(this.platform.capabilities.cloud&&!this.platform.ready&&!this.localRecoveryAccepted)this.showCloudRestoreBlocked();
-   else if(!this.platform.capabilities.cloud&&this.localBackupAvailable()&&!this.localRecoveryAccepted)this.showLocalRecoveryPrompt();
+   else if(this.localBackupAvailable()&&!this.localRecoveryAccepted)this.showLocalRecoveryPrompt();
   }
   if(this.mode==='home'&&this.homeSignDot&&Date.now()>=this.nextSignBadgeCheck){
    this.nextSignBadgeCheck=Date.now()+60000;
