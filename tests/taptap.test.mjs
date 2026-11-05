@@ -251,3 +251,32 @@ test('ad show retries a load once; inventory errors are retained and never grant
  const noInventory=p.rewarded();fail({errCode:1004,errMsg:'no inventory'});assert.equal(await noInventory,null);
  assert.match(p.errorMessage('ads'),/暂无/);assert.equal(p.adBusy,false);p.dispose();
 });
+
+
+test('local-only TapTap runtime keeps the stable device save scope across launches',async()=>{
+ const key='local-only-'+Date.now();
+ const save=new Save(key),p=new TapPlatform(save,false,{login:o=>o.success({code:'once'})},config);
+ await p.start();
+ assert.equal(save.owner,'');
+ save.win(18,2,4);
+ p.dispose();
+ const reopened=new Save(key);
+ assert.equal(reopened.data.records[18].stars,3);
+});
+
+test('first cloud restore imports legacy guest progress when no cloud archive exists',async()=>{
+ const legacy=new Save();
+ legacy.win(18,2,4);
+ const m=mockRuntime(),save=new Save(),p=new TapPlatform(save,false,m.api,config);
+ await p.login();
+ assert.equal(p.ready,true);
+ assert.equal(save.data.records[18].stars,3);
+ assert.equal(save.rankTainted,true);
+ p.dispose();
+});
+
+test('guest progress detection includes unfinished formal boards beyond the first level',()=>{
+ const save=new Save();
+ save.writeRun(18,Core.make(18),1,0);
+ assert.equal(save.hasGuestProgress(),true);
+});
