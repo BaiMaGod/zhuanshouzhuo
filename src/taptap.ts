@@ -301,7 +301,7 @@ export class TapPlatform {
   if(this.retryTask)return this.retryTask;
   this.retryTask=(async()=>{
    if(this.syncTask)await this.syncTask;
-   this.api=runtime()||this.api;this.refreshCapabilities();
+   this.refreshCapabilities();
    if(!this.api||!this.capabilities.cloud)throw {code:'CLOUD_SAVE_UNAVAILABLE',message:'TapTap 云存档接口仍不可用'};
    this.blocked.delete('cloud');
    const wait=Math.max(0,this.lastAttempt+WINDOW-Date.now(),this.retryAt-Date.now());
