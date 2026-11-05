@@ -54,7 +54,7 @@ class Game {
  hintLeft=1;eraseLeft=0;noticeUntil=0;nextCloudCheck=0;
  homeSignDot:Laya.Sprite|null=null;nextSignBadgeCheck=0;
  private platformViewPending=false;
- private localRecoveryAccepted=false;
+ private cloudSyncModal=false;
  toolLeft(kind:RewardKind):number{
   return (kind==='hint'?this.hintLeft:this.eraseLeft)+this.save.inventoryLeft(kind)+(this.model?this.save.rewardLeft(this.model.index,kind):0);
  }
@@ -69,53 +69,29 @@ class Game {
  private platformLive:{card:Laya.Sprite;labels:Laya.Text[];read:()=>string[]}|null=null;
  private nextPlatformRefresh=0;
  private progressRestoreBlocked():boolean{
-  if(this.debugMode||this.localRecoveryAccepted)return false;
-  if(this.platform.capabilities.cloud)return !this.platform.ready;
-  return this.localBackupAvailable();
- }
- private localBackupAvailable():boolean{
-  return this.save.hasRecoveryProgress()||(this.save.owner!==''&&this.save.hasGuestProgress());
- }
- private restoreLocalBackup(autoTutorial=false):void{
-  try{
-   let imported=false;
-   if(this.save.hasRecoveryProgress()){this.save.importRecovery();imported=true}
-   else if(this.save.owner!==''&&this.save.hasGuestProgress()){this.save.importGuest();imported=true}
-   if(!imported)throw new Error('No recoverable local save');
-   this.localRecoveryAccepted=true;
-   this.home();
-   if(autoTutorial)this.beginFirstVisit();
-  }catch(error){
-   console.warn('[SaveRecovery] local backup restore failed',error);
-   this.modal('本机进度恢复失败',['本机备份暂时无法读取，原有云存档不会被覆盖。'],[
-    {label:'重试云存档',action:()=>{this.hideModal();void this.loginTap(autoTutorial)},primary:true},
-    {label:'关闭',action:()=>this.hideModal(),primary:false}
-   ]);
-  }
+  return this.platform.requiresCloud&&!this.platform.playAllowed;
  }
  private showCloudRestoreBlocked(autoTutorial=false):void{
-  if(this.modalOpen||this.localRecoveryAccepted)return;
+  if(this.modalOpen||this.platform.playAllowed)return;
   this.platformViewPending=false;
-  const hasBackup=this.localBackupAvailable();
-  this.modal('云存档暂时无法读取',[
-   '为保护已有进度，云档恢复完成前不会自动从第一关开始。',
-   hasBackup?'检测到本机保留的历史进度，可以选择恢复本机备份。':'请重试云存档连接；成功后会自动显示已解锁关卡。'
+  const unavailable=!this.platform.capabilities.cloud;
+  this.modal(unavailable?'TapTap 云存档不可用':'云存档暂时无法读取',[
+   unavailable?'当前 TapTap 客户端尚未提供可用的云存档接口，请更新客户端或检查网络。':'暂时无法读取你的云端游戏进度，请检查网络连接后重试。',
+   '为保护游戏进度，云存档恢复成功前暂时无法进入游戏。'
   ],[
-   {label:'重试云存档',action:()=>{this.hideModal();void this.loginTap(autoTutorial)},primary:true},
-   ...(hasBackup?[{label:'恢复本机进度',action:()=>{this.connectionView++;this.restoreLocalBackup(autoTutorial)},primary:false}]:[]),
-   {label:'稍后再说',action:()=>this.hideModal(),primary:false},
-   {label:'平台检查',action:()=>this.showPlatformCheck(),primary:false}
+   {label:'重新连接',action:()=>{this.hideModal();void this.loginTap(autoTutorial)},primary:true},
+   {label:'平台连接检查',action:()=>this.showPlatformCheck(),primary:false}
   ]);
  }
- private showLocalRecoveryPrompt(autoTutorial=false):void{
-  if(this.modalOpen||this.localRecoveryAccepted)return;
-  this.platformViewPending=false;
-  this.modal('发现本机历史进度',[
-   '检测到一份尚未合并的本机历史进度。',
-   '它可能来自上一次未同步的游戏会话或此前使用过的账号；确认后会与当前进度合并。'
+ private showCloudSyncBlocked():void{
+  if(this.modalOpen||!this.platform.cloudBlocked)return;
+  this.cloudSyncModal=true;this.releasePointers();this.cancel();
+  this.modal('云存档同步异常',[
+   '当前游戏进度尚未成功同步到云端，请检查网络连接后重试。',
+   '为保护游戏进度，当前游戏操作已暂停。同步成功后即可继续游戏。'
   ],[
-   {label:'恢复本机进度',action:()=>this.restoreLocalBackup(autoTutorial),primary:true},
-   {label:'稍后再说',action:()=>this.hideModal(),primary:false}
+   {label:'重新同步',action:()=>{void this.platform.retrySync()},primary:true},
+   {label:'平台连接检查',action:()=>{this.cloudSyncModal=false;this.showPlatformCheck()},primary:false}
   ]);
  }
  async loginTap(autoTutorial=false):Promise<void>{
@@ -128,37 +104,32 @@ class Game {
   if(view!==this.connectionView||this.mode!=='home'||this.modalOpen)return;
   const finish=()=>{
    this.audio.enabled=this.save.data.sound;this.home();
-   if(this.platform.pendingCloud)this.showCloudConflict(autoTutorial);
-   else if(this.localBackupAvailable()&&!this.localRecoveryAccepted)this.showLocalRecoveryPrompt(autoTutorial);
-   else if(autoTutorial)this.beginFirstVisit();
+   if(this.platform.pendingCloud&&!this.platform.requiresCloud)this.showCloudConflict(autoTutorial);
+   else if(autoTutorial&&!this.progressRestoreBlocked())this.beginFirstVisit();
   };
   const settle=()=>{
-   if(this.platform.capabilities.cloud&&!this.platform.ready&&!this.platform.pendingCloud&&!this.localRecoveryAccepted){
+   if(this.progressRestoreBlocked()){
     this.home();this.showCloudRestoreBlocked(autoTutorial);return;
    }
    finish();
   };
   if(complete){settle();return}
-  const cloudRestorePending=this.platform.capabilities.cloud&&!this.localRecoveryAccepted;
-  const hasBackup=this.localBackupAvailable();
+  const cloudRestorePending=this.platform.requiresCloud&&!this.platform.playAllowed;
   if(cloudRestorePending){
-   this.modal('正在恢复进度',[
-    'TapTap 云存档仍在读取中。恢复完成前，请不要开始新关卡。',
-    hasBackup?'检测到本机保留的历史进度，可以先恢复本机备份。':'读取成功后会自动显示已解锁关卡。'
+   this.modal('正在恢复云存档',[
+    '正在读取并校验 TapTap 云端游戏进度。',
+    '恢复完成前不会进入游戏，也不会使用本机缓存替代云存档。'
    ],[
     {label:'重试连接',action:()=>{this.connectionView++;this.hideModal();void this.loginTap(autoTutorial)},primary:true},
-    ...(hasBackup?[{label:'恢复本机进度',action:()=>{this.connectionView++;this.restoreLocalBackup(autoTutorial)},primary:false}]:[]),
-    {label:'稍后再说',action:()=>{this.connectionView++;this.hideModal();this.home()},primary:false},
-    {label:'平台检查',action:()=>this.showPlatformCheck(),primary:false}
+    {label:'平台连接检查',action:()=>this.showPlatformCheck(),primary:false}
    ]);
   }else{
-   this.modal('正在连接 TapTap',['平台连接仍在进行，可以继续使用本机存档。'],[
-    {label:'继续本机游戏',action:()=>{this.connectionView++;this.hideModal();finish()},primary:true},
-    {label:'平台检查',action:()=>this.showPlatformCheck(),primary:false}
+   this.modal('正在连接 TapTap',['正在检查平台连接状态。'],[
+    {label:'继续',action:()=>{this.connectionView++;this.hideModal();finish()},primary:true},
+    {label:'平台连接检查',action:()=>this.showPlatformCheck(),primary:false}
    ]);
   }
   const waiting=this.modalCard;
-  // A late result may dismiss only its own waiting card, never a new dialog/run.
   void task.then(()=>{
    if(view===this.connectionView&&this.mode==='home'&&this.modalCard===waiting){
     this.hideModal();settle();
@@ -171,7 +142,7 @@ class Game {
    {label:'复制诊断',action:()=>{void copyPlatformText(this.platform.exportDiagnostics(GAME_VERSION)).then(ok=>{
     if(!ok&&this.modalCard===this.platformLive?.card&&this.platformLive.labels[3])this.platformLive.labels[3].text='复制不可用，请从自测反馈上传日志。';
    })},primary:true},
-   {label:this.platform.connecting?'查看连接进度':'重试连接',action:()=>{void this.platform.login(true)},primary:false},
+   {label:this.platform.connecting?'查看连接进度':'重试连接',action:()=>{if(this.platform.cloudBlocked)void this.platform.retrySync();else void this.platform.login(true)},primary:false},
    {label:'返回',action:()=>this.tapMenu(),primary:false}
   ]);
   const card=this.modalCard!,labels:Laya.Text[]=[];
