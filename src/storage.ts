@@ -34,6 +34,7 @@ export class Save {
   this.onChange();
  }
  private runCache=new Map<number,string>();
+ private runDataCache=new Map<number,{state:State;hint:number;erase:number;hintProgress:number}>();
  data:Progress={version:2,unlocked:0,records:{},sound:true,tutorial:0};
  constructor(key=LEGACY_KEY){
   this.key=key;
@@ -61,6 +62,7 @@ export class Save {
   } catch {}
  }
  readRun(index:number):{state:State;hint:number;erase:number;hintProgress?:number}|null{
+  const cached=this.runDataCache.get(index);if(cached)return JSON.parse(JSON.stringify(cached));
   try{
    const r=JSON.parse(Laya.LocalStorage.getItem(this.key+'-run-'+index)||'null');
    if(!validRun(r,index))return null;
@@ -68,9 +70,19 @@ export class Save {
   }catch{return null}
  }
  writeRun(index:number,state:State,hint:number,erase:number,hintProgress=0):void{
-  try{const payload=JSON.stringify({version:1,levelRevision:Core.levels[index].revision||0,state,hint,erase,hintProgress});if(this.runCache.get(index)===payload)return;Laya.LocalStorage.setItem(this.key+'-run-'+index,payload);this.runCache.set(index,payload);this.changed()}catch{}
+  const payload=JSON.stringify({version:1,levelRevision:Core.levels[index].revision||0,state,hint,erase,hintProgress});
+  if(this.runCache.get(index)===payload)return;
+  this.runDataCache.set(index,JSON.parse(JSON.stringify({state,hint,erase,hintProgress})));
+  let error:unknown=null;
+  try{Laya.LocalStorage.setItem(this.key+'-run-'+index,payload);this.runCache.set(index,payload)}catch(e){error=e}
+  this.changed();
+  if(error){this.storageError=error;this.onChange()}
  }
- clearRun(index:number):void{this.runCache.delete(index);try{Laya.LocalStorage.setItem(this.key+'-run-'+index,'null');this.changed()}catch{}}
+ clearRun(index:number):void{
+  this.runCache.delete(index);this.runDataCache.delete(index);
+  let error:unknown=null;try{Laya.LocalStorage.setItem(this.key+'-run-'+index,'null')}catch(e){error=e}
+  this.changed();if(error){this.storageError=error;this.onChange()}
+ }
  persist():void {
   try{Laya.LocalStorage.setItem(this.key,JSON.stringify(this.data));this.storageError=null;this.changed()}
   catch(error){this.storageError=error;this.onChange()}
@@ -96,7 +108,7 @@ export class Save {
   if(!owner||owner.length>256)throw Error('Invalid account');
   const current=preserveSession?this.exportCloud():null;
   const key=LEGACY_KEY+'-tap-'+encodeURIComponent(owner),saved=new Save(key);
-  this.key=key;this.owner=owner;this.data=saved.data;this.meta=saved.meta;this.runCache.clear();
+  this.key=key;this.owner=owner;this.data=saved.data;this.meta=saved.meta;this.runCache.clear();this.runDataCache.clear();
   if(current){current.owner=owner;this.mergeCloud(current)}
  }
  beginContainerSession():void{
@@ -109,7 +121,7 @@ export class Save {
  moveAccount(owner:string):void{
   if(owner===this.owner)return;
   const snapshot=this.exportCloud(),oldOwner=this.owner,opened=Laya.LocalStorage.getItem(this.key+'-tutorial-opened');
-  this.key=LEGACY_KEY+'-tap-'+encodeURIComponent(owner);this.owner=owner;this.runCache.clear();
+  this.key=LEGACY_KEY+'-tap-'+encodeURIComponent(owner);this.owner=owner;this.runCache.clear();this.runDataCache.clear();
   Laya.LocalStorage.setItem(this.key,JSON.stringify(this.data));Laya.LocalStorage.setItem(this.key+'-meta',JSON.stringify(this.meta));
   for(let i=TEACHING_COUNT;i<Core.levels.length;i++)Laya.LocalStorage.setItem(this.key+'-run-'+i,JSON.stringify(snapshot.runs[i]??null));
   if(opened)Laya.LocalStorage.setItem(this.key+'-tutorial-opened',opened);
@@ -162,7 +174,7 @@ export class Save {
   if(!Number.isSafeInteger(revision)||revision<0||revision>this.revision)return;
   this.meta.baseRevision=Math.max(this.meta.baseRevision,revision);
   if(revision===this.revision)this.meta.dirty=false;
-  this.persistMeta();this.storageError=null;
+  try{this.persistMeta();this.storageError=null}catch(error){this.storageError=error;this.onChange()}
  }
  exportCloud():CloudSave{
   const runs:Record<string,unknown>={};
@@ -177,10 +189,14 @@ export class Save {
   const cloud=validateCloud(value,this.owner),lastAttemptAt=this.meta.lastAttemptAt||0;
   this.data=JSON.parse(JSON.stringify(cloud.progress));
   this.meta={...cloud.meta,revision:cloud.meta.revision,baseRevision:cloud.meta.revision,lastAttemptAt,dirty:false};
-  this.runCache.clear();
+  this.runCache.clear();this.runDataCache.clear();
   try{
    Laya.LocalStorage.setItem(this.key,JSON.stringify(this.data));
-   for(let i=TEACHING_COUNT;i<Core.levels.length;i++)Laya.LocalStorage.setItem(this.key+'-run-'+i,JSON.stringify(cloud.runs[i]??null));
+   for(let i=TEACHING_COUNT;i<Core.levels.length;i++){
+    const run=cloud.runs[i] as {state:State;hint:number;erase:number;hintProgress?:number}|undefined;
+    if(run)this.runDataCache.set(i,{state:JSON.parse(JSON.stringify(run.state)),hint:run.hint,erase:run.erase,hintProgress:run.hintProgress||0});
+    Laya.LocalStorage.setItem(this.key+'-run-'+i,JSON.stringify(run??null));
+   }
    this.persistMeta();this.storageError=null;
   }catch(error){this.storageError=error;this.onChange();throw error}
   this.onChange();
