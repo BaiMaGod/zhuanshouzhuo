@@ -9,7 +9,7 @@ export function verifyTapPackage(root='dist'){
  if(manifest.appId!==expected.appId)throw Error('Unexpected TapTap application ID');
  if(manifest.screenOrientation!==expected.screenOrientation)throw Error('Unexpected TapTap screen orientation');
  const config=readFileSync(resolve(root,'js/taptap-config.js'),'utf8');
- for(const key of ['appId','levelsBoard','starsBoard','rewardedAdUnitId','shareTemplateId']){
+ for(const key of ['target','appId','levelsBoard','starsBoard','rewardedAdUnitId','shareTemplateId']){
   const match=config.match(new RegExp(key+':\\s*([\'\"])(.*?)\\1'));
   if(!match||match[2]!==manifest[key])throw Error('Packaged config mismatch: '+key);
  }
