@@ -263,7 +263,7 @@ export class TapPlatform {
  private async syncNow(force:boolean):Promise<void>{
   if(!this.api||!this.capabilities.cloud||!this.ready||this.syncing||!this.save.cloudDirty||this.disposed||this.blocked.has('cloud')||(!force&&this.cloudBlocked))return;
   if(!this.archive){
-   this.cloudBlocked=true;this.failure('cloud','archive-missing',Error('当前账号云存档槽位丢失，禁止自动创建新档'));
+   this.uncertainWrite=true;this.cloudBlocked=true;this.failure('cloud','archive-missing',Error('当前账号云存档槽位丢失，禁止自动创建新档'));
    this.state('云存档槽位无法确认，游戏已暂停');return;
   }
   if(!force&&(Date.now()<this.retryAt||Date.now()-this.lastAttempt<WINDOW)){this.scheduleSync();return}
