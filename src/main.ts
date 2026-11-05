@@ -94,8 +94,8 @@ class Game {
   }
  }
  private showCloudRestoreBlocked(autoTutorial=false):void{
-  this.platformViewPending=false;
   if(this.modalOpen||this.localRecoveryAccepted)return;
+  this.platformViewPending=false;
   const hasBackup=this.localBackupAvailable();
   this.modal('云存档暂时无法读取',[
    '为保护已有进度，云档恢复完成前不会自动从第一关开始。',
@@ -108,8 +108,8 @@ class Game {
   ]);
  }
  private showLocalRecoveryPrompt(autoTutorial=false):void{
-  this.platformViewPending=false;
   if(this.modalOpen||this.localRecoveryAccepted)return;
+  this.platformViewPending=false;
   this.modal('发现本机历史进度',[
    '当前客户端暂时没有可用的云存档接口。',
    '这份本机备份可能来自上一次未同步的游戏会话或旧版本。'
@@ -352,7 +352,8 @@ class Game {
    }
    this.load(current);
   },true,'play');
-  play.enabled=!restoreBlocked;this.scene.addChild(play);
+  // Keep the primary action tappable so a failed restore can be retried from home.
+  play.enabled=true;this.scene.addChild(play);
   const mapButton=new Button('关卡图谱',116,H-251,234,68,()=>this.levels(),false,'map');
   mapButton.enabled=!restoreBlocked;this.scene.addChild(mapButton);
   const practiceButton=new Button('新手练习',370,H-251,234,68,()=>this.practice(),false,'help');
