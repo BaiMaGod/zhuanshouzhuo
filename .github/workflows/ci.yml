@@ -42,7 +42,8 @@ jobs:
   fast:
     needs: changes
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Browser touch regression covers two mobile viewports and can exceed 15 minutes.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
