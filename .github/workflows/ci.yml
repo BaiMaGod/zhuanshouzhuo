@@ -2,6 +2,8 @@ name: Build and regression tests
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -29,7 +31,7 @@ jobs:
             else
               git diff --name-only "$before" "${{ github.sha }}" > /tmp/jade-changed-paths.txt
               cat /tmp/jade-changed-paths.txt
-              if grep -Eq '^(src/(core\.js|main\.ts|model\.ts|renderer\.ts|snap\.ts|guide\.ts|levels\.js|solutions\.js|formal[^/]*\.js|types\.ts)|scripts/(generate-formal-templates\.mjs|build-platform\.mjs)|laya/|tests/full/)' /tmp/jade-changed-paths.txt; then
+              if grep -Eq '^(src/(core\.js|main\.ts|model\.ts|renderer\.ts|snap\.ts|guide\.ts|levels\.js|solutions\.js|formal[^/]*\.js|types\.ts|taptap\.ts|storage\.ts|taptap-config\.ts|taptap-diagnostics\.ts)|scripts/(generate-formal-templates\.mjs|build-platform\.mjs|build\.mjs)|laya/|tests/(full/|taptap\.test\.mjs))' /tmp/jade-changed-paths.txt; then
                 echo "full=true" >> "$GITHUB_OUTPUT"
               else
                 echo "full=false" >> "$GITHUB_OUTPUT"
