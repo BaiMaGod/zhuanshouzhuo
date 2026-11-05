@@ -80,7 +80,7 @@ export class Save {
   const payload=JSON.stringify({version:1,levelRevision:Core.levels[index].revision||0,state,hint,erase,hintProgress});
   if(this.runCache.get(index)===payload)return;
   const previous=this.readRun(index);
-  if(previous&&JSON.stringify({version:1,levelRevision:Core.levels[index].revision||0,...previous})===payload){this.runCache.set(index,payload);this.runDataCache.set(index,JSON.parse(JSON.stringify({state,hint,erase,hintProgress})));return}
+  if(previous&&JSON.stringify({version:1,levelRevision:Core.levels[index].revision||0,state:previous.state,hint:previous.hint,erase:previous.erase,hintProgress:previous.hintProgress||0})===payload){this.runCache.set(index,payload);this.runDataCache.set(index,JSON.parse(JSON.stringify({state,hint,erase,hintProgress})));return}
   this.runDataCache.set(index,JSON.parse(JSON.stringify({state,hint,erase,hintProgress})));
   let error:unknown=null;
   try{Laya.LocalStorage.setItem(this.key+'-run-'+index,payload);this.runCache.set(index,payload)}catch(e){error=e}
