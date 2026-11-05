@@ -383,7 +383,7 @@ class Game {
   card.addChild(button);return button;
  }
  openSignIn():void{
-  if(this.progressRestoreBlocked()){this.showCloudRestoreBlocked();return}
+  if(this.progressRestoreBlocked()){if(this.platform.cloudBlocked)this.showCloudSyncBlocked();else this.showCloudRestoreBlocked();return}
   if(this.mode!=='home')return;
   const state=this.save.dailySignInStatus(),card=this.featurePanel('每日签到',884,FEATURE_ART.calendar);
   text(card,'七日有礼 · 每日一礼，玉运常伴',48,141,580,34,23,COLORS.ink,'center',true);
@@ -442,7 +442,7 @@ class Game {
   }else this.openSignIn();
  }
  openBag():void{
-  if(this.progressRestoreBlocked()){this.showCloudRestoreBlocked();return}
+  if(this.progressRestoreBlocked()){if(this.platform.cloudBlocked)this.showCloudSyncBlocked();else this.showCloudRestoreBlocked();return}
   if(this.mode!=='home')return;
   const card=this.featurePanel('我的背包',714,FEATURE_ART.inventory);
   text(card,'签到好礼 · 收进锦囊，解锁玉环',70,145,536,36,22,COLORS.ink,'center',true);
@@ -458,7 +458,7 @@ class Game {
   text(card,'永久保存 · 进入正式关卡后使用',62,658,552,25,18,COLORS.muted);
   this.featureAction(card,'收好背包',120,583,436,62,()=>this.hideModal(),'button:close-bag');
  }
- practice():void{if(this.progressRestoreBlocked()){this.showCloudRestoreBlocked();return}this.load(this.teachingCurrent())}
+ practice():void{if(this.progressRestoreBlocked()){if(this.platform.cloudBlocked)this.showCloudSyncBlocked();else this.showCloudRestoreBlocked();return}this.load(this.teachingCurrent())}
  settings(audioOnly=false):void{
   this.modal(audioOnly?'音量设置':'设置',['',''],[
    {label:this.audio.enabled?'声音 开':'声音 关',action:()=>{this.toggleSound();this.settings(audioOnly)},primary:false},
@@ -498,7 +498,7 @@ class Game {
   return index;
  }
  levels():void{
-  if(this.progressRestoreBlocked()){this.showCloudRestoreBlocked();return}
+  if(this.progressRestoreBlocked()){if(this.platform.cloudBlocked)this.showCloudSyncBlocked();else this.showCloudRestoreBlocked();return}
   this.clear('levels');
   this.scene.addChild(new Button('',30,28,76,66,()=>this.home(),false,'back'));
   text(this.scene,'关卡图谱',160,41,400,70,44,COLORS.ink,'center',true);
