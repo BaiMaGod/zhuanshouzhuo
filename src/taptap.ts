@@ -140,6 +140,7 @@ export class TapPlatform {
   if(!this.api||this.disposed)return;
   this.refreshCapabilities();
   if(this.requiresCloud&&!this.capabilities.cloud){
+   if(this.ready)this.cloudBlocked=true;
    if(this.diagnostics.at(-1)?.code!=='CLOUD_SAVE_UNAVAILABLE')this.failure('cloud','capability-check',{code:'CLOUD_SAVE_UNAVAILABLE',message:'当前 TapTap 客户端未提供完整云存档接口'});
    this.blocked.delete('cloud');
    this.state('TapTap 云存档接口不可用，无法进入游戏');return;
@@ -300,6 +301,8 @@ export class TapPlatform {
   if(this.retryTask)return this.retryTask;
   this.retryTask=(async()=>{
    if(this.syncTask)await this.syncTask;
+   this.api=runtime()||this.api;this.refreshCapabilities();
+   if(!this.api||!this.capabilities.cloud)throw {code:'CLOUD_SAVE_UNAVAILABLE',message:'TapTap 云存档接口仍不可用'};
    this.blocked.delete('cloud');
    const wait=Math.max(0,this.lastAttempt+WINDOW-Date.now(),this.retryAt-Date.now());
    if(wait>0){this.state('等待云存档写入冷却…');await new Promise<void>(resolve=>setTimeout(resolve,wait))}
