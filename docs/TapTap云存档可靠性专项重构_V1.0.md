@@ -115,7 +115,7 @@ TapTap 返回结构有效的空列表（例如 `saves: []`）代表正常的新�
 | `lastAttemptAt` | 最近一次云端写入请求时间 |
 | `inFlightRevision` | 最近一次发起云端写入的快照版本 |
 | `inFlightBaseRevision` | 该次上传快照所基于的云端版本 |
-| `status` | pending / uploading / failed / confirmed |
+| `status` | 运行时派生状态，由 dirty、inFlightRevision 和云端连接状态共同决定，不单独持久化 |
 
 云端快照的 `revision` 表示服务端已确认版本；云端不应携带本地 `dirty=true` 状态。
 
