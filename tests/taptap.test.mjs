@@ -359,3 +359,20 @@ test('TapTap H5 first archive creation observes the 400001 shared write cooldown
  t.mock.timers.tick(1);await retry;
  assert.equal(p.ready,true);assert.equal(p.playAllowed,true);assert.equal(creates,2);assert.equal(m.archives.length,1);p.dispose();
 });
+
+
+test('TapTap H5 timeout after server commit preserves newer operations made during upload',async()=>{
+ const m=mockRuntime(),save=new Save(),p=new TapPlatform(save,false,m.api,{...config,target:'taptap-h5'});
+ await p.start();p.lastAttempt=-Infinity;save.win(49,2,3);
+ const original=m.api.getCloudSaveManager;let updates=0;
+ m.api.getCloudSaveManager=()=>({...original(),updateArchive:o=>{
+  updates++;
+  if(updates===1){m.files.set('cloud',m.files.get(o.archiveFilePath));save.win(50,3,4);o.fail({code:'CLIENT_TIMEOUT',message:'server committed but callback timed out'})}
+  else original().updateArchive(o);
+ }});
+ await p.sync();assert.equal(p.cloudBlocked,true);assert.equal(save.cloudDirty,true);assert.notEqual(save.inFlightRevision,null);
+ p.lastAttempt=-Infinity;p.retryAt=0;await p.retrySync();
+ assert.equal(p.cloudBlocked,false);assert.equal(save.cloudDirty,false);assert.equal(updates,2);
+ const cloud=JSON.parse(m.files.get('cloud'));assert.equal(cloud.progress.records[49].stars,2);assert.equal(cloud.progress.records[50].stars,3);
+ assert.equal(cloud.meta.revision,save.revision);assert.equal(m.archives.length,1);p.dispose();
+});
