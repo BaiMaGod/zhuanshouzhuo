@@ -6,6 +6,8 @@ test('8-second restore timeout blocks local play until late cloud data is valida
  t.mock.timers.enable({apis:['Date','setTimeout'],now:100000});
  const h=installHarness();
  const {Save}=await import('../dist/js/storage.js');
+ const {TAP_CONFIG}=await import('../dist/js/taptap-config.js');
+ const originalTarget=TAP_CONFIG.target;TAP_CONFIG.target='taptap-h5';
  const remote=new Save('startup-timeout-fixture');remote.owner='legacy-owner';remote.win(12,3,2);
  const snapshot=JSON.stringify(remote.exportCloud());const reads=[];let uploads=0;
  globalThis.tap={login:()=>{},env:{USER_DATA_PATH:'tapfile://usr'},
@@ -28,5 +30,5 @@ test('8-second restore timeout blocks local play until late cloud data is valida
   assert.equal(g.mode,'home');assert.equal(g.modalOpen,false);assert.equal(uploads,0);
   g.showPlatformCheck();assert.equal(g.platformLive.labels.length,5);
   const card=g.modalCard;t.mock.timers.tick(1000);h.tick();assert.equal(g.modalCard,card);
- }finally{g.platform.dispose();delete globalThis.tap}
+ }finally{g.platform.dispose();TAP_CONFIG.target=originalTarget;delete globalThis.tap}
 });

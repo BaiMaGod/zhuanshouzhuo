@@ -244,7 +244,7 @@ export class Save {
    Laya.LocalStorage.setItem(this.key+'-run-'+i,JSON.stringify(r));
    if(!this.readRun(Number(i)))Laya.LocalStorage.setItem(this.key+'-run-'+i,'null');
   }
-  this.runCache.clear();this.persist();
+  this.runCache.clear();this.runDataCache.clear();this.persist();
  }
  hasGuestProgress():boolean{
   const guest=new Save();
