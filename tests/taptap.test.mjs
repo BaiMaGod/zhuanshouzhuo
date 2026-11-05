@@ -346,3 +346,16 @@ test('TapTap H5 update timeout checks the server before retrying the write',asyn
  p.lastAttempt=-Infinity;p.retryAt=0;await p.retrySync();
  assert.equal(p.cloudBlocked,false);assert.equal(save.cloudDirty,false);assert.equal(updates,1);assert.equal(m.archives.length,1);p.dispose();
 });
+
+
+test('TapTap H5 first archive creation observes the 400001 shared write cooldown',async t=>{
+ t.mock.timers.enable({apis:['Date','setTimeout'],now:30000000});
+ const m=mockRuntime(),original=m.api.getCloudSaveManager;let creates=0;
+ m.api.getCloudSaveManager=()=>({...original(),createArchive:o=>{creates++;if(creates===1)o.fail({errCode:400001,errMsg:'rate limit'});else original().createArchive(o)}});
+ const p=new TapPlatform(new Save(),false,m.api,{...config,target:'taptap-h5'});
+ await p.start();assert.equal(p.ready,false);assert.equal(creates,1);
+ const retry=p.login(true);await settle();assert.equal(p.ready,false);assert.equal(creates,1);
+ t.mock.timers.tick(64999);await settle();assert.equal(creates,1);
+ t.mock.timers.tick(1);await retry;
+ assert.equal(p.ready,true);assert.equal(p.playAllowed,true);assert.equal(creates,2);assert.equal(m.archives.length,1);p.dispose();
+});
