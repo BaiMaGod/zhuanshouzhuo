@@ -66,12 +66,16 @@ export class Save {
   try{
    const r=JSON.parse(Laya.LocalStorage.getItem(this.key+'-run-'+index)||'null');
    if(!validRun(r,index))return null;
+   this.runCache.set(index,JSON.stringify(r));
+   this.runDataCache.set(index,{state:JSON.parse(JSON.stringify(r.state)),hint:r.hint,erase:r.erase,hintProgress:r.hintProgress||0});
    return r;
   }catch{return null}
  }
  writeRun(index:number,state:State,hint:number,erase:number,hintProgress=0):void{
   const payload=JSON.stringify({version:1,levelRevision:Core.levels[index].revision||0,state,hint,erase,hintProgress});
   if(this.runCache.get(index)===payload)return;
+  const previous=this.readRun(index);
+  if(previous&&JSON.stringify({version:1,levelRevision:Core.levels[index].revision||0,...previous})===payload){this.runCache.set(index,payload);this.runDataCache.set(index,JSON.parse(JSON.stringify({state,hint,erase,hintProgress})));return}
   this.runDataCache.set(index,JSON.parse(JSON.stringify({state,hint,erase,hintProgress})));
   let error:unknown=null;
   try{Laya.LocalStorage.setItem(this.key+'-run-'+index,payload);this.runCache.set(index,payload)}catch(e){error=e}
