@@ -91,7 +91,7 @@ class Game {
    '为保护游戏进度，当前游戏操作已暂停。同步成功后即可继续游戏。'
   ],[
    {label:'重新同步',action:()=>{void this.platform.retrySync()},primary:true},
-   {label:'平台连接检查',action:()=>{this.cloudSyncModal=false;this.showPlatformCheck()},primary:false}
+   {label:'平台连接检查',action:()=>this.showPlatformCheck(),primary:false}
   ]);
  }
  async loginTap(autoTutorial=false):Promise<void>{
