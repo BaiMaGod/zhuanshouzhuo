@@ -208,7 +208,7 @@ export class TapPlatform {
    this.save.bindAccount(owner,false);this.archive=slot;this.lastAttempt=this.save.lastAttemptAt;
    const localRevision=this.save.revision,localBase=this.save.baseRevision,localDirty=this.save.cloudDirty,localInFlight=this.save.inFlightRevision;
    const remoteRevision=remote.meta.revision;
-   const confirmedInFlight=localInFlight===remoteRevision&&localRevision>remoteRevision;
+   const confirmedInFlight=localInFlight===remoteRevision&&localRevision>remoteRevision&&this.save.inFlightBaseRevision===localBase;
    const pendingOnCurrentCloud=localBase===remoteRevision&&localRevision>remoteRevision;
    if(localDirty&&localRevision>remoteRevision&&(pendingOnCurrentCloud||confirmedInFlight)){
     if(confirmedInFlight&&localBase!==remoteRevision)this.save.markSynced(remoteRevision);
@@ -337,7 +337,7 @@ export class TapPlatform {
    this.save.replaceCloud(remote);this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
    this.ready=true;this.states.cloud='ready';this.state('云存档已确认');return;
   }
-  if(this.save.inFlightRevision===remoteRevision&&localRevision>remoteRevision){
+  if(this.save.inFlightRevision===remoteRevision&&localRevision>remoteRevision&&this.save.inFlightBaseRevision===this.save.baseRevision){
    // The previous request committed its snapshot, but its callback was lost.
    // Advance the base to that confirmed revision while retaining newer local work.
    this.save.markSynced(remoteRevision);
