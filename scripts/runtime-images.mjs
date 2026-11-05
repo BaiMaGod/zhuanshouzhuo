@@ -4,7 +4,7 @@ import {join,relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
 export const RUNTIME_IMAGES=[
  ...['amber','peach','celadon','ice','ivory'].map(n=>'jade-v2/'+n+'.png'),
- 'art-v3/clasp.png','art-rose/jade-petals.png','art-rose/tray.png','art-rose/hint-hand.png',
+ 'art-v3/clasp.png','art-rose/jade-petals-v2.png','art-rose/tray.png','art-rose/hint-hand.png',
  'art-rose/home-bg.jpg',...Array.from({length:8},(_,i)=>`art-rose/home-logo-part-${i+1}.webp`),'shadow.png',
  ...['signin-shortcut','bag-shortcut','signin-panel','bag-panel','hint-tool','erase-tool'].map(n=>'art-rose/'+n+'.webp')
 ];
@@ -21,7 +21,7 @@ export function auditImages(root='public/assets'){
  const bytes=rows.reduce((sum,row)=>sum+row.bytes,0);
  if(bytes>IMAGE_BUDGET)throw Error('Runtime images exceed 3 MiB: '+bytes);
  const expected=new Map([...RUNTIME_IMAGES.filter(p=>p.startsWith('jade-v2/')).map(p=>[p,[512,512]]),
-  ['art-v3/clasp.png',[128,49]],['art-rose/jade-petals.png',[192,320]],['art-rose/tray.png',[1122,1402]],['art-rose/hint-hand.png',[512,512]],['shadow.png',[256,256]]]);
+  ['art-v3/clasp.png',[128,49]],['art-rose/jade-petals-v2.png',[192,320]],['art-rose/tray.png',[1122,1402]],['art-rose/hint-hand.png',[512,512]],['shadow.png',[256,256]]]);
  for(const row of rows){const size=expected.get(row.path);if(size&&(row.width!==size[0]||row.height!==size[1]))throw Error('Unexpected runtime dimensions: '+row.path)}
  return {count:rows.length,bytes,budget:IMAGE_BUDGET,images:rows};
 }

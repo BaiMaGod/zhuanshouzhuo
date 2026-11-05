@@ -3,7 +3,7 @@ import {easeOut, FEEDBACK} from './feedback.js';
 import {JADE_NAMES} from './jade.js';
 import type {JadeName} from './jade.js';
 
-export const PETAL_ASSET = 'assets/art-rose/jade-petals.png';
+export const PETAL_ASSET = 'assets/art-rose/jade-petals-v2.png';
 const PETAL_COUNT = 24;
 const COLUMNS = 3;
 const QUAD = new Float32Array([-6,-6, 6,-6, 6,6, -6,6]);

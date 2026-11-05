@@ -56,7 +56,7 @@ test('five jade materials use their own petal rows and release input before peta
   wait(288);
   const fresh=board.effects.children.filter(node=>{
    const mesh=node.graphics.ops[0];
-   return mesh?.[1]==='assets/art-rose/jade-petals.png'&&Math.abs(C.dist(node,ring)-C.R)<2
+   return mesh?.[1]==='assets/art-rose/jade-petals-v2.png'&&Math.abs(C.dist(node,ring)-C.R)<2
     &&Math.abs(mesh[5][1]-row/5)<1e-6&&node.alpha>.9;
   });
   assert.equal(fresh.length,24,'each jade releases a full arc in its own color');
@@ -83,7 +83,7 @@ test('simultaneous releases keep a complete petal arc per ring within the budget
  assert.equal(board.petals.count,128);
  for(const id of ids){
   const ring=C.ring(g.model.state,id);
-  const aroundRing=board.effects.children.filter(node=>node.graphics.ops[0]?.[1]==='assets/art-rose/jade-petals.png'&&Math.abs(C.dist(node,ring)-C.R)<2);
+  const aroundRing=board.effects.children.filter(node=>node.graphics.ops[0]?.[1]==='assets/art-rose/jade-petals-v2.png'&&Math.abs(C.dist(node,ring)-C.R)<2);
   assert.ok(aroundRing.length>=16,'each departing jade has an arc at its original radius');
  }
  g.load(10,true);
