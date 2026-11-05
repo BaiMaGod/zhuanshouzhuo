@@ -97,7 +97,7 @@ export class TapPlatform {
    const error=this.diagnostics.filter(d=>d.capability===k).at(-1);
    const pending=this.trace.pending(k);
    return [names[k]+'：'+states[this.states[k]]+(pending?' · '+pending:''),
-    this.states[k]==='error'&&error?error.operation+' ['+error.code+'] '+error.message.slice(0,60):k==='login'?'接口存在不代表原生调用已就绪。':'本机进度仅在云档读取成功后上传。'];
+    this.states[k]==='error'&&error?error.operation+' ['+error.code+'] '+error.message.slice(0,60):k==='login'?'接口存在不代表原生调用已就绪。':'云端是唯一权威，本机仅保留待同步事务。'];
   });
  }
  start():Promise<void>{this.autoEnabled=true;this.discoveryUntil=Date.now()+10000;return this.login()}
