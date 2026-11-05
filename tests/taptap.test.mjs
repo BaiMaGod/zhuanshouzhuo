@@ -133,10 +133,10 @@ test('container login creates the initial archive before entry, then updates tha
 });
 
 test('upload while local data changes leaves new revision pending',async()=>{
- const m=mockRuntime(),s=saveFor('race'),p=new TapPlatform(s,false,m.api,config);p.ready=true;
- s.persist();const original=m.api.getFileSystemManager;
+ const m=mockRuntime(),s=new Save(),p=new TapPlatform(s,false,m.api,config);await p.login();
+ p.lastAttempt=-Infinity;s.win(11,1,2);const original=m.api.getFileSystemManager;
  m.api.getFileSystemManager=()=>({...original(),writeFile:o=>{s.win(12,1,1);original().writeFile(o)}});
- await p.sync();assert.equal(s.cloudDirty,true);
+ await p.sync();assert.equal(s.cloudDirty,true);assert.equal(m.archives.length,1);p.dispose();
 });
 test('only explicit complete event rewards, duplicate callbacks settle once, errors unlock',async()=>{
  const m=mockRuntime(),p=new TapPlatform(saveFor('ad'),false,m.api,config);p.ready=true;
