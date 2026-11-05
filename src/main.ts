@@ -249,7 +249,11 @@ class Game {
   });
   this.platform.canRestore=()=>this.mode==='home'&&!this.platform.rewardBusy;
   this.save.onChange=()=>this.platform.localChanged();
-  this.platform.onChange=()=>{this.platformViewPending=true;if(this.accountStatus)this.accountStatus.text=this.platform.status};
+  this.platform.onChange=()=>{
+   this.platformViewPending=true;if(this.accountStatus)this.accountStatus.text=this.platform.status;
+   if(this.platform.cloudBlocked){if(!this.modalOpen)this.showCloudSyncBlocked()}
+   else if(this.cloudSyncModal){this.cloudSyncModal=false;this.hideModal()}
+  };
   Laya.timer.frameLoop(1,this,this.tick);this.home();
   // Restore in the background; applying an archive is deferred while playing.
   void this.loginTap(true);
@@ -287,7 +291,7 @@ class Game {
   const restoreBlocked=this.progressRestoreBlocked();
   const completed=Object.keys(this.save.data.records).filter(i=>Number(i)<TEACHING_COUNT).length;
   const badge=panel(this.scene,34,30,244,58,18,THEME.white,THEME.faint);flower(badge.graphics,25,29,4,THEME.rose);
-  text(badge,restoreBlocked?(this.platform.capabilities.cloud?'进度恢复中':'待恢复本机进度'):'教学 '+completed+' / 10',47,0,183,58,22,COLORS.ink,'center',true);
+  text(badge,restoreBlocked?(this.platform.cloudBlocked?'云同步异常':'云存档恢复中'):'教学 '+completed+' / 10',47,0,183,58,22,COLORS.ink,'center',true);
   const settingsButton=new Button('',608,28,76,66,()=>this.settings(),false,'settings');
   settingsButton.name='button:settings';this.scene.addChild(settingsButton);this.homeSettingsButton=settingsButton;
   const titleY=H<1350?132:160;
@@ -316,9 +320,9 @@ class Game {
   dot.mouseEnabled=false;
   const signState=this.save.dailySignInStatus();dot.visible=!signState.claimedToday&&!signState.clockInvalid;
   this.scene.addChild(dot);this.homeSignDot=dot;
-  const play=new Button(restoreBlocked?(this.platform.capabilities.cloud?'正在恢复进度…':'请先恢复本机进度'):'第'+(current-TEACHING_COUNT+1)+'关',112,H-375,496,88,()=>{
+  const play=new Button(restoreBlocked?(this.platform.cloudBlocked?'等待云存档同步…':'正在恢复云存档…'):'第'+(current-TEACHING_COUNT+1)+'关',112,H-375,496,88,()=>{
    if(this.progressRestoreBlocked()){
-    if(this.platform.capabilities.cloud)this.showCloudRestoreBlocked();else this.showLocalRecoveryPrompt();
+    if(this.platform.cloudBlocked)this.showCloudSyncBlocked();else this.showCloudRestoreBlocked();
     return;
    }
    this.load(current);
@@ -337,8 +341,6 @@ class Game {
  }
  beginFirstVisit():void{
   if(this.mode!=='home'||this.progressRestoreBlocked()||!this.save.shouldAutoStartTutorial())return;
-  // A returning guest linking an account should not be treated as a new player.
-  if(this.save.owner&&this.save.hasGuestProgress())return;
   this.load(0);
   // The prompt will not reappear after leaving the tutorial or reopening the game.
   if(this.model?.index===0)this.save.markTutorialOpened();
@@ -592,7 +594,7 @@ class Game {
  }
  load(i:number,restart=false):void{
   if(this.progressRestoreBlocked()){
-   if(this.platform.capabilities.cloud)this.showCloudRestoreBlocked();else this.showLocalRecoveryPrompt();
+   if(this.platform.cloudBlocked)this.showCloudSyncBlocked();else this.showCloudRestoreBlocked();
    return;
   }
   if(i<0||i>=C.levels.length||(!this.debugMode&&i<TEACHING_COUNT&&i>this.save.data.unlocked))return;
@@ -700,8 +702,8 @@ class Game {
   const s=this.model.state,n=s.rings.filter(r=>r.life==='active').length;
    this.status!.text='剩余 '+n+' 个  ·  已转 '+s.steps+' 次'+(!this.formal&&this.model.selected?'  ·  选中 '+this.model.selected:'');
   this.board.selected=this.model.selected;this.board.focus(this.drag?.id||null);if(redraw)this.board.draw(s);this.syncTools();if(!this.drag)this.persistRun();
-  this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
-  if(this.undoButton)this.undoButton.enabled=this.model.history.length>0&&!this.modalOpen;
+  this.controls.forEach(b=>b.enabled=this.platform.playAllowed&&!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
+  if(this.undoButton)this.undoButton.enabled=this.platform.playAllowed&&this.model.history.length>0&&!this.modalOpen;
   if(this.demoButton)this.demoButton.label.text=this.busy?'停止':'演示';
   if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
   if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
@@ -754,6 +756,7 @@ class Game {
   this.board.zoomTo(this.board.zoom*factor,{x:r.x+r.w/2,y:r.y+r.h/2});this.syncView();
  }
  down(e:GamePointer):void{
+  if(this.progressRestoreBlocked()){this.releasePointers();return}
   if(this.platform.rewardBusy)return;
   this.audio.wake();
   if(this.mode!=='game'||!this.model||!this.board||this.busy||this.board.animating||this.modalOpen||(e.button!==undefined&&e.button!==0))return;
@@ -778,6 +781,7 @@ class Game {
   this.audio.play('select');this.sync();
  }
  move(e:GamePointer):void{
+  if(this.progressRestoreBlocked()){this.releasePointers();return}
   this.moveHand(e);
   if(!this.pointers.has(e.pointerId)||!this.model||!this.board||this.busy||this.modalOpen)return;
   const point=this.point(e);this.pointers.set(e.pointerId,point);
@@ -807,6 +811,7 @@ class Game {
   if(!result.blocked&&!result.removed.length&&Math.abs(delta)<=1.5)this.snap(d.id,delta);
  }
  up(e:GamePointer):void{
+  if(this.progressRestoreBlocked()){this.releasePointers();return}
   const d=this.drag?.pointer===e.pointerId?this.drag:null;
   const erase=this.eraseTap?.pointer===e.pointerId?this.eraseTap:null;
   if(erase)this.eraseTap=null;
@@ -832,6 +837,7 @@ class Game {
   this.guideSelect(this.model.selected);this.audio.resetContact();this.model.begin();this.board!.hint=null;this.perform(this.model.selected,delta);
  }
  perform(id:string,d:number):Result{
+  if(this.progressRestoreBlocked())return {done:0,removed:[],blocked:null};
   const model=this.model!,before=C.clone(model.state),res=model.turn(id,d);
   if(res.done){this.audio.motion(res.done);if(!res.blocked)this.audio.resetContact()}
   if(res.removed.length){
@@ -856,7 +862,7 @@ class Game {
   this.sync();return res;
  }
  undo():void{
-  if(!this.model?.history.length)return;this.cancel();
+  if(this.progressRestoreBlocked()||!this.model?.history.length)return;this.cancel();
   if(this.model.undo()){
    this.hideModal();this.settled=false;const view={zoom:this.board!.zoom,screen:{...this.board!.screen}};this.board!.load(this.model.state);this.board!.zoom=view.zoom;this.board!.panTo(view.screen);
    this.say('已撤销，玉环和完整锁杆一起恢复。');this.sync();
@@ -885,7 +891,7 @@ class Game {
   });
  }
  async hint():Promise<void>{
-  if(this.busy||this.modalOpen||this.board?.animating||!this.model)return;
+  if(this.progressRestoreBlocked()||this.busy||this.modalOpen||this.board?.animating||!this.model)return;
   if(!this.debugMode&&this.formal&&this.toolLeft('hint')===0){this.offerReward('hint');return}
   if(this.guide?.action&&this.formal)return;
   this.busy=true;const token=++this.epoch;this.say('正在观察当前扣位…');if(this.hintButton)this.hintButton.label.text='观察…';this.sync(!this.formal);
@@ -946,7 +952,7 @@ class Game {
   }
  }
  async automatic(all:boolean):Promise<void>{
-  if(this.formal||this.busy||this.modalOpen||this.board?.animating||!this.model)return;
+  if(this.progressRestoreBlocked()||this.formal||this.busy||this.modalOpen||this.board?.animating||!this.model)return;
   this.stopGuide(false);this.busy=true;const token=++this.epoch;this.say('正在寻找合法旋转路线…');this.sync();
   const full=await this.plan();if(token!==this.epoch)return;
   if(!full?.length){this.busy=false;this.say('当前没有找到路线。可重开。');this.sync();return}
@@ -974,10 +980,10 @@ class Game {
   }
   if(this.platformViewPending&&this.mode==='home'&&!this.modalOpen&&this.platform.states.cloud!=='busy'){
    this.platformViewPending=false;this.audio.enabled=this.save.data.sound;this.home();
-   if(this.platform.pendingCloud)this.showCloudConflict();
-   else if(this.platform.capabilities.cloud&&!this.platform.ready&&!this.localRecoveryAccepted)this.showCloudRestoreBlocked();
-   else if(this.localBackupAvailable()&&!this.localRecoveryAccepted)this.showLocalRecoveryPrompt();
+   if(this.platform.pendingCloud&&!this.platform.requiresCloud)this.showCloudConflict();
+   else if(this.platform.requiresCloud&&!this.platform.playAllowed)this.showCloudRestoreBlocked();
   }
+  if(this.platform.cloudBlocked&&!this.modalOpen&&!this.cloudSyncModal)this.showCloudSyncBlocked();
   if(this.mode==='home'&&this.homeSignDot&&Date.now()>=this.nextSignBadgeCheck){
    this.nextSignBadgeCheck=Date.now()+60000;
    const state=this.save.dailySignInStatus();
@@ -1001,13 +1007,13 @@ class Game {
   if(!this.model||!this.board||this.mode!=='game')return;
   if(this.guide&&!this.modalOpen)this.guide.draw(this.model.state,now,!!this.drag);
   if(this.board.hasFeedback||this.board.hint||performance.now()<this.board.blockUntil)this.board.draw(this.model.state);
-  this.controls.forEach(b=>b.enabled=!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
-  if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
-  if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
+  this.controls.forEach(b=>b.enabled=this.platform.playAllowed&&!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
+  if(this.hintButton)this.hintButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
+  if(this.eraseButton)this.eraseButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
   if(this.model.cleared&&!this.board.animating&&!this.busy&&!this.settled){this.settled=true;this.win()}
  }
  win():void{
-  if(!this.model)return;const i=this.model.index,steps=this.model.state.steps;
+  if(this.progressRestoreBlocked()||!this.model)return;const i=this.model.index,steps=this.model.state.steps;
   this.save.clearRun(i);
   if(this.formal){
    const stars=this.save.win(i,steps,solutions[i].length,!debugEnabled()),last=i===C.levels.length-1,level='第'+(i-TEACHING_COUNT+1)+'关';
@@ -1047,7 +1053,7 @@ class Game {
   ]);
  }
  toggleErase():void{
-  if(!this.formal||!this.model||!this.board||this.modalOpen||this.busy||this.board.animating)return;
+  if(this.progressRestoreBlocked()||!this.formal||!this.model||!this.board||this.modalOpen||this.busy||this.board.animating)return;
   if(!this.debugMode&&this.toolLeft('erase')===0){this.offerReward('erase');return}
   this.releasePointers();this.stopGuide(false);
   this.eraseMode=!this.eraseMode;
@@ -1060,7 +1066,7 @@ class Game {
   if(this.toolNoticeBox)this.toolNoticeBox.visible=this.eraseMode;
  }
  chooseEraseTarget(id:string):void{
-  if(!this.eraseMode||!this.formal||!this.model||!this.board||this.busy||this.board.animating||this.modalOpen)return;
+  if(this.progressRestoreBlocked()||!this.eraseMode||!this.formal||!this.model||!this.board||this.busy||this.board.animating||this.modalOpen)return;
   const target=C.ring(this.model.state,id);
   if(!target||target.life!=='active')return;
   this.eraseMode=false;this.syncEraseUI();
@@ -1071,7 +1077,7 @@ class Game {
   ]);
  }
  eraseRing(id:string):void{
-  if(!this.formal||!this.model||!this.board||!this.debugMode&&this.toolLeft('erase')===0)return;
+  if(this.progressRestoreBlocked()||!this.formal||!this.model||!this.board||!this.debugMode&&this.toolLeft('erase')===0)return;
   const before=C.clone(this.model.state);
   const removed=this.model.removeWithTool(id);
   this.hideModal();
