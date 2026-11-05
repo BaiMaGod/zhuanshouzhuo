@@ -26,6 +26,7 @@ export class Save {
  get baseRevision():number{return this.meta.baseRevision}
  get lastAttemptAt():number{return this.meta.lastAttemptAt}
  get inFlightRevision():number|null{return this.meta.inFlightRevision}
+ get inFlightBaseRevision():number|null{return this.meta.inFlightBaseRevision}
  get rankTainted():boolean{return this.meta.tainted}
  get rankRecords():Progress['records']{return this.meta.rankRecords}
  private persistMeta():void{Laya.LocalStorage.setItem(this.key+'-meta',JSON.stringify(this.meta))}
