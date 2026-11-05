@@ -60,7 +60,9 @@ export class TapPlatform {
  private ensureSession():boolean{
   if(this.sessionOwner)return true;
   const c=this.capabilities;
-  if(!c.login&&!c.cloud&&!c.leaderboard&&!c.ads)return true;
+  // Without a usable cloud archive, keep the stable legacy device save scope.
+  // A per-launch random owner would make local-only progress disappear on relaunch.
+  if(!c.cloud)return true;
   if(!this.canRestore())return false;
   this.save.beginContainerSession();this.sessionOwner=this.save.owner;return true;
  }
@@ -184,6 +186,7 @@ export class TapPlatform {
    this.save.bindAccount(owner,this.save.owner===this.sessionOwner);this.archive=slot;
    if(remote&&this.save.hasRunConflict(remote)){this.pendingCloud=remote;this.states.cloud='idle';this.state('存档冲突待选择');return}
    if(remote)this.save.mergeCloud(remote);
+   else if(this.save.hasGuestProgress())this.save.importGuest();
    this.pendingCloud=null;this.ready=true;this.states.cloud='ready';this.state('云存档已连接');await this.sync();
   }catch(e){if(!this.disposed){this.failure('cloud','restore',e);this.state('云档读取失败，请查看平台检查')}}
  }
