@@ -65,7 +65,7 @@ export class TapPlatform {
   this.save.beginContainerSession();this.sessionOwner=this.save.owner;return true;
  }
  get requiresCloud():boolean{return this.config.target==='taptap-h5'}
- get playAllowed():boolean{return !this.requiresCloud||(this.ready&&!this.cloudBlocked&&this.states.cloud==='ready')}
+ get playAllowed():boolean{return !this.requiresCloud||(this.ready&&!this.cloudBlocked)}
  get available():boolean{return Object.values(this.capabilities).some(Boolean)}
  get capabilities():Record<Capability,boolean>{return {
   login:typeof this.api?.login==='function',
