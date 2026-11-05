@@ -206,9 +206,12 @@ export class TapPlatform {
    const remote=containerCloud(value,owner);
    if(this.save.owner!==owner){this.ranked={levels:0,stars:0};this.rankAt=-Infinity}
    this.save.bindAccount(owner,false);this.archive=slot;this.lastAttempt=this.save.lastAttemptAt;
-   const localRevision=this.save.revision,localBase=this.save.baseRevision,localDirty=this.save.cloudDirty;
+   const localRevision=this.save.revision,localBase=this.save.baseRevision,localDirty=this.save.cloudDirty,localInFlight=this.save.inFlightRevision;
    const remoteRevision=remote.meta.revision;
-   if(localDirty&&localRevision>remoteRevision&&localBase===remoteRevision){
+   const confirmedInFlight=localInFlight===remoteRevision&&localRevision>remoteRevision;
+   const pendingOnCurrentCloud=localBase===remoteRevision&&localRevision>remoteRevision;
+   if(localDirty&&localRevision>remoteRevision&&(pendingOnCurrentCloud||confirmedInFlight)){
+    if(confirmedInFlight&&localBase!==remoteRevision)this.save.markSynced(remoteRevision);
     // This is the only restart case in which a local transaction is safe to
     // replay: it is based exactly on the cloud revision just downloaded.
     containerCloud(this.save.exportCloud(),owner);
@@ -281,7 +284,7 @@ export class TapPlatform {
   const revision=this.save.revision,owner=this.save.owner,snapshot=this.save.exportCloud();
   const filePath=this.api.env!.USER_DATA_PATH+'/jade_save.json';
   await this.call('cloud',this.api.getFileSystemManager!(),'writeFile',{filePath,data:JSON.stringify(snapshot),encoding:'utf8'});
-  const attempted=Date.now();this.save.markAttempt(attempted);this.lastAttempt=attempted;
+  const attempted=Date.now();this.save.markAttempt(attempted,revision);this.lastAttempt=attempted;
   const useCreate=create||!this.archive;
   const result=await this.call<{uuid?:string;fileId:string}>('cloud',this.api.getCloudSaveManager!(),useCreate?'createArchive':'updateArchive',{
    ...(!useCreate&&this.archive?{archiveUUID:this.archive.uuid}:{}),
@@ -330,9 +333,14 @@ export class TapPlatform {
    this.save.replaceCloud(remote);this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
    this.ready=true;this.states.cloud='ready';this.state('云存档已确认');return;
   }
+  if(this.save.inFlightRevision===remoteRevision&&localRevision>remoteRevision){
+   // The previous request committed its snapshot, but its callback was lost.
+   // Advance the base to that confirmed revision while retaining newer local work.
+   this.save.markSynced(remoteRevision);
+  }
   if(this.save.cloudDirty&&this.save.baseRevision===remoteRevision){
-   // The server is still at the transaction's base revision; the next update
-   // can safely submit the latest complete local snapshot.
+   // The server is still at the transaction's base revision, or just confirmed
+   // the in-flight snapshot; the latest complete local snapshot is safe to send.
    this.lastAttempt=this.save.lastAttemptAt;return;
   }
   // A different cloud revision won. Do not overwrite it with a stale cache.
