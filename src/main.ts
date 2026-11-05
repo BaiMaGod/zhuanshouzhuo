@@ -54,6 +54,7 @@ class Game {
  hintLeft=1;eraseLeft=0;noticeUntil=0;nextCloudCheck=0;
  homeSignDot:Laya.Sprite|null=null;nextSignBadgeCheck=0;
  private platformViewPending=false;
+ private localRecoveryAccepted=false;
  toolLeft(kind:RewardKind):number{
   return (kind==='hint'?this.hintLeft:this.eraseLeft)+this.save.inventoryLeft(kind)+(this.model?this.save.rewardLeft(this.model.index,kind):0);
  }
@@ -67,6 +68,56 @@ class Game {
  private connectionView=0;
  private platformLive:{card:Laya.Sprite;labels:Laya.Text[];read:()=>string[]}|null=null;
  private nextPlatformRefresh=0;
+ private progressRestoreBlocked():boolean{
+  if(this.debugMode||this.localRecoveryAccepted)return false;
+  if(this.platform.capabilities.cloud)return !this.platform.ready;
+  return this.localBackupAvailable();
+ }
+ private localBackupAvailable():boolean{
+  return this.save.hasRecoveryProgress()||(this.save.owner!==''&&this.save.hasGuestProgress());
+ }
+ private restoreLocalBackup(autoTutorial=false):void{
+  try{
+   let imported=false;
+   if(this.save.owner!==''&&this.save.hasGuestProgress()){this.save.importGuest();imported=true}
+   if(this.save.hasRecoveryProgress()){this.save.importRecovery();imported=true}
+   if(!imported)throw new Error('No recoverable local save');
+   this.localRecoveryAccepted=true;
+   this.home();
+   if(autoTutorial)this.beginFirstVisit();
+  }catch(error){
+   console.warn('[SaveRecovery] local backup restore failed',error);
+   this.modal('本机进度恢复失败',['本机备份暂时无法读取，原有云存档不会被覆盖。'],[
+    {label:'重试云存档',action:()=>{this.hideModal();void this.loginTap(autoTutorial)},primary:true},
+    {label:'关闭',action:()=>this.hideModal(),primary:false}
+   ]);
+  }
+ }
+ private showCloudRestoreBlocked(autoTutorial=false):void{
+  this.platformViewPending=false;
+  if(this.modalOpen||this.localRecoveryAccepted)return;
+  const hasBackup=this.localBackupAvailable();
+  this.modal('云存档暂时无法读取',[
+   '为保护已有进度，云档恢复完成前不会自动从第一关开始。',
+   hasBackup?'检测到本机保留的历史进度，可以选择恢复本机备份。':'请重试云存档连接；成功后会自动显示已解锁关卡。'
+  ],[
+   {label:'重试云存档',action:()=>{this.hideModal();void this.loginTap(autoTutorial)},primary:true},
+   ...(hasBackup?[{label:'恢复本机进度',action:()=>{this.connectionView++;this.restoreLocalBackup(autoTutorial)},primary:false}]:[]),
+   {label:'稍后再说',action:()=>this.hideModal(),primary:false},
+   {label:'平台检查',action:()=>this.showPlatformCheck(),primary:false}
+  ]);
+ }
+ private showLocalRecoveryPrompt(autoTutorial=false):void{
+  this.platformViewPending=false;
+  if(this.modalOpen||this.localRecoveryAccepted)return;
+  this.modal('发现本机历史进度',[
+   '当前客户端暂时没有可用的云存档接口。',
+   '这份本机备份可能来自上一次未同步的游戏会话或旧版本。'
+  ],[
+   {label:'恢复本机进度',action:()=>this.restoreLocalBackup(autoTutorial),primary:true},
+   {label:'稍后再说',action:()=>this.hideModal(),primary:false}
+  ]);
+ }
  async loginTap(autoTutorial=false):Promise<void>{
   if(this.mode!=='home')return;
   const view=++this.connectionView;
@@ -75,15 +126,44 @@ class Game {
   const complete=await Promise.race([task.then(()=>true),new Promise<false>(resolve=>{timer=setTimeout(()=>resolve(false),8000)})]);
   if(timer)clearTimeout(timer);
   if(view!==this.connectionView||this.mode!=='home'||this.modalOpen)return;
-  const finish=()=>{this.audio.enabled=this.save.data.sound;this.home();if(this.platform.pendingCloud)this.showCloudConflict(autoTutorial);else if(autoTutorial)this.beginFirstVisit()};
-  if(complete){finish();return}
-  this.modal('正在恢复进度',['平台连接仍在进行，可以继续本地游戏。','云档恢复前，本机进度不会覆盖云端。'],[
-   {label:'继续本地游戏',action:()=>{this.connectionView++;this.hideModal();finish()},primary:true},
-   {label:'平台检查',action:()=>this.showPlatformCheck(),primary:false}
-  ]);
+  const finish=()=>{
+   this.audio.enabled=this.save.data.sound;this.home();
+   if(this.platform.pendingCloud)this.showCloudConflict(autoTutorial);
+   else if(!this.platform.capabilities.cloud&&this.localBackupAvailable()&&!this.localRecoveryAccepted)this.showLocalRecoveryPrompt(autoTutorial);
+   else if(autoTutorial)this.beginFirstVisit();
+  };
+  const settle=()=>{
+   if(this.platform.capabilities.cloud&&!this.platform.ready&&!this.platform.pendingCloud&&!this.localRecoveryAccepted){
+    this.home();this.showCloudRestoreBlocked(autoTutorial);return;
+   }
+   finish();
+  };
+  if(complete){settle();return}
+  const cloudRestorePending=this.platform.capabilities.cloud&&!this.localRecoveryAccepted;
+  const hasBackup=this.localBackupAvailable();
+  if(cloudRestorePending){
+   this.modal('正在恢复进度',[
+    'TapTap 云存档仍在读取中。恢复完成前，请不要开始新关卡。',
+    hasBackup?'检测到本机保留的历史进度，可以先恢复本机备份。':'读取成功后会自动显示已解锁关卡。'
+   ],[
+    {label:'重试连接',action:()=>{this.connectionView++;this.hideModal();void this.loginTap(autoTutorial)},primary:true},
+    ...(hasBackup?[{label:'恢复本机进度',action:()=>{this.connectionView++;this.restoreLocalBackup(autoTutorial)},primary:false}]:[]),
+    {label:'稍后再说',action:()=>{this.connectionView++;this.hideModal();this.home()},primary:false},
+    {label:'平台检查',action:()=>this.showPlatformCheck(),primary:false}
+   ]);
+  }else{
+   this.modal('正在连接 TapTap',['平台连接仍在进行，可以继续使用本机存档。'],[
+    {label:'继续本机游戏',action:()=>{this.connectionView++;this.hideModal();finish()},primary:true},
+    {label:'平台检查',action:()=>this.showPlatformCheck(),primary:false}
+   ]);
+  }
   const waiting=this.modalCard;
   // A late result may dismiss only its own waiting card, never a new dialog/run.
-  void task.then(()=>{if(view===this.connectionView&&this.mode==='home'&&this.modalCard===waiting){this.hideModal();finish()}});
+  void task.then(()=>{
+   if(view===this.connectionView&&this.mode==='home'&&this.modalCard===waiting){
+    this.hideModal();settle();
+   }
+  });
  }
  private showPlatformCheck():void{
   const read=()=>[...this.platform.connectionLines(),...(this.platform.debug?['排行 '+this.platform.states.leaderboard+' · 广告 '+this.platform.states.ads+' · 埋点 '+this.platform.states.report]:[])];
@@ -233,9 +313,10 @@ class Game {
  }
  home():void{
   this.clear('home');
+  const restoreBlocked=this.progressRestoreBlocked();
   const completed=Object.keys(this.save.data.records).filter(i=>Number(i)<TEACHING_COUNT).length;
   const badge=panel(this.scene,34,30,244,58,18,THEME.white,THEME.faint);flower(badge.graphics,25,29,4,THEME.rose);
-  text(badge,'教学 '+completed+' / 10',47,0,183,58,22,COLORS.ink,'center',true);
+  text(badge,restoreBlocked?(this.platform.capabilities.cloud?'进度恢复中':'待恢复本机进度'):'教学 '+completed+' / 10',47,0,183,58,22,COLORS.ink,'center',true);
   const settingsButton=new Button('',608,28,76,66,()=>this.settings(),false,'settings');
   settingsButton.name='button:settings';this.scene.addChild(settingsButton);this.homeSettingsButton=settingsButton;
   const titleY=H<1350?132:160;
@@ -252,11 +333,11 @@ class Game {
   const current=this.formalCurrent();
   // Screen-edge shortcuts, deliberately ABOVE the main play button.
   const sign=new Button('',12,H-542,116,134,()=>this.openSignIn());
-  sign.name='button:signin';this.scene.addChild(sign);
+  sign.name='button:signin';sign.enabled=!restoreBlocked;this.scene.addChild(sign);
   sign.skin.graphics.clear();paintFeature(sign.skin.graphics,FEATURE_ART.signin,116,134);
   text(sign,'签到',0,101,116,31,24,COLORS.ink,'center',true);
   const bag=new Button('',W-128,H-542,116,134,()=>this.openBag());
-  bag.name='button:bag';this.scene.addChild(bag);
+  bag.name='button:bag';bag.enabled=!restoreBlocked;this.scene.addChild(bag);
   bag.skin.graphics.clear();paintFeature(bag.skin.graphics,FEATURE_ART.bag,116,134);
   text(bag,'背包',0,101,116,31,24,COLORS.ink,'center',true);
   const dot=new Laya.Sprite();dot.name='signin-red-dot';
@@ -264,9 +345,18 @@ class Game {
   dot.mouseEnabled=false;
   const signState=this.save.dailySignInStatus();dot.visible=!signState.claimedToday&&!signState.clockInvalid;
   this.scene.addChild(dot);this.homeSignDot=dot;
-  this.scene.addChild(new Button('第'+(current-TEACHING_COUNT+1)+'关',112,H-375,496,88,()=>this.load(current),true,'play'));
-  this.scene.addChild(new Button('关卡图谱',116,H-251,234,68,()=>this.levels(),false,'map'));
-  this.scene.addChild(new Button('新手练习',370,H-251,234,68,()=>this.practice(),false,'help'));
+  const play=new Button(restoreBlocked?(this.platform.capabilities.cloud?'正在恢复进度…':'请先恢复本机进度'):'第'+(current-TEACHING_COUNT+1)+'关',112,H-375,496,88,()=>{
+   if(this.progressRestoreBlocked()){
+    if(this.platform.capabilities.cloud)this.showCloudRestoreBlocked();else this.showLocalRecoveryPrompt();
+    return;
+   }
+   this.load(current);
+  },true,'play');
+  play.enabled=!restoreBlocked;this.scene.addChild(play);
+  const mapButton=new Button('关卡图谱',116,H-251,234,68,()=>this.levels(),false,'map');
+  mapButton.enabled=!restoreBlocked;this.scene.addChild(mapButton);
+  const practiceButton=new Button('新手练习',370,H-251,234,68,()=>this.practice(),false,'help');
+  practiceButton.enabled=!restoreBlocked;this.scene.addChild(practiceButton);
   if(this.platform.available){
    const rank=new Button('排行榜',244,H-164,232,56,()=>this.tapMenu(),false,'star');rank.name='button:leaderboard';this.scene.addChild(rank);
   }
@@ -274,7 +364,7 @@ class Game {
   text(this.scene,'v'+GAME_VERSION+' @雨过天青',70,this.platform.available?H-65:H-91,580,36,20,THEME.muted,'center');
  }
  beginFirstVisit():void{
-  if(this.mode!=='home'||!this.save.shouldAutoStartTutorial())return;
+  if(this.mode!=='home'||this.progressRestoreBlocked()||!this.save.shouldAutoStartTutorial())return;
   // A returning guest linking an account should not be treated as a new player.
   if(this.save.owner&&this.save.hasGuestProgress())return;
   this.load(0);
@@ -529,6 +619,10 @@ class Game {
   text(this.scene,this.debugMode?'Debug 模式 · 全部关卡已解锁':'完成前一关后，后续教程会逐步开放',64,H-87,592,44,21,COLORS.muted);
  }
  load(i:number,restart=false):void{
+  if(this.progressRestoreBlocked()){
+   if(this.platform.capabilities.cloud)this.showCloudRestoreBlocked();else this.showLocalRecoveryPrompt();
+   return;
+  }
   if(i<0||i>=C.levels.length||(!this.debugMode&&i<TEACHING_COUNT&&i>this.save.data.unlocked))return;
   this.clear('game');this.settled=false;this.model=new GameModel(i);if(debugEnabled())this.save.taint();
   this.hintLeft=1;this.eraseLeft=0;
@@ -909,6 +1003,8 @@ class Game {
   if(this.platformViewPending&&this.mode==='home'&&!this.modalOpen&&this.platform.states.cloud!=='busy'){
    this.platformViewPending=false;this.audio.enabled=this.save.data.sound;this.home();
    if(this.platform.pendingCloud)this.showCloudConflict();
+   else if(this.platform.capabilities.cloud&&!this.platform.ready&&!this.localRecoveryAccepted)this.showCloudRestoreBlocked();
+   else if(!this.platform.capabilities.cloud&&this.localBackupAvailable()&&!this.localRecoveryAccepted)this.showLocalRecoveryPrompt();
   }
   if(this.mode==='home'&&this.homeSignDot&&Date.now()>=this.nextSignBadgeCheck){
    this.nextSignBadgeCheck=Date.now()+60000;
