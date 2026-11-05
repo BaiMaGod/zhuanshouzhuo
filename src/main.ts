@@ -103,7 +103,9 @@ class Game {
   if(timer)clearTimeout(timer);
   if(view!==this.connectionView||this.mode!=='home'||this.modalOpen)return;
   const finish=()=>{
-   this.audio.enabled=this.save.data.sound;this.home();
+   this.audio.enabled=this.save.data.sound;
+   if(this.platform.playAllowed)this.cloudRestoreModal=false;
+   this.home();
    if(this.platform.pendingCloud&&!this.platform.requiresCloud)this.showCloudConflict(autoTutorial);
    else if(autoTutorial&&!this.progressRestoreBlocked())this.beginFirstVisit();
   };
