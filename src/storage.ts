@@ -11,13 +11,13 @@ type RewardKey=RewardKind|'shareHint'|'shareErase';
 const REWARD_KEYS:RewardKey[]=['hint','erase','shareHint','shareErase'];
 const rewardKey=(kind:RewardKind,source:RewardSource):RewardKey=>source==='video'?kind:kind==='hint'?'shareHint':'shareErase';
 interface Reward {claimed:boolean;remaining:number;generation?:number}
-interface SaveMeta {revision:number;baseRevision:number;lastAttemptAt:number;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>;economy:Economy}
+interface SaveMeta {revision:number;baseRevision:number;lastAttemptAt:number;inFlightRevision:number|null;inFlightBaseRevision:number|null;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>;economy:Economy}
 interface CloudSave {version:1|2;owner:string;progress:Progress;runs:Record<string,unknown>;meta:SaveMeta}
 const freshProgress=():Progress=>({version:2,unlocked:0,records:{},sound:true,tutorial:0});
 export class Save {
  private key=LEGACY_KEY;
  owner='';
- meta:SaveMeta={revision:0,baseRevision:0,lastAttemptAt:0,dirty:false,tainted:false,rankRecords:{},rewards:{},economy:emptyEconomy()};
+ meta:SaveMeta={revision:0,baseRevision:0,lastAttemptAt:0,inFlightRevision:null,inFlightBaseRevision:null,dirty:false,tainted:false,rankRecords:{},rewards:{},economy:emptyEconomy()};
  onChange:()=>void=()=>{};
  storageError:unknown=null;
  get storageHealthy():boolean{return this.storageError===null}
@@ -25,6 +25,7 @@ export class Save {
  get revision():number{return this.meta.revision}
  get baseRevision():number{return this.meta.baseRevision}
  get lastAttemptAt():number{return this.meta.lastAttemptAt}
+ get inFlightRevision():number|null{return this.meta.inFlightRevision}
  get rankTainted():boolean{return this.meta.tainted}
  get rankRecords():Progress['records']{return this.meta.rankRecords}
  private persistMeta():void{Laya.LocalStorage.setItem(this.key+'-meta',JSON.stringify(this.meta))}
@@ -172,13 +173,15 @@ export class Save {
   return false;
  }
  taint():void{if(!this.meta.tainted){this.meta.tainted=true;this.changed()}}
- markAttempt(at:number):void{
-  if(!Number.isFinite(at)||at<0)throw Error('Invalid cloud write timestamp');
-  this.meta.lastAttemptAt=at;this.persistMeta();this.storageError=null;
+ markAttempt(at:number,revision=this.revision):void{
+  if(!Number.isFinite(at)||at<0||!Number.isSafeInteger(revision)||revision<0||revision>this.revision)throw Error('Invalid cloud write attempt');
+  this.meta.lastAttemptAt=at;this.meta.inFlightRevision=revision;this.meta.inFlightBaseRevision=this.meta.baseRevision;
+  this.persistMeta();this.storageError=null;
  }
  markSynced(revision:number):void{
   if(!Number.isSafeInteger(revision)||revision<0||revision>this.revision)return;
   this.meta.baseRevision=Math.max(this.meta.baseRevision,revision);
+  if(this.meta.inFlightRevision!==null&&this.meta.inFlightRevision<=revision){this.meta.inFlightRevision=null;this.meta.inFlightBaseRevision=null}
   if(revision===this.revision)this.meta.dirty=false;
   try{this.persistMeta();this.storageError=null}catch(error){this.storageError=error;this.onChange()}
  }
@@ -188,13 +191,13 @@ export class Save {
    const run=this.readRun(i);if(run)runs[i]=run;
   }
   // dirty/lastAttemptAt describe this device's transaction queue, not cloud state.
-  const meta={...this.meta,baseRevision:this.revision,lastAttemptAt:0,dirty:false};
+  const meta={...this.meta,baseRevision:this.revision,lastAttemptAt:0,inFlightRevision:null,inFlightBaseRevision:null,dirty:false};
   return JSON.parse(JSON.stringify({version:2,owner:this.owner,progress:this.data,runs,meta}));
  }
  replaceCloud(value:unknown):void{
   const cloud=validateCloud(value,this.owner),lastAttemptAt=this.meta.lastAttemptAt||0;
   this.data=JSON.parse(JSON.stringify(cloud.progress));
-  this.meta={...cloud.meta,revision:cloud.meta.revision,baseRevision:cloud.meta.revision,lastAttemptAt,dirty:false};
+  this.meta={...cloud.meta,revision:cloud.meta.revision,baseRevision:cloud.meta.revision,lastAttemptAt,inFlightRevision:null,inFlightBaseRevision:null,dirty:false};
   this.runCache.clear();this.runDataCache.clear();
   try{
    Laya.LocalStorage.setItem(this.key,JSON.stringify(this.data));
@@ -267,6 +270,8 @@ function validateMeta(value:unknown):SaveMeta{
  const hasBase=Number.isSafeInteger(m.baseRevision)&&m.baseRevision! >= 0 && m.baseRevision! <= m.revision;
  const baseRevision=hasBase?m.baseRevision!:m.revision;
  const lastAttemptAt=Number.isFinite(m.lastAttemptAt)&&m.lastAttemptAt! >= 0 ? m.lastAttemptAt! : 0;
+ const inFlightRevision=Number.isSafeInteger(m.inFlightRevision)&&m.inFlightRevision! >= 0&&m.inFlightRevision! <= m.revision?m.inFlightRevision!:null;
+ const inFlightBaseRevision=Number.isSafeInteger(m.inFlightBaseRevision)&&m.inFlightBaseRevision! >= 0&&inFlightRevision!==null&&m.inFlightBaseRevision! <= inFlightRevision?m.inFlightBaseRevision!:null;
  const rewards:SaveMeta['rewards']={};
  for(const [i,items] of Object.entries(m.rewards)){
   if(!/^(?:0|[1-9]\d*)$/.test(i)||Number(i)>=Core.levels.length||!items||typeof items!=='object')throw Error('Invalid reward');
@@ -279,7 +284,7 @@ function validateMeta(value:unknown):SaveMeta{
  }
  // Older cache files have no baseRevision. They are not safe to replay over cloud;
  // normalize them to a clean snapshot at their recorded revision.
- return {revision:m.revision,baseRevision,lastAttemptAt,dirty:hasBase&&m.dirty,tainted:m.tainted,rankRecords,rewards,economy:validateEconomy(m.economy)};
+ return {revision:m.revision,baseRevision,lastAttemptAt,inFlightRevision,inFlightBaseRevision,dirty:hasBase&&m.dirty,tainted:m.tainted,rankRecords,rewards,economy:validateEconomy(m.economy)};
 }
 function validateCloud(value:unknown,owner:string):CloudSave{
  const v=value as CloudSave;
