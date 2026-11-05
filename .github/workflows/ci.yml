@@ -22,7 +22,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" || "${{ github.event_name }}" == "pull_request" ]]; then
             echo "full=true" >> "$GITHUB_OUTPUT"
           else
             before="${{ github.event.before }}"
