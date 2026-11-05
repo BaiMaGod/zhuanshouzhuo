@@ -79,8 +79,8 @@ class Game {
  private restoreLocalBackup(autoTutorial=false):void{
   try{
    let imported=false;
-   if(this.save.owner!==''&&this.save.hasGuestProgress()){this.save.importGuest();imported=true}
    if(this.save.hasRecoveryProgress()){this.save.importRecovery();imported=true}
+   else if(this.save.owner!==''&&this.save.hasGuestProgress()){this.save.importGuest();imported=true}
    if(!imported)throw new Error('No recoverable local save');
    this.localRecoveryAccepted=true;
    this.home();
