@@ -54,7 +54,7 @@ class Game {
  hintLeft=1;eraseLeft=0;noticeUntil=0;nextCloudCheck=0;
  homeSignDot:Laya.Sprite|null=null;nextSignBadgeCheck=0;
  private platformViewPending=false;
- private cloudSyncModal=false;
+ private cloudSyncModal=false;private cloudRestoreModal=false;
  toolLeft(kind:RewardKind):number{
   return (kind==='hint'?this.hintLeft:this.eraseLeft)+this.save.inventoryLeft(kind)+(this.model?this.save.rewardLeft(this.model.index,kind):0);
  }
@@ -73,7 +73,7 @@ class Game {
  }
  private showCloudRestoreBlocked(autoTutorial=false):void{
   if(this.modalOpen||this.platform.playAllowed)return;
-  this.platformViewPending=false;
+  this.cloudRestoreModal=true;this.platformViewPending=false;
   const unavailable=!this.platform.capabilities.cloud;
   this.modal(unavailable?'TapTap 云存档不可用':'云存档暂时无法读取',[
    unavailable?'当前 TapTap 客户端尚未提供可用的云存档接口，请更新客户端或检查网络。':'暂时无法读取你的云端游戏进度，请检查网络连接后重试。',
@@ -116,6 +116,7 @@ class Game {
   if(complete){settle();return}
   const cloudRestorePending=this.platform.requiresCloud&&!this.platform.playAllowed;
   if(cloudRestorePending){
+   this.cloudRestoreModal=true;
    this.modal('正在恢复云存档',[
     '正在读取并校验 TapTap 云端游戏进度。',
     '恢复完成前不会进入游戏，也不会使用本机缓存替代云存档。'
@@ -253,6 +254,11 @@ class Game {
    this.platformViewPending=true;if(this.accountStatus)this.accountStatus.text=this.platform.status;
    if(this.platform.cloudBlocked){if(!this.modalOpen)this.showCloudSyncBlocked()}
    else if(this.cloudSyncModal){this.cloudSyncModal=false;this.hideModal()}
+   else if(this.cloudRestoreModal&&this.platform.playAllowed){
+    this.cloudRestoreModal=false;this.platformViewPending=false;
+    if(this.modalOpen)this.hideModal();
+    if(this.mode==='home'){this.home();if(this.save.shouldAutoStartTutorial())this.beginFirstVisit()}
+   }
   };
   Laya.timer.frameLoop(1,this,this.tick);this.home();
   // Restore in the background; applying an archive is deferred while playing.
