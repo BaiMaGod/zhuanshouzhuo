@@ -53,9 +53,11 @@ test('failed automatic login and cloud read retry themselves and later progress 
  assert.equal(p.diagnostics.find(d=>d.capability==='login').code,'503');
  t.mock.timers.tick(4999);await settle();assert.equal(attempts,1);
  t.mock.timers.tick(1);await settle();assert.equal(attempts,2);assert.equal(reads,2);assert.equal(p.ready,true);
- save.win(34,2,3);t.mock.timers.tick(0);await settle();
- assert.equal(save.cloudDirty,false);assert.equal(m.archives.length,1);assert.equal(save.owner,'archive:slot');p.dispose();
+ assert.equal(m.archives.length,1);assert.equal(save.owner,'archive:slot');
+ save.win(34,2,3);t.mock.timers.tick(65000);await settle();
+ assert.equal(save.cloudDirty,false);assert.equal(m.archives.length,1);p.dispose();
 });
+
 test('late global bridge and late cloud capability are discovered without a manual click',async t=>{
  t.mock.timers.enable({apis:['Date','setTimeout'],now:5000000});
  const previous=globalThis.tap;delete globalThis.tap;
@@ -66,9 +68,10 @@ test('late global bridge and late cloud capability are discovered without a manu
   globalThis.tap=m.api;t.mock.timers.tick(500);await settle();
   assert.equal(p.states.login,'ready');assert.equal(p.ready,false);assert.equal(logins,1);
   m.api.env.USER_DATA_PATH='tapfile://usr';t.mock.timers.tick(500);await settle();
-  assert.equal(p.ready,true);assert.equal(logins,1);assert.match(p.save.owner,/^session:/);
+  assert.equal(p.ready,true);assert.equal(logins,1);assert.equal(p.save.owner,'archive:slot');
  }finally{p.dispose();if(previous===undefined)delete globalThis.tap;else globalThis.tap=previous}
 });
+
 test('deferred automatic restore resumes on home without repeated cloud reads during gameplay',async t=>{
  t.mock.timers.enable({apis:['Date','setTimeout'],now:6000000});
  const m=mockRuntime(),remote=saveFor('auto-restore');remote.win(35,2,4);
@@ -119,14 +122,16 @@ test('different whole-board saves require conflict choice; records merge safely'
  assert.equal(s.hasRunConflict(cloud),true);s.mergeCloud(cloud,false);assert.equal(s.readRun(10).hint,1);
  s.mergeCloud(cloud,true);assert.equal(s.readRun(10).hint,0);assert.equal(s.data.records[11].stars,2);
 });
-test('container login needs no login server, then writes and uploads through Tap filesystem',async()=>{
+test('container login creates the initial archive before entry, then updates that archive',async()=>{
  const m=mockRuntime(),s=new Save(),p=new TapPlatform(s,false,m.api,config);
- await p.login();assert.equal(p.ready,true);assert.match(s.owner,/^session:/);
- s.win(10,3,5);await p.sync();assert.equal(s.cloudDirty,false);assert.equal(m.archives.length,1);
- const uploaded=JSON.parse(m.files.get('cloud'));assert.match(uploaded.owner,/^session:/);assert.equal(s.owner,'archive:slot');assert.equal(uploaded.progress.records[10].stars,3);
+ await p.login();assert.equal(p.ready,true);assert.equal(s.owner,'archive:slot');assert.equal(m.archives.length,1);
+ const initial=JSON.parse(m.files.get('cloud'));assert.deepEqual(initial.progress.records,{});assert.equal(initial.meta.dirty,false);
+ s.win(10,3,5);p.lastAttempt=-Infinity;await p.sync();assert.equal(s.cloudDirty,false);assert.equal(m.archives.length,1);
+ const uploaded=JSON.parse(m.files.get('cloud'));assert.equal(uploaded.owner,'archive:slot');assert.equal(uploaded.progress.records[10].stars,3);
  assert.deepEqual(m.submissions[0],[{leaderboardId:'levels',score:1},{leaderboardId:'stars',score:3}]);
- s.win(11,2,5);await p.sync();assert.equal(s.cloudDirty,true);assert.equal(m.archives.length,1);
+ s.win(11,2,5);await p.sync();assert.equal(s.cloudDirty,true);assert.equal(m.archives.length,1);p.dispose();
 });
+
 test('upload while local data changes leaves new revision pending',async()=>{
  const m=mockRuntime(),s=saveFor('race'),p=new TapPlatform(s,false,m.api,config);p.ready=true;
  s.persist();const original=m.api.getFileSystemManager;
@@ -198,41 +203,47 @@ test('cloud restore uses latest container-owned slot and migrates a legacy owner
  assert.equal(m.archives.length,2);p.dispose();
 });
 
-test('same-device different container accounts cannot automatically share progress',async()=>{
- const m=mockRuntime(),s=new Save(),p=new TapPlatform(s,false,m.api,config);await p.login();s.win(21,2,4);await p.sync();p.dispose();
+test('new container account never imports another archive local cache',async()=>{
+ const m=mockRuntime(),s=new Save(),p=new TapPlatform(s,false,m.api,config);await p.login();
+ s.win(21,2,4);p.lastAttempt=-Infinity;await p.sync();p.dispose();
  const n=mockRuntime(),next=new Save(),q=new TapPlatform(next,false,n.api,config);await q.login();
  assert.equal(next.data.records[21],undefined);assert.equal(n.submissions.length,0);
- assert.equal(next.hasRecoveryProgress(),true);next.importRecovery();
- assert.ok(Object.keys(next.data.records).length>0);assert.deepEqual(next.rankRecords,{});q.dispose();
+ // Old account data may remain on device, but it is never used as this user's progress.
+ assert.equal(next.owner,'archive:slot');q.dispose();
 });
 
-test('malformed remote never replaces local progress or enables an overwrite',async()=>{
- const m=mockRuntime(),s=new Save(),p=new TapPlatform(s,false,m.api,config);s.win(24,2,4);
- const owner=s.owner,bad=s.exportCloud();bad.progress.records[24].stars=99;
+test('malformed remote never replaces the existing archive cache or enables an overwrite',async()=>{
+ const m=mockRuntime(),cache=new Save();cache.bindAccount('archive:broken');cache.win(24,2,4);
+ const bad=cache.exportCloud();bad.progress.records[24].stars=99;
  m.archives.push({name:'jade_save_v1',uuid:'broken',fileId:'file'});m.files.set('cloud',JSON.stringify(bad));
- await p.login();assert.equal(p.ready,false);assert.equal(s.owner,owner);assert.equal(s.data.records[24].stars,3);
+ const p=new TapPlatform(new Save(),false,m.api,config);await p.login();
+ assert.equal(p.ready,false);assert.equal(p.save.data.records[24],undefined);
+ const preserved=new Save('jade-bracelet-laya-v1-tap-archive%3Abroken');
+ assert.equal(preserved.data.records[24].stars,3);
  await p.sync();assert.equal(m.files.get('cloud'),JSON.stringify(bad));assert.equal(await p.openBoard(),true);p.dispose();
 });
 
-test('restoration waits for a safe scene and preserves progress earned while downloading',async()=>{
+test('restoration waits for a safe scene and never merges pre-cloud local progress',async()=>{
  const m=mockRuntime(),remote=saveFor('deferred');remote.win(25,3,4);
  m.archives.push({name:'jade_save_v1',uuid:'deferred',fileId:'file'});m.files.set('cloud',JSON.stringify(remote.exportCloud()));
- const s=new Save(),p=new TapPlatform(s,false,m.api,config);p.canRestore=()=>false;s.win(26,2,3);
+ const s=new Save(),p=new TapPlatform(s,false,m.api,config);p.canRestore=()=>false;
  await p.login();assert.equal(s.data.records[25],undefined);assert.equal(p.ready,false);
- p.canRestore=()=>true;await p.login();assert.equal(s.data.records[25].stars,3);assert.equal(s.data.records[26].stars,3);p.dispose();
+ s.win(26,2,3);
+ p.canRestore=()=>true;await p.login();assert.equal(s.data.records[25].stars,3);assert.equal(s.data.records[26],undefined);p.dispose();
 });
 
-test('cloud uploads coalesce at 65 seconds and retry updates without creating a duplicate slot',async t=>{
+test('cloud uploads coalesce at 65 seconds, pause only after failure, then retry without duplicate slots',async t=>{
  t.mock.timers.enable({apis:['Date','setTimeout'],now:1000000});
- const m=mockRuntime(),s=new Save(),p=new TapPlatform(s,false,m.api,config);await p.login();
- s.win(30,2,3);await p.sync();assert.equal(s.cloudDirty,false);assert.equal(m.archives.length,1);
- s.win(31,2,3);p.localChanged();await p.sync();assert.equal(s.cloudDirty,true);
- t.mock.timers.tick(64999);await p.sync();assert.equal(s.cloudDirty,true);
- t.mock.timers.tick(1);await p.sync();assert.equal(s.cloudDirty,false);assert.equal(m.archives.length,1);
+ const m=mockRuntime(),s=new Save(),strict={...config,target:'taptap-h5'},p=new TapPlatform(s,false,m.api,strict);await p.login();
+ assert.equal(p.ready,true);assert.equal(m.archives.length,1);assert.equal(p.playAllowed,true);
+ s.win(30,2,3);p.localChanged();await p.sync();assert.equal(s.cloudDirty,true);
+ t.mock.timers.tick(64999);await settle();assert.equal(s.cloudDirty,true);
+ t.mock.timers.tick(1);await settle();await p.sync();assert.equal(s.cloudDirty,false);assert.equal(m.archives.length,1);
  const original=m.api.getCloudSaveManager;let fail=true,updates=0;
  m.api.getCloudSaveManager=()=>({...original(),updateArchive:o=>{updates++;assert.equal(o.archiveUUID,'slot');if(fail)o.fail({errCode:503});else original().updateArchive(o)}});
- s.win(32,2,3);p.localChanged();t.mock.timers.tick(65000);await p.sync();assert.equal(s.cloudDirty,true);
- fail=false;t.mock.timers.tick(65000);await p.sync();assert.equal(s.cloudDirty,false);assert.equal(updates,2);assert.equal(m.archives.length,1);p.dispose();
+ s.win(31,2,3);p.localChanged();t.mock.timers.tick(65000);await settle();assert.equal(s.cloudDirty,true);assert.equal(p.cloudBlocked,true);assert.equal(p.playAllowed,false);
+ fail=false;t.mock.timers.tick(65000);await p.retrySync();
+ assert.equal(s.cloudDirty,false);assert.equal(p.cloudBlocked,false);assert.equal(p.playAllowed,true);assert.equal(updates,2);assert.equal(m.archives.length,1);p.dispose();
 });
 
 test('ranking works without cloud or login and submits only improved absolute records',async t=>{
@@ -253,30 +264,85 @@ test('ad show retries a load once; inventory errors are retained and never grant
 });
 
 
-test('local-only TapTap runtime keeps the stable device save scope across launches',async()=>{
- const key='local-only-'+Date.now();
- const save=new Save(key),p=new TapPlatform(save,false,{login:o=>o.success({code:'once'})},config);
+test('web preview remains playable without TapTap cloud APIs',async()=>{
+ const p=new TapPlatform(new Save(),false,{login:o=>o.success({code:'once'})},config);
+ await p.start();assert.equal(p.requiresCloud,false);assert.equal(p.playAllowed,true);assert.equal(p.ready,false);p.dispose();
+});
+
+test('TapTap H5 creates an initial cloud archive and ignores legacy guest progress',async()=>{
+ const legacy=new Save();legacy.win(18,2,4);
+ const m=mockRuntime(),save=new Save(),p=new TapPlatform(save,false,m.api,{...config,target:'taptap-h5'});
  await p.start();
- assert.equal(save.owner,'');
- save.win(18,2,4);
- p.dispose();
- const reopened=new Save(key);
- assert.equal(reopened.data.records[18].stars,3);
-});
-
-test('first cloud restore imports legacy guest progress when no cloud archive exists',async()=>{
- const legacy=new Save();
- legacy.win(18,2,4);
- const m=mockRuntime(),save=new Save(),p=new TapPlatform(save,false,m.api,config);
- await p.login();
- assert.equal(p.ready,true);
- assert.equal(save.data.records[18].stars,3);
- assert.equal(save.rankTainted,true);
+ assert.equal(p.ready,true);assert.equal(p.playAllowed,true);assert.equal(m.archives.length,1);
+ assert.equal(save.owner,'archive:slot');assert.equal(save.data.records[18],undefined);
+ const cloud=JSON.parse(m.files.get('cloud'));assert.deepEqual(cloud.progress.records,{});assert.equal(cloud.meta.dirty,false);
  p.dispose();
 });
 
-test('guest progress detection includes unfinished formal boards beyond the first level',()=>{
- const save=new Save();
- save.writeRun(18,Core.make(18),1,0);
- assert.equal(save.hasGuestProgress(),true);
+test('TapTap H5 without cloud capability cannot enter local-only mode',async()=>{
+ const p=new TapPlatform(new Save(),false,{login:o=>o.success({code:'once'})},{...config,target:'taptap-h5'});
+ await p.start();assert.equal(p.ready,false);assert.equal(p.playAllowed,false);assert.equal(p.states.cloud,'error');p.dispose();
+});
+
+
+test('TapTap H5 upload runs asynchronously without blocking play while the request is pending',async()=>{
+ const m=mockRuntime(),save=new Save(),p=new TapPlatform(save,false,m.api,{...config,target:'taptap-h5'});
+ await p.start();p.lastAttempt=-Infinity;
+ save.win(40,2,3);
+ let finish;
+ const original=m.api.getCloudSaveManager;
+ m.api.getCloudSaveManager=()=>({...original(),updateArchive:o=>{finish=()=>{m.files.set('cloud',m.files.get(o.archiveFilePath));o.success({uuid:'slot',fileId:'file2'})}}});
+ const pending=p.sync();await settle();
+ assert.equal(p.syncing,true);assert.equal(p.playAllowed,true);
+ save.win(41,2,3);finish();await pending;
+ assert.equal(p.playAllowed,true);assert.equal(save.cloudDirty,true);assert.equal(save.baseRevision<save.revision,true);p.dispose();
+});
+
+test('TapTap H5 failed cloud update blocks play until explicit retry succeeds',async()=>{
+ const m=mockRuntime(),save=new Save(),p=new TapPlatform(save,false,m.api,{...config,target:'taptap-h5'});
+ await p.start();p.lastAttempt=-Infinity;
+ const original=m.api.getCloudSaveManager;let fail=true;
+ m.api.getCloudSaveManager=()=>({...original(),updateArchive:o=>fail?o.fail({errCode:503,errMsg:'network offline'}):original().updateArchive(o)});
+ save.win(42,2,3);await p.sync();
+ assert.equal(p.cloudBlocked,true);assert.equal(p.playAllowed,false);assert.equal(save.cloudDirty,true);
+ fail=false;p.lastAttempt=-Infinity;p.retryAt=0;await p.retrySync();
+ assert.equal(p.cloudBlocked,false);assert.equal(p.playAllowed,true);assert.equal(save.cloudDirty,false);p.dispose();
+});
+
+test('TapTap H5 restart reads cloud first, then replays only a matching pending base revision',async()=>{
+ const m=mockRuntime(),strict={...config,target:'taptap-h5'},firstSave=new Save(),first=new TapPlatform(firstSave,false,m.api,strict);
+ await first.start();first.lastAttempt=-Infinity;firstSave.win(43,2,3);await first.sync();
+ const confirmed=firstSave.revision;
+ firstSave.win(44,2,3);assert.equal(firstSave.baseRevision,confirmed);assert.equal(firstSave.cloudDirty,true);
+ firstSave.markAttempt(Date.now()-66000);first.dispose();
+ const nextSave=new Save(),next=new TapPlatform(nextSave,false,m.api,strict);await next.start();
+ assert.equal(next.ready,true);assert.equal(nextSave.cloudDirty,false);assert.equal(nextSave.data.records[44].stars,3);assert.equal(m.archives.length,1);next.dispose();
+});
+
+test('TapTap H5 cloud wins when a local pending transaction has a stale base revision',async()=>{
+ const m=mockRuntime(),strict={...config,target:'taptap-h5'},firstSave=new Save(),first=new TapPlatform(firstSave,false,m.api,strict);
+ await first.start();first.lastAttempt=-Infinity;firstSave.win(45,2,3);await first.sync();
+ firstSave.win(46,2,3);assert.equal(firstSave.cloudDirty,true);
+ const newer=JSON.parse(m.files.get('cloud'));newer.meta.revision=firstSave.revision+1;newer.meta.baseRevision=newer.meta.revision;newer.progress.records[47]={steps:1,stars:3};m.files.set('cloud',JSON.stringify(newer));
+ first.dispose();
+ const nextSave=new Save(),next=new TapPlatform(nextSave,false,m.api,strict);await next.start();
+ assert.equal(next.ready,true);assert.equal(nextSave.data.records[47].stars,3);assert.equal(nextSave.data.records[46],undefined);assert.equal(nextSave.cloudDirty,false);next.dispose();
+});
+
+test('TapTap H5 create timeout reconciles the existing archive instead of creating a duplicate',async()=>{
+ const m=mockRuntime(),original=m.api.getCloudSaveManager;let first=true,creates=0;
+ m.api.getCloudSaveManager=()=>({...original(),createArchive:o=>{creates++;if(first){first=false;m.archives.push({name:o.archiveMetaData.name,uuid:'slot',fileId:'file'});m.files.set('cloud',m.files.get(o.archiveFilePath));o.fail({code:'CLIENT_TIMEOUT',message:'timeout'})}else original().createArchive(o)}});
+ const p=new TapPlatform(new Save(),false,m.api,{...config,target:'taptap-h5'});
+ await p.start();assert.equal(p.ready,false);
+ await p.login(true);assert.equal(p.ready,true);assert.equal(creates,1);assert.equal(m.archives.length,1);p.dispose();
+});
+
+test('TapTap H5 update timeout checks the server before retrying the write',async()=>{
+ const m=mockRuntime(),save=new Save(),p=new TapPlatform(save,false,m.api,{...config,target:'taptap-h5'});
+ await p.start();p.lastAttempt=-Infinity;save.win(48,2,3);
+ const original=m.api.getCloudSaveManager;let updates=0;
+ m.api.getCloudSaveManager=()=>({...original(),updateArchive:o=>{updates++;m.files.set('cloud',m.files.get(o.archiveFilePath));o.fail({code:'CLIENT_TIMEOUT',message:'timeout after server commit'})}});
+ await p.sync();assert.equal(p.cloudBlocked,true);
+ p.lastAttempt=-Infinity;p.retryAt=0;await p.retrySync();
+ assert.equal(p.cloudBlocked,false);assert.equal(save.cloudDirty,false);assert.equal(updates,1);assert.equal(m.archives.length,1);p.dispose();
 });
