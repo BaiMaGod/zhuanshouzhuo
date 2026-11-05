@@ -140,7 +140,8 @@ export class TapPlatform {
   if(!this.api||this.disposed)return;
   this.refreshCapabilities();
   if(this.requiresCloud&&!this.capabilities.cloud){
-   this.failure('cloud','capability-check',{code:'CLOUD_SAVE_UNAVAILABLE',message:'当前 TapTap 客户端未提供完整云存档接口'});
+   if(this.diagnostics.at(-1)?.code!=='CLOUD_SAVE_UNAVAILABLE')this.failure('cloud','capability-check',{code:'CLOUD_SAVE_UNAVAILABLE',message:'当前 TapTap 客户端未提供完整云存档接口'});
+   this.blocked.delete('cloud');
    this.state('TapTap 云存档接口不可用，无法进入游戏');return;
   }
   if(!this.ensureSession()){this.state('等待安全场景恢复云存档');return}
