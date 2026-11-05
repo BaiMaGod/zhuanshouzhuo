@@ -256,7 +256,7 @@ export class TapPlatform {
   this.syncTask=this.syncNow(false).finally(()=>{this.syncTask=null;this.scheduleSync()});return this.syncTask;
  }
  private async syncNow(force:boolean):Promise<void>{
-  if(!this.api||!this.capabilities.cloud||!this.ready||this.syncing||!this.save.cloudDirty||this.disposed||this.blocked.has('cloud')||this.cloudBlocked)return;
+  if(!this.api||!this.capabilities.cloud||!this.ready||this.syncing||!this.save.cloudDirty||this.disposed||this.blocked.has('cloud')||(!force&&this.cloudBlocked))return;
   if(!force&&(Date.now()<this.retryAt||Date.now()-this.lastAttempt<WINDOW)){this.scheduleSync();return}
   this.syncing=true;this.states.cloud='busy';this.state('正在后台同步云存档…');
   try{
@@ -296,6 +296,7 @@ export class TapPlatform {
   if(this.disposed||!this.requiresCloud||!this.ready)return;
   if(this.retryTask)return this.retryTask;
   this.retryTask=(async()=>{
+   if(this.syncTask)await this.syncTask;
    this.blocked.delete('cloud');
    const wait=Math.max(0,this.lastAttempt+WINDOW-Date.now(),this.retryAt-Date.now());
    if(wait>0){this.state('等待云存档写入冷却…');await new Promise<void>(resolve=>setTimeout(resolve,wait))}
