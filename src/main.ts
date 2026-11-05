@@ -711,8 +711,8 @@ class Game {
   this.controls.forEach(b=>b.enabled=this.platform.playAllowed&&!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.undoButton)this.undoButton.enabled=this.platform.playAllowed&&this.model.history.length>0&&!this.modalOpen;
   if(this.demoButton)this.demoButton.label.text=this.busy?'停止':'演示';
-  if(this.hintButton)this.hintButton.enabled=!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
-  if(this.eraseButton)this.eraseButton.enabled=!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
+  if(this.hintButton)this.hintButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
+  if(this.eraseButton)this.eraseButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
  }
  releaseDrag(releaseCapture=true):void{
   this.board?.focus(null);
