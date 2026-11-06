@@ -12,7 +12,9 @@ const REWARD_KEYS:RewardKey[]=['hint','erase','shareHint','shareErase'];
 const rewardKey=(kind:RewardKind,source:RewardSource):RewardKey=>source==='video'?kind:kind==='hint'?'shareHint':'shareErase';
 interface Reward {claimed:boolean;remaining:number;generation?:number}
 interface SaveMeta {revision:number;baseRevision:number;lastAttemptAt:number;inFlightRevision:number|null;inFlightBaseRevision:number|null;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>;economy:Economy}
-interface CloudSave {version:1|2;owner:string;progress:Progress;runs:Record<string,unknown>;meta:SaveMeta}
+export interface CloudRunMigration {index:number;reason:string}
+export interface CloudMigrationReport {droppedRuns:CloudRunMigration[]}
+interface CloudSave {version:1|2;owner:string;progress:Progress;runs:Record<string,unknown>;meta:SaveMeta;migration?:CloudMigrationReport}
 const freshProgress=():Progress=>({version:2,unlocked:0,records:{},sound:true,tutorial:0});
 export class Save {
  private key=LEGACY_KEY;
@@ -189,6 +191,9 @@ export class Save {
   if(revision===this.revision)this.meta.dirty=false;
   try{this.persistMeta();this.storageError=null}catch(error){this.storageError=error;this.onChange()}
  }
+ // A validated cloud migration is a new local transaction based on the exact
+ // cloud revision just restored. It must be uploaded, never silently forgotten.
+ markMigrationPending():void{this.changed()}
  exportCloud():CloudSave{
   const runs:Record<string,unknown>={};
   for(let i=TEACHING_COUNT;i<Core.levels.length;i++){
@@ -290,37 +295,77 @@ function validateMeta(value:unknown):SaveMeta{
  // normalize them to a clean snapshot at their recorded revision.
  return {revision:m.revision,baseRevision,lastAttemptAt,inFlightRevision,inFlightBaseRevision,dirty:hasBase&&m.dirty,tainted:m.tainted,rankRecords,rewards,economy:validateEconomy(m.economy)};
 }
-function validateCloud(value:unknown,owner:string):CloudSave{
+function validateCloud(value:unknown,owner:string,quarantineRuns=false):CloudSave{
  const v=value as CloudSave;
- if(!v||(v.version!==1&&v.version!==2)||v.owner!==owner||!v.progress||v.progress.version!==2||!v.runs||typeof v.runs!=='object')throw Error('Invalid cloud save');
+ if(!v||(v.version!==1&&v.version!==2)||v.owner!==owner||!v.progress||v.progress.version!==2||!v.runs||typeof v.runs!=='object'||Array.isArray(v.runs))throw Error('Invalid cloud save');
  const p=v.progress,progress=freshProgress();
- if(!Number.isInteger(p.unlocked)||p.unlocked<0||p.unlocked>=TEACHING_COUNT||!Number.isInteger(p.tutorial)||p.tutorial<0||p.tutorial>3||typeof p.sound!=='boolean'||!p.records||typeof p.records!=='object')throw Error('Invalid progress');
+ if(!Number.isInteger(p.unlocked)||p.unlocked<0||p.unlocked>=TEACHING_COUNT||!Number.isInteger(p.tutorial)||p.tutorial<0||p.tutorial>3||typeof p.sound!=='boolean'||!p.records||typeof p.records!=='object'||Array.isArray(p.records))throw Error('Invalid progress');
  progress.unlocked=p.unlocked;progress.tutorial=p.tutorial;progress.sound=p.sound;
  for(const [i,r] of Object.entries(p.records)){
-  if(!/^(?:0|[1-9]\d*)$/.test(i)||Number(i)>=Core.levels.length||!r||!Number.isInteger(r.steps)||r.steps<0||!Number.isInteger(r.stars)||r.stars<1||r.stars>3)throw Error('Invalid score');
+  if(!/^(?:0|[1-9]\\d*)$/.test(i)||Number(i)>=Core.levels.length||!r||!Number.isInteger(r.steps)||r.steps<0||!Number.isInteger(r.stars)||r.stars<1||r.stars>3)throw Error('Invalid score at level '+i);
   progress.records[i]={steps:r.steps,stars:r.stars};
  }
- for(const [i,run] of Object.entries(v.runs))if(!/^(?:0|[1-9]\d*)$/.test(i)||Number(i)<TEACHING_COUNT||Number(i)>=Core.levels.length||!validRun(run,Number(i)))throw Error('Invalid run');
- return {version:2,owner,progress,runs:v.runs,meta:validateMeta(v.meta)};
+ const runs:Record<string,unknown>={},droppedRuns:CloudRunMigration[]=[];
+ for(const [i,run] of Object.entries(v.runs)){
+  const index=Number(i);
+  if(!/^(?:0|[1-9]\\d*)$/.test(i)||index<TEACHING_COUNT||index>=Core.levels.length)throw Error('Invalid run index: '+i);
+  const check=inspectRun(run,index);
+  if(!check.valid){
+   if(!quarantineRuns)throw Error('Invalid run at level '+(index-TEACHING_COUNT+1)+': '+check.reason);
+   droppedRuns.push({index,reason:check.reason||'盘面结构不兼容'});
+   continue;
+  }
+  runs[i]=run;
+ }
+ const result:CloudSave={version:2,owner,progress,runs,meta:validateMeta(v.meta)};
+ if(droppedRuns.length)result.migration={droppedRuns};
+ return result;
 }
-
-function validRun(value:unknown,index:number):boolean{
+function stableJson(value:unknown):string{
+ if(Array.isArray(value))return '['+value.map(stableJson).join(',')+']';
+ if(value&&typeof value==='object'){
+  const record=value as Record<string,unknown>;
+  return '{'+Object.keys(record).sort().map(key=>JSON.stringify(key)+':'+stableJson(record[key])).join(',')+'}';
+ }
+ return JSON.stringify(value)??'undefined';
+}
+function inspectRun(value:unknown,index:number):{valid:boolean;reason?:string}{
+ const invalid=(reason:string)=>({valid:false,reason});
  try{
   const r=value as {version:number;levelRevision:number;hint:number;erase:number;hintProgress?:number;state:State},initial=Core.make(index);
-   if(!r||r.version!==1||(r.levelRevision||0)!==(Core.levels[index].revision||0)||![0,1].includes(r.hint)||![0,1].includes(r.erase)||r.hintProgress!==undefined&&(!Number.isInteger(r.hintProgress)||r.hintProgress<0||r.hintProgress>10000))return false;
-   const s=r.state as State;
-   if(!s||!Number.isFinite(s.steps)||s.steps<0||s.rings?.length!==initial.rings.length||s.rods?.length!==initial.rods.length)return false;
-   if(s.rings.some((v,i)=>v.id!==initial.rings[i].id||!Number.isFinite(v.a)||!['active','removed'].includes(v.life)))return false;
-   if(s.index!==index||s.rings.some((v,i)=>v.x!==initial.rings[i].x||v.y!==initial.rings[i].y)||JSON.stringify(s.rods)!==JSON.stringify(initial.rods))return false;
-   if(!s.states||initial.rods.some(z=>!Array.isArray(s.states[z.id])||s.states[z.id].length!==initial.states[z.id].length||s.states[z.id].some(v=>!['latched','aligned','inactive'].includes(v)))||!Array.isArray(s.events)||s.rings.every(v=>v.life==='removed'))return false;
-  return true;
- }catch{return false}
+  if(!r||typeof r!=='object')return invalid('盘面存档缺失');
+  if(r.version!==1)return invalid('不支持的盘面存档版本');
+  if((r.levelRevision||0)!==(Core.levels[index].revision||0))return invalid('关卡修订号已变化');
+  if(![0,1].includes(r.hint)||![0,1].includes(r.erase))return invalid('道具次数数据无效');
+  if(r.hintProgress!==undefined&&(!Number.isInteger(r.hintProgress)||r.hintProgress<0||r.hintProgress>10000))return invalid('提示进度数据无效');
+  const s=r.state as State;
+  if(!s||!Number.isFinite(s.steps)||s.steps<0||!Array.isArray(s.rings)||!Array.isArray(s.rods))return invalid('盘面状态结构无效');
+  if(s.rings.length!==initial.rings.length)return invalid('手镯数量已变化');
+  if(s.rods.length!==initial.rods.length)return invalid('锁扣数量已变化');
+  if(s.rings.some((ring,i)=>ring.id!==initial.rings[i].id||!Number.isFinite(ring.a)||!['active','removed'].includes(ring.life)))return invalid('手镯状态或编号不匹配');
+  if(s.index!==index||s.rings.some((ring,i)=>ring.x!==initial.rings[i].x||ring.y!==initial.rings[i].y))return invalid('关卡手镯布局已变化');
+  // JSON object key order is not semantic; compare canonical structures so a
+  // harmless serializer/order change cannot invalidate an otherwise identical run.
+  if(stableJson(s.rods)!==stableJson(initial.rods))return invalid('锁扣布局已变化');
+  if(!s.states||typeof s.states!=='object'||initial.rods.some(rod=>!Array.isArray(s.states[rod.id])||s.states[rod.id].length!==initial.states[rod.id].length||s.states[rod.id].some(state=>!['latched','aligned','inactive'].includes(state)))||!Array.isArray(s.events)||s.rings.every(ring=>ring.life==='removed'))return invalid('锁扣状态数据无效');
+  return {valid:true};
+ }catch{return invalid('盘面数据无法读取')}
 }
+function validRun(value:unknown,index:number):boolean{return inspectRun(value,index).valid}
 
-// The container authenticates archive ownership. Validate the entire old payload
+// The container authenticates archive ownership. Validate the entire payload
 // before translating its legacy owner field to a UUID-scoped local account.
+// Strict validation is used for local pending transactions and normal writes.
 export function containerCloud(value:unknown,owner:string):CloudSave{
  const original=(value as CloudSave)?.owner;
  if(typeof original!=='string'||!original||original.length>256)throw Error('Invalid cloud owner');
  return {...validateCloud(value,original),owner};
+}
+// Remote restore may quarantine only individual unfinished boards. Permanent
+// progress, economy, rewards, metadata, archive owner and run indexes stay strict.
+// The caller must back up the original bytes before accepting this migration.
+export function migrateContainerCloud(value:unknown,owner:string):CloudSave{
+ const original=(value as CloudSave)?.owner;
+ if(typeof original!=='string'||!original||original.length>256)throw Error('Invalid cloud owner');
+ return {...validateCloud(value,original,true),owner};
 }
