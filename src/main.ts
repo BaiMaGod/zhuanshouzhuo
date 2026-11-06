@@ -14,6 +14,7 @@ import type {RewardKind,RewardSource} from './storage.js';
 import {DAILY_REWARDS} from './signin-inventory.js';
 import {FEATURE_ART,FEATURE_ASSETS,paintFeature} from './feature-art.js';
 import {TapPlatform} from './taptap.js';
+import {cloudRestoreMessage} from './cloud-restore-message.js';
 import {copyPlatformText,finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug,setGameCursorHidden} from './web-shell.js';
 import {search,nextFrame} from './solver.js';
 interface GamePointer {pointerId:number;stageX:number;stageY:number;button?:number}
@@ -96,10 +97,23 @@ class Game {
  }
  private showCloudMigrationNotice():void{
   if(!this.platform.restoreNotice||this.mode!=='home'||this.modalOpen||!this.platform.playAllowed)return;
-  const notice=this.platform.takeRestoreNotice();
-  this.modal('云存档已安全恢复',[notice,'已保留所有有效的永久进度、通关成绩、星星、道具和未完成盘面。'],[
+  const {lines,backupPath}=cloudRestoreMessage(this.platform.takeRestoreNotice());
+  let copyButton:Button|null=null;
+  this.modal('云存档已安全恢复',lines,[
+   ...(backupPath?[{label:'复制备份路径',action:()=>{
+    const card=this.modalCard;
+    void copyPlatformText(backupPath).then(ok=>{
+     if(this.modalCard===card&&copyButton)copyButton.label.text=ok?'路径已复制':'复制失败，请重试';
+    });
+   },primary:false}]:[]),
    {label:'知道了',action:()=>this.hideModal(),primary:true}
   ]);
+  if(backupPath&&this.modalCard){
+   for(let i=0;i<this.modalCard.numChildren;i++){
+    const child=this.modalCard.getChildAt(i);
+    if(child instanceof Button&&child.label.text==='复制备份路径'){copyButton=child;break}
+   }
+  }
  }
  async loginTap(autoTutorial=false):Promise<void>{
   if(this.mode!=='home')return;
@@ -156,8 +170,15 @@ class Game {
    {label:'返回',action:()=>this.tapMenu(),primary:false}
   ]);
   const card=this.modalCard!,labels:Laya.Text[]=[];
-  for(let i=0;i<card.numChildren;i++){const child=card.getChildAt(i);if(child instanceof Laya.Text)labels.push(child)}
-  this.platformLive={card,labels:labels.slice(1),read};
+  for(let i=0;i<card.numChildren;i++){
+   const body=card.getChildAt(i);
+   if(body.name!=='modal-body')continue;
+   for(let j=0;j<body.numChildren;j++){
+    const child=body.getChildAt(j);
+    if(child instanceof Laya.Text)labels.push(child);
+   }
+  }
+  this.platformLive={card,labels,read};
  }
  private showCloudConflict(autoTutorial=false):void{
   this.modal('选择局内存档',['本地和云端的盘面不同，请选择继续哪份。','通关成绩会合并，已领取广告不会重置。'],[
@@ -1127,7 +1148,7 @@ class Game {
   this.hideModal();this.modalOpen=true;this.releasePointers();this.setSystemCursor();
   this.guide?.clear();const shade=new Laya.Sprite();shade.size(W,H);shade.graphics.drawRect(0,0,W,H,'rgba(81,57,69,0.28)');shade.mouseEnabled=true;
   shade.on(Laya.Event.CLICK,this,()=>{});this.overlay.addChild(shade);this.modalShade=shade;
-  const height=Math.min(H-150,250+lines.length*85+actions.length*84),card=panel(this.overlay,50,(H-height)/2,620,height,28,THEME.white,THEME.line);
+  const card=panel(this.overlay,50,0,620,400,28,THEME.white,THEME.line);
   // A modal hosts buttons whose state changes during pointer dispatch.
   // Never bitmap-cache this entire dynamic subtree.
   card.cacheAs='none';
@@ -1135,9 +1156,46 @@ class Game {
   if(Laya.Tween&&!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches){card.alpha=0;Laya.Tween.to(card,{alpha:1},140,Laya.Ease.sineOut)}
   card.mouseEnabled=true;card.on(Laya.Event.CLICK,this,()=>{});
   text(card,title,30,28,560,68,37,COLORS.ink,'center',true);ornament(card,160,117,300);
-  let y=139;
-  for(const line of lines){text(card,line,40,y,540,78,line.startsWith('★')?52:23,line.startsWith('★')?COLORS.gold:COLORS.ink);y+=85}
-  for(const a of actions){card.addChild(new Button(a.label,60,y,500,64,a.action,a.primary));y+=84}
+  const body=new Laya.Sprite();body.name='modal-body';body.pos(40,139);body.size(540,1);card.addChild(body);
+  let bodyContentHeight=0;
+  for(const line of lines){
+   const label=text(body,line,0,bodyContentHeight,540,78,line.startsWith('★')?52:23,line.startsWith('★')?COLORS.gold:COLORS.ink,'left');
+   // Laya.Text knows the real wrapped line count. A fixed 78px slot was
+   // overlapping subsequent lines when cloud errors or paths grew longer.
+   const textHeight=Number.isFinite(label.textHeight)?label.textHeight:78;
+   const rowHeight=Math.max(78,Math.ceil(textHeight)+16);
+   label.height=rowHeight;label.valign='top';bodyContentHeight+=rowHeight+7;
+  }
+  if(lines.length)bodyContentHeight-=7;
+  const maxHeight=H-100;
+  const bodyHeight=Math.min(bodyContentHeight,Math.max(0,maxHeight-139-18-actions.length*84-50));
+  const actionY=139+bodyHeight+18;
+  const height=Math.max(340,actionY+actions.length*84+50);
+  card.graphics.clear();round(card.graphics,0,0,620,height,28,THEME.white,THEME.line,1.3);
+  card.size(620,height);card.pos(50,(H-height)/2);
+  body.height=bodyHeight;
+  if(bodyContentHeight>bodyHeight){
+   let offset=0,lastY=0,dragging=false;
+   const scroll=(next:number)=>{
+    offset=Math.max(0,Math.min(bodyContentHeight-bodyHeight,next));
+    body.scrollRect=new Laya.Rectangle(0,offset,540,bodyHeight);
+   };
+   // An almost transparent hit area permits finger scrolling over blank gaps.
+   body.graphics.drawRect(0,0,540,bodyContentHeight,'rgba(255,250,247,0.001)');
+   body.mouseEnabled=true;scroll(0);
+   body.on(Laya.Event.MOUSE_DOWN,this,(e:Laya.Event)=>{dragging=true;lastY=e.stageY});
+   body.on(Laya.Event.MOUSE_MOVE,this,(e:Laya.Event)=>{
+    if(!dragging)return;
+    scroll(offset+(lastY-e.stageY)/RENDER_SCALE);lastY=e.stageY;
+   });
+   body.on(Laya.Event.MOUSE_UP,this,()=>{dragging=false});
+   body.on(Laya.Event.MOUSE_OUT,this,()=>{dragging=false});
+   body.on(Laya.Event.MOUSE_WHEEL,this,(e:Laya.Event)=>{scroll(offset+e.delta*40/RENDER_SCALE)});
+   text(card,'上下滑动查看完整说明',60,actionY-23,500,22,17,COLORS.muted);
+  }
+  for(let i=0;i<actions.length;i++){
+   const a=actions[i];card.addChild(new Button(a.label,60,actionY+i*84,500,64,a.action,a.primary));
+  }
   this.sync();
  }
  hideModal():void{

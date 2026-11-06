@@ -30,7 +30,7 @@ declare namespace Laya {
  }
  class Text extends Sprite {
   text:string;font:string;fontSize:number;color:string;bold:boolean;
-  align:string;valign:string;wordWrap:boolean;leading:number;
+  align:string;valign:string;wordWrap:boolean;leading:number;readonly textHeight:number;
  }
  class Rectangle {constructor(x:number,y:number,w:number,h:number)}
  class Point {x:number;y:number;constructor(x?:number,y?:number)}
