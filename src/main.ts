@@ -268,7 +268,6 @@ class Game {
     if(this.modalOpen)this.hideModal();
     if(this.mode==='home'){this.home();if(this.save.shouldAutoStartTutorial())this.beginFirstVisit()}
    }
-   this.showCloudMigrationNotice();
   };
   Laya.timer.frameLoop(1,this,this.tick);this.home();
   // Restore in the background; applying an archive is deferred while playing.
