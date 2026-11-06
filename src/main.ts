@@ -1029,16 +1029,16 @@ class Game {
   if(!this.model||!this.board||this.mode!=='game')return;
   if(this.guide&&!this.modalOpen)this.guide.draw(this.model.state,now,!!this.drag);
   const cleared=this.model.cleared;
-  // Keep reconciling the final board until every background clasp is actually
-  // hidden on its uncached layer; the victory modal must never cover a remnant.
+  // Keep reconciling the final board until both mounted and background clasp
+  // layers are hidden; the victory modal must never cover a remnant.
   if(this.board.hasFeedback||this.board.hint||performance.now()<this.board.blockUntil||cleared)this.board.draw(this.model.state);
   this.controls.forEach(b=>b.enabled=this.platform.playAllowed&&!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.hintButton)this.hintButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
   if(this.eraseButton)this.eraseButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
-  if(cleared&&!this.board.hasVisibleFixedRods&&!this.board.animating&&!this.busy&&!this.settled){this.settled=true;this.win()}
+  if(cleared&&!this.board.hasVisibleClaspLayer&&!this.board.animating&&!this.busy&&!this.settled){this.settled=true;this.win()}
  }
  win():void{
-  if(this.progressRestoreBlocked()||!this.model||!this.board||!this.model.cleared||this.board.hasVisibleFixedRods||this.board.animating||this.busy)return;const i=this.model.index,steps=this.model.state.steps;
+  if(this.progressRestoreBlocked()||!this.model||!this.board||!this.model.cleared||this.board.hasVisibleClaspLayer||this.board.animating||this.busy)return;const i=this.model.index,steps=this.model.state.steps;
   this.save.clearRun(i);
   if(this.formal){
    const stars=this.save.win(i,steps,solutions[i].length,!debugEnabled()),last=i===C.levels.length-1,level='第'+(i-TEACHING_COUNT+1)+'关';

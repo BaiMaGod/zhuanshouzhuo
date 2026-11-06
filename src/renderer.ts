@@ -52,7 +52,9 @@ export class Board {
  load(s:State,traySize?:{w:number;h:number}):void{
   if(traySize)this.traySize=traySize;
   this.lastState=null;this.rodsDrawKey='';this.highlightedRing=null;this.focusId=null;
-  this.rods.graphics.clear();
+  // A prior completed level hides the owner-mounted clasp layer entirely.
+  // Restore it when loading a fresh board, including replaying the same level.
+  this.rods.visible=true;this.rods.cacheAs='normal';this.rods.graphics.clear();
   for(let i=this.rods.numChildren-1;i>=0;i--)this.rods.getChildAt(i).destroy(true);
   for(let i=this.fixedRods.numChildren-1;i>=0;i--)this.fixedRods.getChildAt(i).destroy(true);
   this.fixedRodViews.clear();this.fixedRodKeys.clear();
@@ -224,6 +226,7 @@ export class Board {
   });
  }
  get hasVisibleFixedRods():boolean{return [...this.fixedRodViews.values()].some(view=>view.visible)}
+ get hasVisibleClaspLayer():boolean{return this.rods.visible||this.hasVisibleFixedRods}
  get animating():boolean {return this.ghosts.length>0||performance.now()-this.clearAt<(this.quiet?180:FEEDBACK.clear)}
  get hasFeedback():boolean{return this.animating||this.petals.count>0||this.sparks.length>0||this.flashes.length>0}
  private line(g:Laya.Graphics,p:Point,q:Point,c:string,w:number):void{g.drawLine(p.x,p.y,q.x,q.y,c,w)}
@@ -343,14 +346,25 @@ export class Board {
   }
   this.highlightedRing=now<this.blockUntil?this.blockedRing:null;
   this.syncBackgroundRods(s,now);
-  // Most frames contain no ring/clasp changes. Replacing hundreds of graphic
-  // commands invalidates Laya's GPU cache and costs far more than a short key.
-  const hot=now<this.blockUntil?this.blocked?.rod||'':'';
-  const key=[this.zoom,this.screen.x,this.screen.y,this.turn,hot,
-   ...s.rings.map(r=>r.id+':'+r.a+':'+r.life)].join('|');
-  if(this.rodsDrawKey!==key){
-   this.rods.graphics.clear();this.drawRods(s,this.rods.graphics);
-   this.rodsDrawKey=key;
+  // The final action may remove one, two, or several bracelets in a single
+  // settle pass. Never let a cached clasp bitmap outlive its owner when the
+  // board reaches zero active rings. Departing clasp ghosts on the effects
+  // layer still fade normally and are destroyed before victory.
+  if(s.rings.every(r=>r.life!=='active')){
+   this.rods.visible=false;
+   this.rods.cacheAs='none';
+   this.rods.graphics.clear();
+   this.rodsDrawKey='';
+  }else{
+   if(!this.rods.visible){this.rods.visible=true;this.rods.cacheAs='normal';this.rodsDrawKey=''}
+   // Avoid rebuilding drawing commands on unchanged frames while rings remain.
+   const hot=now<this.blockUntil?this.blocked?.rod||'':'';
+   const key=[this.zoom,this.screen.x,this.screen.y,this.turn,hot,
+    ...s.rings.map(r=>r.id+':'+r.a+':'+r.life)].join('|');
+   if(this.rodsDrawKey!==key){
+    this.rods.graphics.clear();this.drawRods(s,this.rods.graphics);
+    this.rodsDrawKey=key;
+   }
   }
   // Reuse the effects layer and departing clasp nodes through their lifetime.
   this.effects.graphics.clear();

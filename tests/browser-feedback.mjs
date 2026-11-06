@@ -103,7 +103,17 @@ try{
     if(!process.env.JADE_BASELINE)assert.ok(await page.evaluate(()=>jadeDebug.game.board.ghosts.length)>0||quiet);
     release=await shot('release');
    }
-   if(i===solutions[10].length-1&&!quiet){await page.waitForTimeout(300);bloom=await shot('clear');}
+   if(i===solutions[10].length-1){
+    await page.waitForTimeout(300);
+    const clasps=await page.evaluate(()=>{
+     const b=jadeDebug.game.board;
+     return {mountedVisible:b.rods.visible,mountedCached:b.rods.cacheAs,
+      backgroundVisible:b.hasVisibleFixedRods,allLayersVisible:b.hasVisibleClaspLayer};
+    });
+    assert.deepEqual(clasps,{mountedVisible:false,mountedCached:'none',backgroundVisible:false,allLayersVisible:false},
+     'the final removal must hide both clasp layers before the victory animation');
+    if(!quiet)bloom=await shot('clear');
+   }
    await page.waitForFunction(()=>!jadeDebug.game.board.animating);
   }
   await page.waitForFunction(()=>jadeDebug.game.model.cleared&&jadeDebug.game.settled&&jadeDebug.game.modalOpen);
@@ -114,10 +124,13 @@ try{
    const g=jadeDebug.game,c=g.modalCard;
    return{steps:g.model.state.steps,active:g.model.state.rings.filter(r=>r.life==='active').length,
     card:c.name,inside:c.x>=0&&c.y>=0&&c.x+c.width*c.scaleX<=g.scene.width&&c.y+c.height*c.scaleY<=g.scene.height,
-    ghosts:g.board.ghosts.length,particles:g.board.sparks.length,effectChildren:g.board.effects.numChildren};
+    ghosts:g.board.ghosts.length,particles:g.board.sparks.length,effectChildren:g.board.effects.numChildren,
+    mountedVisible:g.board.rods.visible,backgroundVisible:g.board.hasVisibleFixedRods};
   });
   assert.equal(state.active,0);assert.equal(state.steps,solutions[10].length);assert.ok(state.inside);
   assert.equal(state.ghosts,0);assert.equal(state.particles,0);assert.equal(state.effectChildren,0);
+  assert.equal(state.mountedVisible,false,'the cached mounted clasp layer must remain hidden underneath victory');
+  assert.equal(state.backgroundVisible,false,'no fixed clasp remains underneath victory');
   if(!process.env.JADE_BASELINE)assert.equal(state.card,'victory-card');
   const timings=await page.evaluate(()=>{window.feedbackSampling=false;return window.feedbackFrames.slice(1)});
   const sorted=timings.sort((a,b)=>a-b),p95=sorted[Math.floor(sorted.length*.95)];
