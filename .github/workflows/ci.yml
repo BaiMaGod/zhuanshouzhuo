@@ -81,8 +81,8 @@ jobs:
 
   package-taptap:
     name: Build TapTap H5 package
-    needs: [fast, full]
-    if: needs.fast.result == 'success' && needs.full.result == 'success'
+    needs: changes
+    if: needs.changes.outputs.full == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
