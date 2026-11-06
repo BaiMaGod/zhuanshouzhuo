@@ -1,5 +1,6 @@
 import {TAP_CONFIG} from './taptap-config.js';
-import {Save,containerCloud} from './storage.js';
+import {Save,containerCloud,migrateContainerCloud} from './storage.js';
+import {TEACHING_COUNT} from './levels.js';
 import {TapDiagnostics,platformError as detail,retryable,type Capability} from './taptap-diagnostics.js';
 type Options=Record<string,unknown>;
 interface Manager {[method:string]:((options:Options)=>unknown)|undefined}
@@ -38,6 +39,7 @@ export class TapPlatform {
  states:Record<Capability,CapabilityState>={login:'unsupported',cloud:'unsupported',leaderboard:'unsupported',ads:'unsupported',report:'unsupported'};
  diagnostics:Diagnostic[]=[];
  readonly trace=new TapDiagnostics();
+ restoreNotice='';
  private lifecycle=new AbortController();
  private authTask:Promise<void>|null=null;
  private blocked=new Set<Capability>();
@@ -92,14 +94,17 @@ export class TapPlatform {
  }
  diagnosticLines():string[]{return (Object.keys(this.states) as Capability[]).map(k=>k+': '+this.states[k]+(this.diagnostics.filter(d=>d.capability===k).at(-1)?' ['+this.diagnostics.filter(d=>d.capability===k).at(-1)!.code+']':''))}
  connectionLines():string[]{
-  return (['login','cloud'] as const).flatMap(k=>{
+  const lines=(['login','cloud'] as const).flatMap(k=>{
    const names={login:'登录凭证',cloud:'云存档'},states={unsupported:'当前客户端不支持',idle:'待连接',busy:'连接中',ready:'已连接',error:'失败'};
    const error=this.diagnostics.filter(d=>d.capability===k).at(-1);
    const pending=this.trace.pending(k);
    return [names[k]+'：'+states[this.states[k]]+(pending?' · '+pending:''),
-    this.states[k]==='error'&&error?error.operation+' ['+error.code+'] '+error.message.slice(0,60):k==='login'?'接口存在不代表原生调用已就绪。':'云端是唯一权威，本机仅保留待同步事务。'];
+    this.states[k]==='error'&&error?error.operation+' ['+error.code+'] '+error.message.slice(0,100):k==='login'?'接口存在不代表原生调用已就绪。':'云端是唯一权威，本机仅保留待同步事务。'];
   });
+  if(this.restoreNotice)lines.push('云存档兼容迁移：'+this.restoreNotice);
+  return lines;
  }
+ takeRestoreNotice():string{const notice=this.restoreNotice;this.restoreNotice='';return notice}
  start():Promise<void>{this.autoEnabled=true;this.discoveryUntil=Date.now()+10000;return this.login()}
  resume():Promise<void>{
   if(!this.autoEnabled||this.disposed||this.adBusy)return Promise.resolve();
@@ -203,7 +208,16 @@ export class TapPlatform {
    // The archive UUID is the stable local namespace. Never import another
    // session/guest cache into this account.
    const owner='archive:'+slot.uuid;
-   const remote=containerCloud(value,owner);
+   const remote=migrateContainerCloud(value,owner);
+   const dropped=remote.migration?.droppedRuns||[];
+   if(dropped.length){
+    const raw=this.lastDownloadedRaw??'';
+    if(!raw)throw Error('发现旧版未完成盘面，但无法读取原始云档内容，已停止迁移以保护数据');
+    const backupPath=await this.backupMigratedArchive(slot,raw);
+    const levels=dropped.slice(0,8).map(run=>'第'+(run.index-TEACHING_COUNT+1)+'关');
+    const more=dropped.length>levels.length?'等'+dropped.length+'关':'';
+    this.restoreNotice='发现 '+dropped.length+' 局旧版未完成盘面与当前关卡不兼容（'+levels.join('、')+more+'）。已备份原始云档并隔离不兼容盘面；已通关成绩、星星、道具和其他有效盘面均保留。备份文件：'+backupPath;
+   }
    if(this.save.owner!==owner){this.ranked={levels:0,stars:0};this.rankAt=-Infinity}
    this.save.bindAccount(owner,false);this.archive=slot;this.lastAttempt=this.save.lastAttemptAt;
    const localRevision=this.save.revision,localBase=this.save.baseRevision,localDirty=this.save.cloudDirty,localInFlight=this.save.inFlightRevision;
@@ -223,8 +237,11 @@ export class TapPlatform {
     // Cloud is authoritative. This also resolves an upload that reached the
     // server before the app closed but whose local acknowledgement was missed.
     this.save.replaceCloud(remote);
+    if(dropped.length)this.save.markMigrationPending();
    }
-   this.pendingCloud=null;this.ready=true;this.cloudBlocked=false;this.states.cloud='ready';this.state('云存档已恢复');
+   this.pendingCloud=null;this.ready=true;this.cloudBlocked=false;this.states.cloud='ready';
+   this.state(dropped.length?'云存档已恢复，旧版盘面已安全隔离':'云存档已恢复');
+   if(dropped.length)this.scheduleSync();
   }catch(e){
    if(!this.disposed){this.ready=false;this.failure('cloud','restore',e);this.state('云档读取失败，请检查网络后重试')}
   }
@@ -246,7 +263,17 @@ export class TapPlatform {
   const targetFilePath=api.env!.USER_DATA_PATH+'/jade_download.json';
   const file=await this.call<{filePath:string}>('cloud',cloud,'getArchiveData',{archiveUUID:slot.uuid,archiveFileId:slot.fileId,targetFilePath},false,60000);
   const {data}=await this.call<{data:string}>('cloud',fs,'readFile',{filePath:file.filePath,encoding:'utf8'});
+  this.lastDownloadedRaw= data;
   return {slot,value:JSON.parse(data)};
+ }
+ private lastDownloadedRaw:string|null=null;
+ private async backupMigratedArchive(slot:Archive,raw:string):Promise<string>{
+  const api=this.api!,fs=api.getFileSystemManager!();
+  const safeUuid=slot.uuid.replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,48);
+  const safeFile=slot.fileId.replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,48);
+  const filePath=api.env!.USER_DATA_PATH+'/jade_recovery_'+safeUuid+'_'+safeFile+'.json';
+  await this.call('cloud',fs,'writeFile',{filePath,data:raw,encoding:'utf8'});
+  return filePath;
  }
  private scheduleSync():void{
   if(this.retryTimer||!this.ready||this.disposed||this.cloudBlocked||this.blocked.has('cloud')||!this.save.cloudDirty)return;
@@ -326,7 +353,16 @@ export class TapPlatform {
    if(this.archive)throw Error('原云存档暂时无法在云端列表中确认，禁止重复创建');
    this.uncertainWrite=false;return;
   }
-  const owner='archive:'+slot.uuid,remote=containerCloud(value,owner);
+  const owner='archive:'+slot.uuid,remote=migrateContainerCloud(value,owner);
+  const dropped=remote.migration?.droppedRuns||[];
+  if(dropped.length){
+   const raw=this.lastDownloadedRaw??'';
+   if(!raw)throw Error('发现旧版未完成盘面，但无法备份原始云档，已停止迁移以保护数据');
+   const backupPath=await this.backupMigratedArchive(slot,raw);
+   const levels=dropped.slice(0,8).map(run=>'第'+(run.index-TEACHING_COUNT+1)+'关');
+   const more=dropped.length>levels.length?'等'+dropped.length+'关':'';
+   this.restoreNotice='发现 '+dropped.length+' 局旧版未完成盘面与当前关卡不兼容（'+levels.join('、')+more+'）。已备份原始云档并隔离不兼容盘面；备份文件：'+backupPath;
+  }
   if(this.save.owner!==owner){
    const preserve=this.save.owner===this.sessionOwner;
    this.save.bindAccount(owner,preserve);
@@ -334,8 +370,9 @@ export class TapPlatform {
   this.archive=slot;
   const localRevision=this.save.revision,remoteRevision=remote.meta.revision;
   if(remoteRevision>=localRevision){
-   this.save.replaceCloud(remote);this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
-   this.ready=true;this.states.cloud='ready';this.state('云存档已确认');return;
+   this.save.replaceCloud(remote);if(dropped.length)this.save.markMigrationPending();this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
+   this.ready=true;this.states.cloud='ready';this.state(dropped.length?'云存档已确认，旧版盘面已安全隔离':'云存档已确认');
+   if(dropped.length)this.scheduleSync();return;
   }
   if(this.save.inFlightRevision===remoteRevision&&localRevision>remoteRevision&&this.save.inFlightBaseRevision===this.save.baseRevision){
    // The previous request committed its snapshot, but its callback was lost.
@@ -348,8 +385,9 @@ export class TapPlatform {
    this.lastAttempt=this.save.lastAttemptAt;return;
   }
   // A different cloud revision won. Do not overwrite it with a stale cache.
-  this.save.replaceCloud(remote);this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
-  this.ready=true;this.states.cloud='ready';this.state('已恢复云端最新进度');
+  this.save.replaceCloud(remote);if(dropped.length)this.save.markMigrationPending();this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
+  this.ready=true;this.states.cloud='ready';this.state(dropped.length?'已恢复云端最新进度，旧版盘面已安全隔离':'已恢复云端最新进度');
+  if(dropped.length)this.scheduleSync();
  }
  async submitScores():Promise<void>{
   if(!this.capabilities.leaderboard||this.debug||this.rankBusy||this.disposed)return;
