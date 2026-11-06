@@ -1072,7 +1072,7 @@ class Game {
   }
   const stars=this.save.win(i,steps,solutions[i].length,!debugEnabled());if(i<3){this.save.data.tutorial=Math.max(this.save.data.tutorial,i+1);this.save.persist()}this.stopGuide(false);this.audio.play('win');
   this.showVictory({title:i===9?'教学全部完成':'这一境，解开了',subtitle:C.levels[i].name,count:C.levels[i].points.length,steps,stars,note:i===9?'准备好，开始正式挑战吧':'下一节练习已开启',actions:[
-   {label:i===9?'进入正式关卡':'进入第 '+(i+2)+' 境',action:()=>i===9?this.levels():this.load(i+1),primary:true},
+   {label:i===9?'开始正式闯关':'进入第 '+(i+2)+' 境',action:()=>i===9?this.levels():this.load(i+1),primary:true},
    {label:'再解一次',action:()=>this.load(i,true),primary:false}
   ]});
  }

@@ -49,10 +49,17 @@ export class Victory {
   text(c,'玉镯已解开',72,460,226,28,19,THEME.muted);
   text(c,'本关转动次数',322,460,226,28,19,THEME.muted);
   this.detail=text(c,options.note,52,518,516,36,21,THEME.muted);
+  // Tutorial results have two actions: present them as a balanced, single row.
+  // Formal results retain their existing main-action + two secondary-action layout.
+  const pairedActions=options.actions.length===2;
   for(let i=0;i<options.actions.length;i++){
    const a=options.actions[i],primary=i===0;
-   const b=new Button(a.label,primary?64:64+(i-1)*254,primary?577:683,primary?492:238,primary?84:64,a.action,a.primary);
-   b.label.fontSize=primary?30:24;
+   const x=pairedActions?(primary?318:64):(primary?64:64+(i-1)*254);
+   const y=pairedActions?625:(primary?577:683);
+   const w=pairedActions?238:(primary?492:238);
+   const h=pairedActions?78:(primary?84:64);
+   const b=new Button(a.label,x,y,w,h,a.action,a.primary);
+   b.label.fontSize=pairedActions?25:(primary?30:24);
    b.name='button:'+a.label;c.addChild(b);this.buttons.push(b);
   }
   this.draw(this.start);
