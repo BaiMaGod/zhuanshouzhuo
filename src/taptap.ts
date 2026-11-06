@@ -223,6 +223,7 @@ export class TapPlatform {
    }
    if(this.save.owner!==owner){this.ranked={levels:0,stars:0};this.rankAt=-Infinity}
    this.save.bindAccount(owner,false);this.archive=slot;this.lastAttempt=this.save.lastAttemptAt;
+   if(dropped.length)this.lastAttempt=Math.max(this.lastAttempt,Date.now());
    const localRevision=this.save.revision,localBase=this.save.baseRevision,localDirty=this.save.cloudDirty,localInFlight=this.save.inFlightRevision;
    const remoteRevision=remote.meta.revision;
    const confirmedInFlight=localInFlight===remoteRevision&&localRevision>remoteRevision&&this.save.inFlightBaseRevision===localBase;
@@ -235,7 +236,7 @@ export class TapPlatform {
     // A device with no local write timestamp cannot know when another device
     // last wrote this archive. Wait one full window before replaying its txn.
     if(!this.lastAttempt||!Number.isFinite(this.lastAttempt))this.lastAttempt=Date.now();
-    const wait=Math.max(0,this.lastAttempt+WINDOW-Date.now());
+    const wait=Math.max(0,this.lastAttempt+WINDOW-Date.now(),this.retryAt-Date.now());
     if(wait>0){this.state('等待云存档写入冷却…');await new Promise<void>(resolve=>setTimeout(resolve,wait))}
     this.syncing=true;this.state('正在补传上次未确认的进度…');
     try{await this.uploadSnapshot(false)}finally{this.syncing=false}
@@ -373,10 +374,11 @@ export class TapPlatform {
    const preserve=this.save.owner===this.sessionOwner;
    this.save.bindAccount(owner,preserve);
   }
-  this.archive=slot;
+  this.archive=slot;this.lastAttempt=this.save.lastAttemptAt;
+  if(dropped.length)this.lastAttempt=Math.max(this.lastAttempt,Date.now());
   const localRevision=this.save.revision,remoteRevision=remote.meta.revision;
   if(remoteRevision>=localRevision){
-   this.save.replaceCloud(remote);if(dropped.length)this.save.markMigrationPending();this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
+   this.save.replaceCloud(remote);if(dropped.length){this.save.markMigrationPending();this.lastAttempt=Math.max(this.lastAttempt,Date.now())}this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
    this.ready=true;this.states.cloud='ready';this.state(dropped.length?'云存档已确认，旧版盘面已安全隔离':'云存档已确认');
    if(dropped.length)this.scheduleSync();return;
   }
@@ -388,10 +390,13 @@ export class TapPlatform {
   if(this.save.cloudDirty&&this.save.baseRevision===remoteRevision){
    // The server is still at the transaction's base revision, or just confirmed
    // the in-flight snapshot; the latest complete local snapshot is safe to send.
-   this.lastAttempt=this.save.lastAttemptAt;return;
+   this.lastAttempt=this.save.lastAttemptAt;
+   if(dropped.length)this.lastAttempt=Math.max(this.lastAttempt,Date.now());
+   else if(!this.lastAttempt||!Number.isFinite(this.lastAttempt))this.lastAttempt=Date.now();
+   return;
   }
   // A different cloud revision won. Do not overwrite it with a stale cache.
-  this.save.replaceCloud(remote);if(dropped.length)this.save.markMigrationPending();this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
+  this.save.replaceCloud(remote);if(dropped.length){this.save.markMigrationPending();this.lastAttempt=Math.max(this.lastAttempt,Date.now())}this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
   this.ready=true;this.states.cloud='ready';this.state(dropped.length?'已恢复云端最新进度，旧版盘面已安全隔离':'已恢复云端最新进度');
   if(dropped.length)this.scheduleSync();
  }
