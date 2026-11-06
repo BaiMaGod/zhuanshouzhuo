@@ -410,7 +410,7 @@ test('cloud migration quarantines one stale unfinished board and preserves perma
  assert.equal(migrated.runs['10'],undefined);
  assert.ok(migrated.runs['11']);
  assert.deepEqual(migrated.migration.droppedRuns,[{index:10,reason:'关卡修订号已变化'}]);
- assert.throws(()=>containerCloud(snapshot,'archive:slot'),/第1关: 关卡修订号已变化/);
+ assert.throws(()=>containerCloud(snapshot,'archive:slot'),/Invalid run at level 1: 关卡修订号已变化/);
 });
 
 test('cloud run validation ignores JSON object key order changes',()=>{
