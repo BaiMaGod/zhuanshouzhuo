@@ -432,10 +432,17 @@ test('图谱连续跨页无空洞，懒加载保留邻页且锁定关不可点�
 });
 
 test('正式关结算能进入下一关，第100关结算返回图谱',()=>{
- g.load(10);g.win();assert.ok(g.modalCard.children.some(n=>n.text==='第1关 · 全部解开'));
+ const clearCurrentBoard=()=>{
+  const state=g.model.state;
+  for(const ring of state.rings)ring.life='removed';
+  C.update(state);g.board.draw(state);
+  assert.equal(g.model.cleared,true);
+  assert.equal(g.board.hasVisibleFixedRods,false);
+ };
+ g.load(10);clearCurrentBoard();g.win();assert.ok(g.modalCard.children.some(n=>n.text==='第1关 · 全部解开'));
  g.modalCard.children.find(n=>n.label?.text==='下一关').click();
  assert.equal(g.model.index,11);assert.equal(g.model.state.rings.length,11);assert.equal(g.modalOpen,false);
- g.load(109);g.win();assert.ok(!g.modalCard.children.some(n=>n.label?.text==='下一关'));
+ g.load(109);clearCurrentBoard();g.win();assert.ok(!g.modalCard.children.some(n=>n.label?.text==='下一关'));
  g.modalCard.children.find(n=>n.label?.text==='关卡图谱').click();assert.equal(g.mode,'levels');
 });
 
