@@ -11,11 +11,16 @@ game.audio.enabled=false;
 
 test('the final bracelet removal clears every fixed clasp before victory on every level',()=>{
  let checkedBackgroundRods=0;
+ const previousUnlocked=game.save.data.unlocked;
+ game.save.data.unlocked=C.levels.length-1;
+ try{
  for(let index=0;index<C.levels.length;index++){
   game.load(index,true);
   const model=game.model,state=model.state,board=game.board;
+  assert.equal(state.index,index,'level '+(index+1)+' must actually be loaded by the regression');
   const last=state.rings[state.rings.length-1];
   for(const ring of state.rings)if(ring.id!==last.id)ring.life='removed';
+  last.life='active';
   C.update(state);board.draw(state);
   assert.equal(model.cleared,false,'level '+(index+1)+' must not clear while the final bracelet remains');
   assert.equal(board.fixedRods.parent,board.space,'level '+(index+1)+' fixed clasps live outside the cached rod batch');
@@ -52,7 +57,10 @@ test('the final bracelet removal clears every fixed clasp before victory on ever
   }
  }
  assert.ok(checkedBackgroundRods>0,'campaign must include background fixed clasps');
- game.home();
+ }finally{
+  game.save.data.unlocked=previousUnlocked;
+  game.home();
+ }
 });
 test('54-ring board keeps its jade and clasp batches cached across unchanged frames',()=>{
  game.load(LEGACY_FORMAL_INDEX,true);
