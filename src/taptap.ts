@@ -232,6 +232,9 @@ export class TapPlatform {
     // This is the only restart case in which a local transaction is safe to
     // replay: it is based exactly on the cloud revision just downloaded.
     containerCloud(this.save.exportCloud(),owner);
+    // A device with no local write timestamp cannot know when another device
+    // last wrote this archive. Wait one full window before replaying its txn.
+    if(!this.lastAttempt||!Number.isFinite(this.lastAttempt))this.lastAttempt=Date.now();
     const wait=Math.max(0,this.lastAttempt+WINDOW-Date.now());
     if(wait>0){this.state('等待云存档写入冷却…');await new Promise<void>(resolve=>setTimeout(resolve,wait))}
     this.syncing=true;this.state('正在补传上次未确认的进度…');
