@@ -4,7 +4,7 @@ import {JADE_NAMES} from './jade.js';
 import type {JadeName} from './jade.js';
 
 export const PETAL_ASSET = 'assets/art-rose/jade-petals-v2.png';
-const PETAL_COUNT = 24;
+const PETAL_COUNT = 48;
 const COLUMNS = 3;
 const QUAD = new Float32Array([-6,-6, 6,-6, 6,6, -6,6]);
 const INDICES = new Uint16Array([0,1,2,0,2,3]);
@@ -32,8 +32,10 @@ export class JadePetals {
  get count():number {return this.active.length}
 
  countFor(batchSize:number):number {
+  // Give every ring the same dense burst, while keeping the whole simultaneous
+  // release within the shared particle budget. New releases take priority over
+  // older trails so the action the player just triggered always reads clearly.
   const count = Math.min(PETAL_COUNT, Math.floor(FEEDBACK.maxParticles/batchSize));
-  // Reclaim old trails before allocating, so each newly removed ring gets a complete arc.
   const discard = Math.max(0, this.active.length+count*batchSize-FEEDBACK.maxParticles);
   for (const petal of this.active.splice(0,discard)) this.recycle(petal);
   return count;
@@ -46,8 +48,11 @@ export class JadePetals {
    const variant = row*COLUMNS+i%COLUMNS;
    const petal = this.pool.pop() ?? {sprite:new Laya.Sprite(), variant:-1, center, angle:0, radius, start, seed};
    petal.center = center;
-   petal.angle = gapAngle+halfGap+(360-2*halfGap)*(i+.5)/count;
-   petal.radius = radius+((i%3)-1)*1.7;
+   // Slight deterministic angular variation breaks the perfect ring without
+   // leaving a visible hole where the bracelet's opening used to be.
+   petal.angle = gapAngle+halfGap+(360-2*halfGap)*(i+.5)/count+(seed-.5)*8;
+   // Five radial bands (-6/-3/0/+3/+6) make the burst feel fuller in depth.
+   petal.radius = radius+((i%5)-2)*3;
    petal.start = start;
    petal.seed = seed;
    if (petal.variant !== variant) {
@@ -71,16 +76,19 @@ export class JadePetals {
     continue;
    }
    const {sprite,seed,center} = petal;
-   const driftStart = FEEDBACK.release+seed*68;
+   // First bloom rapidly away from the jade silhouette, then fan farther out.
+   const burst = easeOut((age-24-seed*24)/180);
+   const driftStart = FEEDBACK.release*.45+seed*55;
    const drift = Math.max(0,(age-driftStart)/(FEEDBACK.particles-driftStart));
-   const emerge = easeOut((age-65-seed*45)/165);
-   const fade = 1-Math.max(0,(age-350)/(FEEDBACK.particles-350));
-   const angle = (petal.angle+drift*(seed-.5)*23)*Math.PI/180;
-   const radius = petal.radius+easeOut(drift)*(7+seed*13);
-   const lift = drift*(5+seed*8);
+   const emerge = easeOut((age-30-seed*25)/155);
+   const fade = 1-Math.max(0,(age-560)/(FEEDBACK.particles-560));
+   const angle = (petal.angle+drift*(seed-.5)*46)*Math.PI/180;
+   const radius = petal.radius+burst*(10+seed*16)+easeOut(drift)*(12+seed*24);
+   // A small upward bloom turns into a gentle fall as the petals disperse.
+   const lift = burst*(2+seed*5)-drift*(5+seed*11);
    sprite.pos(center.x+Math.cos(angle)*radius+up.x*lift,center.y+Math.sin(angle)*radius+up.y*lift);
-   sprite.rotation = petal.angle+90+(seed-.5)*(54+drift*220);
-   const size = (.82+seed*.3)*(1-drift*.24);
+   sprite.rotation = petal.angle+90+(seed-.5)*(54+drift*260);
+   const size = (.7+seed*.55)*(1-drift*.24);
    sprite.scale(size,size);
    sprite.alpha = emerge*fade**1.5;
    this.active[alive++] = petal;
