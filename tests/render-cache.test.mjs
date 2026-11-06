@@ -14,12 +14,10 @@ test('the final bracelet removal clears every fixed clasp before victory on ever
  for(let index=0;index<C.levels.length;index++){
   game.load(index,true);
   const model=game.model,state=model.state,board=game.board;
-  const before=C.clone(state),last=state.rings[state.rings.length-1];
-  for(const ring of state.rings)ring.life='removed';
-  C.update(state);
-  board.release(before,state,[last.id]);
-  board.draw(state);
-  assert.equal(model.cleared,true,'level '+(index+1)+' is cleared only after every rod is inactive');
+  const last=state.rings[state.rings.length-1];
+  for(const ring of state.rings)if(ring.id!==last.id)ring.life='removed';
+  C.update(state);board.draw(state);
+  assert.equal(model.cleared,false,'level '+(index+1)+' must not clear while the final bracelet remains');
   assert.equal(board.fixedRods.parent,board.space,'level '+(index+1)+' fixed clasps live outside the cached rod batch');
   assert.equal(board.fixedRods.cacheAs,'none','level '+(index+1)+' fixed clasp layer must not be bitmap-cached');
   assert.equal(board.rods.cacheAs,'normal','level '+(index+1)+' moving-rod batch may retain its cache');
@@ -29,7 +27,17 @@ test('the final bracelet removal clears every fixed clasp before victory on ever
    const view=board.fixedRodViews.get(rod.id);
    assert.ok(view,'level '+(index+1)+' must create a view for '+rod.id);
    assert.equal(view.parent,board.fixedRods,'level '+(index+1)+' '+rod.id+' must be outside the cached batch');
-   assert.equal(view.visible,false,'level '+(index+1)+' leaves no visible '+rod.id+' after the last ring is gone');
+   const shouldRemain=rod.targets.includes(last.id);
+   assert.equal(view.visible,shouldRemain,'level '+(index+1)+' '+rod.id+' remains only while its last endpoint bracelet survives');
+  }
+  const beforeFinal=C.clone(state);
+  last.life='removed';C.update(state);
+  board.release(beforeFinal,state,[last.id]);
+  board.draw(state);
+  assert.equal(model.cleared,true,'level '+(index+1)+' clears only after every rod is inactive');
+  for(const rod of state.rods.filter(z=>z.kind==='b')){
+   const view=board.fixedRodViews.get(rod.id);
+   assert.equal(view.visible,false,'level '+(index+1)+' leaves no visible '+rod.id+' after the final bracelet is removed');
    assert.equal(view.graphics.ops.length,0,'level '+(index+1)+' clears all drawing commands for '+rod.id);
   }
   assert.equal(board.hasVisibleFixedRods,false,'level '+(index+1)+' must have no visible background clasp');
@@ -46,7 +54,6 @@ test('the final bracelet removal clears every fixed clasp before victory on ever
  assert.ok(checkedBackgroundRods>0,'campaign must include background fixed clasps');
  game.home();
 });
-
 test('54-ring board keeps its jade and clasp batches cached across unchanged frames',()=>{
  game.load(LEGACY_FORMAL_INDEX,true);
  const b=game.board,s=game.model.state;
