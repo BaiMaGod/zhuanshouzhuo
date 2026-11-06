@@ -15,7 +15,8 @@ test('the final bracelet removal clears every fixed clasp before victory on ever
  // Exercise the authoritative lifecycle for every configured level without
  // constructing 110 full Laya scenes.
  for(let index=0;index<C.levels.length;index++){
-  const model=new GameModel(index),state=model.state,last=state.rings[state.rings.length-1];
+  const state=C.make(index),model=Object.create(GameModel.prototype),last=state.rings[state.rings.length-1];
+  model.state=state;
   for(const ring of state.rings)if(ring.id!==last.id)ring.life='removed';
   last.life='active';C.update(state);
   assert.equal(model.cleared,false,'level '+(index+1)+' must not clear while its final bracelet remains');
