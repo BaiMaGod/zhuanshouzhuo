@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {installHarness} from './scene-harness.mjs';
 import {LEGACY_FORMAL_INDEX} from '../dist/js/levels.js';
+import {GameModel} from '../dist/js/model.js';
 
 installHarness();
 await import('../dist/js/main.js');
@@ -11,52 +12,61 @@ game.audio.enabled=false;
 
 test('the final bracelet removal clears every fixed clasp before victory on every level',()=>{
  let checkedBackgroundRods=0;
+ // Exercise the authoritative lifecycle for every configured level without
+ // constructing 110 full Laya scenes.
+ for(let index=0;index<C.levels.length;index++){
+  const model=new GameModel(index),state=model.state,last=state.rings[state.rings.length-1];
+  for(const ring of state.rings)if(ring.id!==last.id)ring.life='removed';
+  last.life='active';C.update(state);
+  assert.equal(model.cleared,false,'level '+(index+1)+' must not clear while its final bracelet remains');
+  for(const rod of state.rods.filter(z=>z.kind==='b')){
+   checkedBackgroundRods++;
+   assert.equal(C.exists(state,rod),rod.targets.includes(last.id),'level '+(index+1)+' '+rod.id+' exists only while a target bracelet survives');
+  }
+  last.life='removed';C.update(state);
+  assert.equal(model.cleared,true,'level '+(index+1)+' clears only after every rod is inactive');
+  assert.ok(state.rods.every(rod=>!C.exists(state,rod)),'level '+(index+1)+' has no active clasp after the final bracelet is removed');
+ }
+ assert.ok(checkedBackgroundRods>0,'campaign must include background fixed clasps');
+
+ // Verify the actual Laya render tree on a level that contains background clasps.
+ const renderIndex=C.levels.findIndex(level=>level.links.some(link=>link[0]==='b'));
+ assert.ok(renderIndex>=0,'a level with background fixed clasps must exist');
  const previousUnlocked=game.save.data.unlocked;
  game.save.data.unlocked=C.levels.length-1;
  try{
- for(let index=0;index<C.levels.length;index++){
-  game.load(index,true);
+  game.load(renderIndex,true);
   const model=game.model,state=model.state,board=game.board;
-  assert.equal(state.index,index,'level '+(index+1)+' must actually be loaded by the regression');
+  assert.equal(state.index,renderIndex,'renderer regression must load the intended level');
   const last=state.rings[state.rings.length-1];
   for(const ring of state.rings)if(ring.id!==last.id)ring.life='removed';
-  last.life='active';
-  C.update(state);board.draw(state);
-  assert.equal(model.cleared,false,'level '+(index+1)+' must not clear while the final bracelet remains');
-  assert.equal(board.fixedRods.parent,board.space,'level '+(index+1)+' fixed clasps live outside the cached rod batch');
-  assert.equal(board.fixedRods.cacheAs,'none','level '+(index+1)+' fixed clasp layer must not be bitmap-cached');
-  assert.equal(board.rods.cacheAs,'normal','level '+(index+1)+' moving-rod batch may retain its cache');
-  assert.equal(board.rods.numChildren,0,'level '+(index+1)+' must not nest dynamic clasps under the cached batch');
+  last.life='active';C.update(state);board.draw(state);
+  assert.equal(model.cleared,false,'renderer sample must not clear while its final bracelet remains');
+  assert.equal(board.fixedRods.parent,board.space,'fixed clasps live outside the cached moving-rod batch');
+  assert.equal(board.fixedRods.cacheAs,'none','fixed clasp layer must not be bitmap-cached');
+  assert.equal(board.rods.cacheAs,'normal','moving-rod batch may retain its cache');
+  assert.equal(board.rods.numChildren,0,'dynamic clasps must not be nested under the cached batch');
   for(const rod of state.rods.filter(z=>z.kind==='b')){
-   checkedBackgroundRods++;
    const view=board.fixedRodViews.get(rod.id);
-   assert.ok(view,'level '+(index+1)+' must create a view for '+rod.id);
-   assert.equal(view.parent,board.fixedRods,'level '+(index+1)+' '+rod.id+' must be outside the cached batch');
-   const shouldRemain=rod.targets.includes(last.id);
-   assert.equal(view.visible,shouldRemain,'level '+(index+1)+' '+rod.id+' remains only while its last endpoint bracelet survives');
+   assert.ok(view,'renderer must create a view for '+rod.id);
+   assert.equal(view.parent,board.fixedRods,' '+rod.id+' must be outside the cached batch');
+   assert.equal(view.visible,rod.targets.includes(last.id),' '+rod.id+' remains only while its final endpoint survives');
   }
   const beforeFinal=C.clone(state);
-  last.life='removed';C.update(state);
-  board.release(beforeFinal,state,[last.id]);
-  board.draw(state);
-  assert.equal(model.cleared,true,'level '+(index+1)+' clears only after every rod is inactive');
+  last.life='removed';C.update(state);board.release(beforeFinal,state,[last.id]);board.draw(state);
+  assert.equal(model.cleared,true,'renderer sample clears after its final bracelet is removed');
   for(const rod of state.rods.filter(z=>z.kind==='b')){
    const view=board.fixedRodViews.get(rod.id);
-   assert.equal(view.visible,false,'level '+(index+1)+' leaves no visible '+rod.id+' after the final bracelet is removed');
-   assert.equal(view.graphics.ops.length,0,'level '+(index+1)+' clears all drawing commands for '+rod.id);
+   assert.equal(view.visible,false,'no visible '+rod.id+' remains after the final bracelet is removed');
+   assert.equal(view.graphics.ops.length,0,'all drawing commands for '+rod.id+' are cleared');
   }
-  assert.equal(board.hasVisibleFixedRods,false,'level '+(index+1)+' must have no visible background clasp');
-  // Even if a stale view is accidentally marked visible, victory must wait.
+  assert.equal(board.hasVisibleFixedRods,false,'renderer has no visible background clasp');
   const anyView=board.fixedRodViews.values().next().value;
   if(anyView){
-   anyView.visible=true;
-   game.modalOpen=false;
-   game.win();
-   assert.equal(game.modalOpen,false,'level '+(index+1)+' must not cover a visible fixed clasp with victory');
+   anyView.visible=true;game.modalOpen=false;game.win();
+   assert.equal(game.modalOpen,false,'victory must wait while any fixed clasp remains visible');
    anyView.visible=false;
   }
- }
- assert.ok(checkedBackgroundRods>0,'campaign must include background fixed clasps');
  }finally{
   game.save.data.unlocked=previousUnlocked;
   game.home();
