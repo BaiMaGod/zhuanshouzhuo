@@ -242,30 +242,14 @@ export class Board {
   }));
   g.drawTriangles(Laya.loader.getRes('assets/art-v3/clasp.png'),0,0,vertices,new Float32Array([0,0,1,0,1,1,0,1]),new Uint16Array([0,1,2,0,2,3]));
  }
- private backgroundRodVisible(s:State,z:State['rods'][number]):boolean{
-  // Read the live state array directly so visibility never depends on a cached
-  // ring lookup: one surviving endpoint keeps the complete fixed rod in place.
-  return z.targets.some(id=>s.rings.some(r=>r.id===id&&r.life==='active'));
- }
- private drawBackgroundRod(s:State,z:State['rods'][number],g:Laya.Graphics):void{
-  const p=C.pose(s,z),a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
-  const shadow=C.rot({x:1.1,y:1.8},-this.turn);
-  this.line(g,{x:p.p.x+shadow.x,y:p.p.y+shadow.y},{x:p.q.x+shadow.x,y:p.q.y+shadow.y},'rgba(46,63,51,0.25)',5.3);
-  this.line(g,p.p,p.q,hot?'#c27051':'#537b6e',4.8);
-  this.line(g,p.p,p.q,hot?'#e4aa7b':'#d5e9e3',2.9);
-  const v=C.rot({x:0,y:-.8},a);
-  this.line(g,{x:p.p.x+v.x,y:p.p.y+v.y},{x:p.q.x+v.x,y:p.q.y+v.y},'#fff9e5',.65);
-  C.endpoints(s,z).forEach((e,i)=>this.sleeve(g,e.p,a,s.states[z.id][i]));
-  const mid={x:(p.p.x+p.q.x)/2,y:(p.p.y+p.q.y)/2};
-  this.jewel(g,mid,a);
-  this.line(g,{x:mid.x-1.1,y:mid.y-1.1},{x:mid.x+1.1,y:mid.y+1.1},'#fffef2',.7);
-  this.line(g,{x:mid.x+1.1,y:mid.y-1.1},{x:mid.x-1.1,y:mid.y+1.1},'#fffef2',.7);
- }
  private syncBackgroundRods(s:State,now:number):void{
+  // Build one live endpoint set per frame. This bypasses the renderer's shared
+  // ring lookup cache while keeping lifecycle checks O(rings + rods).
+  const active=new Set(s.rings.filter(r=>r.life==='active').map(r=>r.id));
   for(const z of s.rods){
    if(z.kind!=='b')continue;
    const view=this.fixedRodViews.get(z.id);if(!view)continue;
-   const visible=this.backgroundRodVisible(s,z);
+   const visible=z.targets.some(id=>active.has(id));
    view.visible=visible;
    const hot=this.blocked?.rod===z.id&&now<this.blockUntil;
    const key=(s.states[z.id]||[]).join(',')+':'+(hot?'1':'0')+':'+(visible?'1':'0');
@@ -276,7 +260,7 @@ export class Board {
    }
   }
  }
- private drawRods(s:State,g:Laya.Graphics,ownerFilter?:string):void{
+private drawRods(s:State,g:Laya.Graphics,ownerFilter?:string):void{
   const jewels:{p:Point;a:number}[]=[];
   for(const z of s.rods){
    // Fixed background rods are independent child sprites with explicit
