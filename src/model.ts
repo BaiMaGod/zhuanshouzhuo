@@ -34,5 +34,5 @@ export class GameModel {
   if(this.selected&&Core.ring(this.state,this.selected)?.life!=='active')this.selected=this.first();
   return removed;
  }
- get cleared():boolean{return this.state.rings.every(r=>r.life==='removed')}
+ get cleared():boolean{return this.state.rings.every(r=>r.life==='removed')&&this.state.rods.every(z=>!Core.exists(this.state,z))}
 }
