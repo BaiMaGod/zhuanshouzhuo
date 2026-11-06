@@ -302,13 +302,13 @@ function validateCloud(value:unknown,owner:string,quarantineRuns=false):CloudSav
  if(!Number.isInteger(p.unlocked)||p.unlocked<0||p.unlocked>=TEACHING_COUNT||!Number.isInteger(p.tutorial)||p.tutorial<0||p.tutorial>3||typeof p.sound!=='boolean'||!p.records||typeof p.records!=='object'||Array.isArray(p.records))throw Error('Invalid progress');
  progress.unlocked=p.unlocked;progress.tutorial=p.tutorial;progress.sound=p.sound;
  for(const [i,r] of Object.entries(p.records)){
-  if(!/^(?:0|[1-9]\\d*)$/.test(i)||Number(i)>=Core.levels.length||!r||!Number.isInteger(r.steps)||r.steps<0||!Number.isInteger(r.stars)||r.stars<1||r.stars>3)throw Error('Invalid score at level '+i);
+  if(!/^(?:0|[1-9]\d*)$/.test(i)||Number(i)>=Core.levels.length||!r||!Number.isInteger(r.steps)||r.steps<0||!Number.isInteger(r.stars)||r.stars<1||r.stars>3)throw Error('Invalid score at level '+i);
   progress.records[i]={steps:r.steps,stars:r.stars};
  }
  const runs:Record<string,unknown>={},droppedRuns:CloudRunMigration[]=[];
  for(const [i,run] of Object.entries(v.runs)){
   const index=Number(i);
-  if(!/^(?:0|[1-9]\\d*)$/.test(i)||index<TEACHING_COUNT||index>=Core.levels.length)throw Error('Invalid run index: '+i);
+  if(!/^(?:0|[1-9]\d*)$/.test(i)||index<TEACHING_COUNT||index>=Core.levels.length)throw Error('Invalid run index: '+i);
   const check=inspectRun(run,index);
   if(!check.valid){
    if(!quarantineRuns)throw Error('Invalid run at level '+(index-TEACHING_COUNT+1)+': '+check.reason);
