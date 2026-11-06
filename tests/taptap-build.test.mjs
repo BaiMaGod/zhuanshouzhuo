@@ -37,10 +37,10 @@ test('TapTap ZIP refuses Web/mismatched builds and contains the verified product
   assert.equal(existsSync(output),false);
   const config={...tapBuildConfig({TAP_RELEASE:'1',TAP_SHARE_TEMPLATE_ID:'approved-template-test',TAP_REWARDED_AD_UNIT_ID:'verified-platform-id'}),version:'0.15.1'};
   writeFileSync(join(dist,'taptap-build.json'),JSON.stringify(config));
-  writeFileSync(join(dist,'js/taptap-config.js'),"export const TAP_CONFIG = {appId:'958691', levelsBoard:'8fhubriadufle2x7ic', starsBoard:'q1vw62hcu7xhx9dnwv', rewardedAdUnitId:'wrong'};");
+  writeFileSync(join(dist,'js/taptap-config.js'),"export const TAP_CONFIG = {target:'taptap-h5', appId:'958691', levelsBoard:'8fhubriadufle2x7ic', starsBoard:'q1vw62hcu7xhx9dnwv', rewardedAdUnitId:'wrong'};");
   assert.throws(()=>packageTapBuild(dist,output),/rewardedAdUnitId/);
   assert.equal(existsSync(output),false);
-  writeFileSync(join(dist,'js/taptap-config.js'),"export const TAP_CONFIG = {appId:'958691', levelsBoard:'8fhubriadufle2x7ic', starsBoard:'q1vw62hcu7xhx9dnwv', rewardedAdUnitId:'verified-platform-id', shareTemplateId:'approved-template-test'};");
+  writeFileSync(join(dist,'js/taptap-config.js'),"export const TAP_CONFIG = {target:'taptap-h5', appId:'958691', levelsBoard:'8fhubriadufle2x7ic', starsBoard:'q1vw62hcu7xhx9dnwv', rewardedAdUnitId:'verified-platform-id', shareTemplateId:'approved-template-test'};");
   const result=packageTapBuild(dist,output);
   assert.equal(result.appId,'958691');assert.match(result.sha256,/^[a-f0-9]{64}$/);
   const contents=spawnSync(process.env.PYTHON||'python3',['-c',"import zipfile,sys,json; z=zipfile.ZipFile(sys.argv[1]); print(json.dumps({'files':z.namelist(),'manifest':json.loads(z.read('zhuanshouzhuo/taptap-build.json')),'entry':z.read('zhuanshouzhuo/index.html').decode()}))",output],{encoding:'utf8'});
@@ -65,9 +65,9 @@ test('final artifact check rejects ordinary web builds and mismatched embedded c
   writeFileSync(join(root,'taptap-build.json'),JSON.stringify(config));
   writeFileSync(join(root,'js/taptap-config.js'),'export const TAP_CONFIG='+JSON.stringify(config));
   assert.throws(()=>verifyTapPackage(root),/mismatch/); // Quoted keys are not the generated TypeScript format.
-  writeFileSync(join(root,'js/taptap-config.js'),"export const TAP_CONFIG = {appId:'958691', levelsBoard:'8fhubriadufle2x7ic', starsBoard:'q1vw62hcu7xhx9dnwv', rewardedAdUnitId:'wrong'};");
+  writeFileSync(join(root,'js/taptap-config.js'),"export const TAP_CONFIG = {target:'taptap-h5', appId:'958691', levelsBoard:'8fhubriadufle2x7ic', starsBoard:'q1vw62hcu7xhx9dnwv', rewardedAdUnitId:'wrong'};");
   assert.throws(()=>verifyTapPackage(root),/rewardedAdUnitId/);
-  writeFileSync(join(root,'js/taptap-config.js'),"export const TAP_CONFIG = {appId:'958691', levelsBoard:'8fhubriadufle2x7ic', starsBoard:'q1vw62hcu7xhx9dnwv', rewardedAdUnitId:'verified-platform-id', shareTemplateId:'approved-template-test'};");
+  writeFileSync(join(root,'js/taptap-config.js'),"export const TAP_CONFIG = {target:'taptap-h5', appId:'958691', levelsBoard:'8fhubriadufle2x7ic', starsBoard:'q1vw62hcu7xhx9dnwv', rewardedAdUnitId:'verified-platform-id', shareTemplateId:'approved-template-test'};");
   assert.equal(verifyTapPackage(root).target,'taptap-h5');
   writeFileSync(join(root,'taptap-build.json'),JSON.stringify({...config,screenOrientation:'landscape'}));
   assert.throws(()=>verifyTapPackage(root),/screen orientation/);

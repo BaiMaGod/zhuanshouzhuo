@@ -2,6 +2,8 @@ name: Build and regression tests
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -20,7 +22,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" || "${{ github.event_name }}" == "pull_request" ]]; then
             echo "full=true" >> "$GITHUB_OUTPUT"
           else
             before="${{ github.event.before }}"
@@ -29,7 +31,7 @@ jobs:
             else
               git diff --name-only "$before" "${{ github.sha }}" > /tmp/jade-changed-paths.txt
               cat /tmp/jade-changed-paths.txt
-              if grep -Eq '^(src/(core\.js|main\.ts|model\.ts|renderer\.ts|snap\.ts|guide\.ts|levels\.js|solutions\.js|formal[^/]*\.js|types\.ts)|scripts/(generate-formal-templates\.mjs|build-platform\.mjs)|laya/|tests/full/)' /tmp/jade-changed-paths.txt; then
+              if grep -Eq '^(src/(core\.js|main\.ts|model\.ts|renderer\.ts|snap\.ts|guide\.ts|levels\.js|solutions\.js|formal[^/]*\.js|types\.ts|taptap\.ts|storage\.ts|taptap-config\.ts|taptap-diagnostics\.ts)|scripts/(generate-formal-templates\.mjs|build-platform\.mjs|build\.mjs)|laya/|tests/(full/|taptap\.test\.mjs))' /tmp/jade-changed-paths.txt; then
                 echo "full=true" >> "$GITHUB_OUTPUT"
               else
                 echo "full=false" >> "$GITHUB_OUTPUT"
@@ -40,7 +42,8 @@ jobs:
   fast:
     needs: changes
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Browser touch regression covers two mobile viewports and can exceed 15 minutes.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,6 +52,7 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
+      - run: npm run build
       - run: npm run test:fast
       - run: npm install --no-save --no-audit --no-fund playwright pngjs
       - uses: actions/cache@v4
@@ -74,3 +78,33 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run build
       - run: node --test tests/full/*.test.mjs
+
+  package-taptap:
+    name: Build TapTap H5 package
+    needs: changes
+    if: needs.changes.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          npm run package:taptap
+          sha256sum ".release-out/zhuanshouzhuo-${version}-taptap.zip" > ".release-out/zhuanshouzhuo-${version}-taptap.zip.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zhuanshouzhuo-taptap-v${{ steps.package.outputs.version }}
+          path: |
+            .release-out/zhuanshouzhuo-${{ steps.package.outputs.version }}-taptap.zip
+            .release-out/zhuanshouzhuo-${{ steps.package.outputs.version }}-taptap.zip.sha256
+          if-no-files-found: error
+          retention-days: 7

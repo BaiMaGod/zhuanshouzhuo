@@ -11,20 +11,32 @@ type RewardKey=RewardKind|'shareHint'|'shareErase';
 const REWARD_KEYS:RewardKey[]=['hint','erase','shareHint','shareErase'];
 const rewardKey=(kind:RewardKind,source:RewardSource):RewardKey=>source==='video'?kind:kind==='hint'?'shareHint':'shareErase';
 interface Reward {claimed:boolean;remaining:number;generation?:number}
-interface SaveMeta {revision:number;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>;economy:Economy}
+interface SaveMeta {revision:number;baseRevision:number;lastAttemptAt:number;inFlightRevision:number|null;inFlightBaseRevision:number|null;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>;economy:Economy}
 interface CloudSave {version:1|2;owner:string;progress:Progress;runs:Record<string,unknown>;meta:SaveMeta}
 const freshProgress=():Progress=>({version:2,unlocked:0,records:{},sound:true,tutorial:0});
 export class Save {
  private key=LEGACY_KEY;
  owner='';
- meta:SaveMeta={revision:0,dirty:false,tainted:false,rankRecords:{},rewards:{},economy:emptyEconomy()};
+ meta:SaveMeta={revision:0,baseRevision:0,lastAttemptAt:0,inFlightRevision:null,inFlightBaseRevision:null,dirty:false,tainted:false,rankRecords:{},rewards:{},economy:emptyEconomy()};
  onChange:()=>void=()=>{};
+ storageError:unknown=null;
+ get storageHealthy():boolean{return this.storageError===null}
  get cloudDirty():boolean{return this.meta.dirty}
  get revision():number{return this.meta.revision}
+ get baseRevision():number{return this.meta.baseRevision}
+ get lastAttemptAt():number{return this.meta.lastAttemptAt}
+ get inFlightRevision():number|null{return this.meta.inFlightRevision}
+ get inFlightBaseRevision():number|null{return this.meta.inFlightBaseRevision}
  get rankTainted():boolean{return this.meta.tainted}
  get rankRecords():Progress['records']{return this.meta.rankRecords}
- private changed():void{this.meta.revision++;this.meta.dirty=true;Laya.LocalStorage.setItem(this.key+'-meta',JSON.stringify(this.meta));this.onChange()}
+ private persistMeta():void{Laya.LocalStorage.setItem(this.key+'-meta',JSON.stringify(this.meta))}
+ private changed():void{
+  this.meta.revision++;this.meta.dirty=true;
+  try{this.persistMeta();this.storageError=null}catch(error){this.storageError=error}
+  this.onChange();
+ }
  private runCache=new Map<number,string>();
+ private runDataCache=new Map<number,{state:State;hint:number;erase:number;hintProgress:number}>();
  data:Progress={version:2,unlocked:0,records:{},sound:true,tutorial:0};
  constructor(key=LEGACY_KEY){
   this.key=key;
@@ -51,18 +63,41 @@ export class Save {
    }
   } catch {}
  }
- readRun(index:number):{state:State;hint:number;erase:number;hintProgress?:number}|null{
+ readRun(index:number):{version:number;levelRevision:number;state:State;hint:number;erase:number;hintProgress?:number}|null{
+  const cached=this.runDataCache.get(index);
+  // Export the same versioned envelope for a live run and a disk-loaded run.
+  // A cached bare state is not a valid cloud archive and would block restore.
+  if(cached)return {version:1,levelRevision:Core.levels[index].revision||0,...JSON.parse(JSON.stringify(cached))};
   try{
    const r=JSON.parse(Laya.LocalStorage.getItem(this.key+'-run-'+index)||'null');
    if(!validRun(r,index))return null;
+   this.runCache.set(index,JSON.stringify(r));
+   this.runDataCache.set(index,{state:JSON.parse(JSON.stringify(r.state)),hint:r.hint,erase:r.erase,hintProgress:r.hintProgress||0});
    return r;
   }catch{return null}
  }
  writeRun(index:number,state:State,hint:number,erase:number,hintProgress=0):void{
-  try{const payload=JSON.stringify({version:1,levelRevision:Core.levels[index].revision||0,state,hint,erase,hintProgress});if(this.runCache.get(index)===payload)return;Laya.LocalStorage.setItem(this.key+'-run-'+index,payload);this.runCache.set(index,payload);this.changed()}catch{}
+  const payload=JSON.stringify({version:1,levelRevision:Core.levels[index].revision||0,state,hint,erase,hintProgress});
+  if(this.runCache.get(index)===payload)return;
+  const previous=this.readRun(index);
+  if(previous&&JSON.stringify({version:1,levelRevision:Core.levels[index].revision||0,state:previous.state,hint:previous.hint,erase:previous.erase,hintProgress:previous.hintProgress||0})===payload){this.runCache.set(index,payload);this.runDataCache.set(index,JSON.parse(JSON.stringify({state,hint,erase,hintProgress})));return}
+  this.runDataCache.set(index,JSON.parse(JSON.stringify({state,hint,erase,hintProgress})));
+  let error:unknown=null;
+  try{Laya.LocalStorage.setItem(this.key+'-run-'+index,payload);this.runCache.set(index,payload)}catch(e){error=e}
+  this.changed();
+  if(error){this.storageError=error;this.onChange()}
  }
- clearRun(index:number):void{this.runCache.delete(index);try{Laya.LocalStorage.setItem(this.key+'-run-'+index,'null');this.changed()}catch{}}
- persist():void {try{Laya.LocalStorage.setItem(this.key,JSON.stringify(this.data));this.changed()}catch{}}
+ clearRun(index:number):void{
+  this.runCache.delete(index);this.runDataCache.delete(index);
+  let error:unknown=null;try{Laya.LocalStorage.setItem(this.key+'-run-'+index,'null')}catch(e){error=e}
+  this.changed();if(error){this.storageError=error;this.onChange()}
+ }
+ persist():void {
+  let error:unknown=null;
+  try{Laya.LocalStorage.setItem(this.key,JSON.stringify(this.data))}catch(e){error=e}
+  this.changed();
+  if(error){this.storageError=error;this.onChange()}
+ }
  // Device/account-scoped onboarding gate; do not change the versioned cloud save.
  shouldAutoStartTutorial():boolean{
   try{
@@ -84,7 +119,7 @@ export class Save {
   if(!owner||owner.length>256)throw Error('Invalid account');
   const current=preserveSession?this.exportCloud():null;
   const key=LEGACY_KEY+'-tap-'+encodeURIComponent(owner),saved=new Save(key);
-  this.key=key;this.owner=owner;this.data=saved.data;this.meta=saved.meta;this.runCache.clear();
+  this.key=key;this.owner=owner;this.data=saved.data;this.meta=saved.meta;this.runCache.clear();this.runDataCache.clear();
   if(current){current.owner=owner;this.mergeCloud(current)}
  }
  beginContainerSession():void{
@@ -97,7 +132,7 @@ export class Save {
  moveAccount(owner:string):void{
   if(owner===this.owner)return;
   const snapshot=this.exportCloud(),oldOwner=this.owner,opened=Laya.LocalStorage.getItem(this.key+'-tutorial-opened');
-  this.key=LEGACY_KEY+'-tap-'+encodeURIComponent(owner);this.owner=owner;this.runCache.clear();
+  this.key=LEGACY_KEY+'-tap-'+encodeURIComponent(owner);this.owner=owner;this.runCache.clear();this.runDataCache.clear();
   Laya.LocalStorage.setItem(this.key,JSON.stringify(this.data));Laya.LocalStorage.setItem(this.key+'-meta',JSON.stringify(this.meta));
   for(let i=TEACHING_COUNT;i<Core.levels.length;i++)Laya.LocalStorage.setItem(this.key+'-run-'+i,JSON.stringify(snapshot.runs[i]??null));
   if(opened)Laya.LocalStorage.setItem(this.key+'-tutorial-opened',opened);
@@ -142,13 +177,42 @@ export class Save {
   return false;
  }
  taint():void{if(!this.meta.tainted){this.meta.tainted=true;this.changed()}}
- markSynced(revision:number):void{if(revision===this.revision){this.meta.dirty=false;Laya.LocalStorage.setItem(this.key+'-meta',JSON.stringify(this.meta))}}
+ markAttempt(at:number,revision=this.revision):void{
+  if(!Number.isFinite(at)||at<0||!Number.isSafeInteger(revision)||revision<0||revision>this.revision)throw Error('Invalid cloud write attempt');
+  this.meta.lastAttemptAt=at;this.meta.inFlightRevision=revision;this.meta.inFlightBaseRevision=this.meta.baseRevision;
+  this.persistMeta();this.storageError=null;
+ }
+ markSynced(revision:number):void{
+  if(!Number.isSafeInteger(revision)||revision<0||revision>this.revision)return;
+  this.meta.baseRevision=Math.max(this.meta.baseRevision,revision);
+  if(this.meta.inFlightRevision!==null&&this.meta.inFlightRevision<=revision){this.meta.inFlightRevision=null;this.meta.inFlightBaseRevision=null}
+  if(revision===this.revision)this.meta.dirty=false;
+  try{this.persistMeta();this.storageError=null}catch(error){this.storageError=error;this.onChange()}
+ }
  exportCloud():CloudSave{
   const runs:Record<string,unknown>={};
   for(let i=TEACHING_COUNT;i<Core.levels.length;i++){
    const run=this.readRun(i);if(run)runs[i]=run;
   }
-  return JSON.parse(JSON.stringify({version:2,owner:this.owner,progress:this.data,runs,meta:this.meta}));
+  // dirty/lastAttemptAt describe this device's transaction queue, not cloud state.
+  const meta={...this.meta,baseRevision:this.revision,lastAttemptAt:0,inFlightRevision:null,inFlightBaseRevision:null,dirty:false};
+  return JSON.parse(JSON.stringify({version:2,owner:this.owner,progress:this.data,runs,meta}));
+ }
+ replaceCloud(value:unknown):void{
+  const cloud=validateCloud(value,this.owner),lastAttemptAt=this.meta.lastAttemptAt||0;
+  this.data=JSON.parse(JSON.stringify(cloud.progress));
+  this.meta={...cloud.meta,revision:cloud.meta.revision,baseRevision:cloud.meta.revision,lastAttemptAt,inFlightRevision:null,inFlightBaseRevision:null,dirty:false};
+  this.runCache.clear();this.runDataCache.clear();
+  try{
+   Laya.LocalStorage.setItem(this.key,JSON.stringify(this.data));
+   for(let i=TEACHING_COUNT;i<Core.levels.length;i++){
+    const run=cloud.runs[i] as {state:State;hint:number;erase:number;hintProgress?:number}|undefined;
+    if(run)this.runDataCache.set(i,{state:JSON.parse(JSON.stringify(run.state)),hint:run.hint,erase:run.erase,hintProgress:run.hintProgress||0});
+    Laya.LocalStorage.setItem(this.key+'-run-'+i,JSON.stringify(run??null));
+   }
+   this.persistMeta();this.storageError=null;
+  }catch(error){this.storageError=error;this.onChange();throw error}
+  this.onChange();
  }
  hasRunConflict(value:unknown):boolean{
   const cloud=validateCloud(value,this.owner),local=this.exportCloud();
@@ -180,9 +244,14 @@ export class Save {
    Laya.LocalStorage.setItem(this.key+'-run-'+i,JSON.stringify(r));
    if(!this.readRun(Number(i)))Laya.LocalStorage.setItem(this.key+'-run-'+i,'null');
   }
-  this.runCache.clear();this.persist();
+  this.runCache.clear();this.runDataCache.clear();this.persist();
  }
- hasGuestProgress():boolean{return Object.keys(new Save().data.records).length>0||!!new Save().readRun(10)}
+ hasGuestProgress():boolean{
+  const guest=new Save();
+  if(Object.keys(guest.data.records).length>0)return true;
+  for(let i=TEACHING_COUNT;i<Core.levels.length;i++)if(guest.readRun(i))return true;
+  return false;
+ }
  importGuest():void{
   const guest=new Save().exportCloud();guest.owner=this.owner;
   // Legacy preview progress may have been produced with Debug; never rank it.
@@ -200,7 +269,13 @@ export class Save {
 
 
 function validateMeta(value:unknown):SaveMeta{
- const m=value as SaveMeta;if(!m||!Number.isSafeInteger(m.revision)||m.revision<0||typeof m.dirty!=='boolean'||typeof m.tainted!=='boolean'||!m.rewards||typeof m.rewards!=='object')throw Error('Invalid save metadata');
+ const m=value as SaveMeta;
+ if(!m||!Number.isSafeInteger(m.revision)||m.revision<0||typeof m.dirty!=='boolean'||typeof m.tainted!=='boolean'||!m.rewards||typeof m.rewards!=='object')throw Error('Invalid save metadata');
+ const hasBase=Number.isSafeInteger(m.baseRevision)&&m.baseRevision! >= 0 && m.baseRevision! <= m.revision;
+ const baseRevision=hasBase?m.baseRevision!:m.revision;
+ const lastAttemptAt=Number.isFinite(m.lastAttemptAt)&&m.lastAttemptAt! >= 0 ? m.lastAttemptAt! : 0;
+ const inFlightRevision=Number.isSafeInteger(m.inFlightRevision)&&m.inFlightRevision! >= 0&&m.inFlightRevision! <= m.revision?m.inFlightRevision!:null;
+ const inFlightBaseRevision=Number.isSafeInteger(m.inFlightBaseRevision)&&m.inFlightBaseRevision! >= 0&&inFlightRevision!==null&&m.inFlightBaseRevision! <= inFlightRevision?m.inFlightBaseRevision!:null;
  const rewards:SaveMeta['rewards']={};
  for(const [i,items] of Object.entries(m.rewards)){
   if(!/^(?:0|[1-9]\d*)$/.test(i)||Number(i)>=Core.levels.length||!items||typeof items!=='object')throw Error('Invalid reward');
@@ -211,7 +286,9 @@ function validateMeta(value:unknown):SaveMeta{
   if(!/^(?:0|[1-9]\d*)$/.test(i)||Number(i)<TEACHING_COUNT||Number(i)>=Core.levels.length||!r||!Number.isInteger(r.steps)||r.steps<0||!Number.isInteger(r.stars)||r.stars<1||r.stars>3)throw Error('Invalid ranked score');
   rankRecords[i]={steps:r.steps,stars:r.stars};
  }
- return {revision:m.revision,dirty:m.dirty,tainted:m.tainted,rankRecords,rewards,economy:validateEconomy(m.economy)};
+ // Older cache files have no baseRevision. They are not safe to replay over cloud;
+ // normalize them to a clean snapshot at their recorded revision.
+ return {revision:m.revision,baseRevision,lastAttemptAt,inFlightRevision,inFlightBaseRevision,dirty:hasBase&&m.dirty,tainted:m.tainted,rankRecords,rewards,economy:validateEconomy(m.economy)};
 }
 function validateCloud(value:unknown,owner:string):CloudSave{
  const v=value as CloudSave;
