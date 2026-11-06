@@ -27,6 +27,8 @@ export class Board {
  // A single immutable graphics batch costs one cached quad per frame.
  // Invalidate only when the camera, ring poses or collision highlight changes.
  private rodsDrawKey=''; private highlightedRing:string|null=null;
+ private fixedRodViews=new Map<string,Laya.Sprite>();
+ private fixedRodKeys=new Map<string,string>();
  private focusId:string|null=null;
  private traySize:{w:number;h:number}|undefined;
  hint:Point|null=null;blocked:Block|null=null;blockUntil=0;blockedRing:string|null=null;
@@ -46,6 +48,9 @@ export class Board {
  load(s:State,traySize?:{w:number;h:number}):void{
   if(traySize)this.traySize=traySize;
   this.lastState=null;this.rodsDrawKey='';this.highlightedRing=null;this.focusId=null;
+  this.rods.graphics.clear();
+  for(let i=this.rods.numChildren-1;i>=0;i--)this.rods.getChildAt(i).destroy(true);
+  this.fixedRodViews.clear();this.fixedRodKeys.clear();
   // Cache only the immutable jade/ring bodies and the clasp batch; never
   // cache the moving whole scene, input targets or zoomable camera.
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
@@ -94,6 +99,12 @@ export class Board {
    const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index>=TEACHING_COUNT||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
    this.rings.set(r.id,{material,root,body,halo,focus,label,shadow});
   });
+  // Background double-ended rods have their own render node. Their lifetime is
+  // controlled by the two endpoint rings, not by the moving-clasp batch cache.
+  for(const z of s.rods)if(z.kind==='b'){
+   const view=new Laya.Sprite();view.name='background-fixed-rod:'+z.id;view.mouseEnabled=false;
+   this.rods.addChild(view);this.fixedRodViews.set(z.id,view);
+  }
  }
  focus(id:string|null):void{
   if(id===this.focusId)return;
@@ -231,10 +242,44 @@ export class Board {
   }));
   g.drawTriangles(Laya.loader.getRes('assets/art-v3/clasp.png'),0,0,vertices,new Float32Array([0,0,1,0,1,1,0,1]),new Uint16Array([0,1,2,0,2,3]));
  }
- private drawRods(s:State,g:Laya.Graphics,ownerFilter?:string):void{
-  const jewels:{p:Point;a:number;fixed:boolean}[]=[];
+  private drawBackgroundRod(s:State,z:State['rods'][number],g:Laya.Graphics):void{
+  const p=C.pose(s,z),a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
+  const shadow=C.rot({x:1.1,y:1.8},-this.turn);
+  this.line(g,{x:p.p.x+shadow.x,y:p.p.y+shadow.y},{x:p.q.x+shadow.x,y:p.q.y+shadow.y},'rgba(46,63,51,0.25)',5.3);
+  this.line(g,p.p,p.q,hot?'#c27051':'#537b6e',4.8);
+  this.line(g,p.p,p.q,hot?'#e4aa7b':'#d5e9e3',2.9);
+  const v=C.rot({x:0,y:-.8},a);
+  this.line(g,{x:p.p.x+v.x,y:p.p.y+v.y},{x:p.q.x+v.x,y:p.q.y+v.y},'#fff9e5',.65);
+  C.endpoints(s,z).forEach((e,i)=>this.sleeve(g,e.p,a,s.states[z.id][i]));
+  const mid={x:(p.p.x+p.q.x)/2,y:(p.p.y+p.q.y)/2};
+  this.jewel(g,mid,a);
+  this.line(g,{x:mid.x-1.1,y:mid.y-1.1},{x:mid.x+1.1,y:mid.y+1.1},'#fffef2',.7);
+  this.line(g,{x:mid.x+1.1,y:mid.y-1.1},{x:mid.x-1.1,y:mid.y+1.1},'#fffef2',.7);
+ }
+ private syncBackgroundRods(s:State,now:number):void{
+  // Build one live endpoint set per frame. This bypasses the renderer's shared
+  // ring lookup cache while keeping lifecycle checks O(rings + rods).
+  const active=new Set(s.rings.filter(r=>r.life==='active').map(r=>r.id));
   for(const z of s.rods){
-   if(!C.exists(s,z)||(ownerFilter!==undefined&&z.owner!==ownerFilter))continue;
+   if(z.kind!=='b')continue;
+   const view=this.fixedRodViews.get(z.id);if(!view)continue;
+   const visible=z.targets.some(id=>active.has(id));
+   view.visible=visible;
+   const hot=this.blocked?.rod===z.id&&now<this.blockUntil;
+   const key=(s.states[z.id]||[]).join(',')+':'+(hot?'1':'0')+':'+(visible?'1':'0');
+   if(this.fixedRodKeys.get(z.id)!==key){
+    view.graphics.clear();
+    if(visible)this.drawBackgroundRod(s,z,view.graphics);
+    this.fixedRodKeys.set(z.id,key);
+   }
+  }
+ }
+ private drawRods(s:State,g:Laya.Graphics,ownerFilter?:string):void{
+  const jewels:{p:Point;a:number}[]=[];
+  for(const z of s.rods){
+   // Fixed background rods are independent child sprites with explicit
+   // endpoint-driven visibility; this batch contains only owner-mounted rods.
+   if(z.kind==='b'||!C.exists(s,z)||(ownerFilter!==undefined&&z.owner!==ownerFilter))continue;
    const p=C.pose(s,z),sp=this.toScreen(p.p),sq=this.toScreen(p.q),margin=(ownerFilter===undefined?12:30)*this.zoom;
    if(Math.max(sp.x,sq.x)+margin<this.rect.x||Math.min(sp.x,sq.x)-margin>this.rect.x+this.rect.w||Math.max(sp.y,sq.y)+margin<this.rect.y||Math.min(sp.y,sq.y)-margin>this.rect.y+this.rect.h)continue;
    const a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
@@ -245,15 +290,9 @@ export class Board {
    const v=C.rot({x:0,y:-.8},a);
    this.line(g,{x:p.p.x+v.x,y:p.p.y+v.y},{x:p.q.x+v.x,y:p.q.y+v.y},'#fff9e5',.65);
    C.endpoints(s,z).forEach((e,i)=>this.sleeve(g,e.p,a,s.states[z.id][i]));
-   jewels.push({p:z.kind==='m'?p.p:{x:(p.p.x+p.q.x)/2,y:(p.p.y+p.q.y)/2},a,fixed:z.kind==='b'});
+   jewels.push({p:p.p,a});
   }
-  // Keep all gemstone texture commands adjacent, then draw fixed-anchor marks.
   for(const j of jewels)this.jewel(g,j.p,j.a);
-  for(const j of jewels)if(j.fixed){
-   const mid=j.p;
-   this.line(g,{x:mid.x-1.1,y:mid.y-1.1},{x:mid.x+1.1,y:mid.y+1.1},'#fffef2',.7);
-   this.line(g,{x:mid.x+1.1,y:mid.y-1.1},{x:mid.x-1.1,y:mid.y+1.1},'#fffef2',.7);
-  }
  }
  draw(s:State,now=performance.now()):void{
   this.lastState=s;
@@ -297,6 +336,7 @@ export class Board {
    v.body.alpha=1;
   }
   this.highlightedRing=now<this.blockUntil?this.blockedRing:null;
+  this.syncBackgroundRods(s,now);
   // Most frames contain no ring/clasp changes. Replacing hundreds of graphic
   // commands invalidates Laya's GPU cache and costs far more than a short key.
   const hot=now<this.blockUntil?this.blocked?.rod||'':'';
@@ -341,7 +381,7 @@ export class Board {
    else g.drawPoly(p.x,p.y,[0,-r*1.5,r*.8,0,0,r*1.5,-r*.8,0],'rgba(213,151,170,'+(alpha*.6)+')');
   }
  }
- destroy():void{this.petals.destroy();this.backdrop?.destroy(true);this.backdrop=null;this.viewport.destroy(true)}
+ destroy():void{this.fixedRodViews.clear();this.fixedRodKeys.clear();this.petals.destroy();this.backdrop?.destroy(true);this.backdrop=null;this.viewport.destroy(true)}
 }
 
 

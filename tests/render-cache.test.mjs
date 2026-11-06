@@ -9,6 +9,27 @@ await new Promise(resolve=>setImmediate(resolve));
 const game=window.jadeDebug.game,C=window.jadeDebug.Core;
 game.audio.enabled=false;
 
+test('background double-ended rods disappear only after both endpoint rings are removed in every level',()=>{
+ for(let index=0;index<C.levels.length;index++){
+  game.load(index,true);
+  const state=game.model.state,board=game.board;
+  for(const rod of state.rods.filter(z=>z.kind==='b')){
+   const view=board.fixedRodViews.get(rod.id);
+   assert.ok(view,'level '+(index+1)+' must create a separate view for '+rod.id);
+   const first=C.ring(state,rod.targets[0]),second=C.ring(state,rod.targets[1]);
+   assert.ok(first&&second,'background rod endpoints must resolve to rings');
+   assert.equal(view.visible,true,'level '+(index+1)+' starts with '+rod.id+' visible');
+   first.life='removed';C.update(state);board.draw(state);
+   assert.equal(view.visible,true,'level '+(index+1)+' keeps '+rod.id+' while one endpoint survives');
+   second.life='removed';C.update(state);board.draw(state);
+   assert.equal(view.visible,false,'level '+(index+1)+' removes the entire '+rod.id+' after both endpoints disappear');
+   first.life='active';second.life='active';C.update(state);board.draw(state);
+   assert.equal(view.visible,true,'level '+(index+1)+' restores '+rod.id+' when both endpoints return');
+  }
+ }
+ game.home();
+});
+
 test('54-ring board keeps its jade and clasp batches cached across unchanged frames',()=>{
  game.load(LEGACY_FORMAL_INDEX,true);
  const b=game.board,s=game.model.state;
