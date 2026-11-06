@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {installHarness} from './scene-harness.mjs';
 installHarness();
-const {Save}=await import('../dist/js/storage.js');
+const {Save,containerCloud,migrateContainerCloud}=await import('../dist/js/storage.js');
+const {retryable}=await import('../dist/js/taptap-diagnostics.js');
 const {Core}=await import('../dist/js/model.js');
 const {TapPlatform,tapCall}=await import('../dist/js/taptap.js');
 const config={appId:'958691',starsBoard:'stars',levelsBoard:'levels',rewardedAdUnitId:'verified-platform-id'};
@@ -393,4 +394,106 @@ test('Save marks only the uploaded revision as confirmed and retains newer local
  assert.equal(save.baseRevision,uploaded);assert.equal(save.revision,latest);assert.equal(save.cloudDirty,true);
  save.markAttempt(Date.now(),latest);save.markSynced(latest);
  assert.equal(save.baseRevision,latest);assert.equal(save.cloudDirty,false);assert.equal(save.inFlightRevision,null);
+});
+
+
+test('cloud migration quarantines one stale unfinished board and preserves permanent progress',()=>{
+ const source=saveFor('legacy-player');
+ source.win(17,3,4);
+ source.writeRun(10,Core.make(10),1,0);
+ source.writeRun(11,Core.make(11),1,0);
+ const snapshot=source.exportCloud();
+ snapshot.runs['10'].levelRevision=0;
+ const migrated=migrateContainerCloud(snapshot,'archive:slot');
+ assert.equal(migrated.owner,'archive:slot');
+ assert.equal(migrated.progress.records[17].stars,3);
+ assert.equal(migrated.runs['10'],undefined);
+ assert.ok(migrated.runs['11']);
+ assert.deepEqual(migrated.migration.droppedRuns,[{index:10,reason:'关卡修订号已变化'}]);
+ assert.throws(()=>containerCloud(snapshot,'archive:slot'),/第1关: 关卡修订号已变化/);
+});
+
+test('cloud run validation ignores JSON object key order changes',()=>{
+ const source=saveFor('serializer-player');
+ source.writeRun(10,Core.make(10),1,0);
+ const snapshot=source.exportCloud();
+ const run=snapshot.runs['10'];
+ run.state.rods=run.state.rods.map(rod=>Object.fromEntries(Object.entries(rod).reverse()));
+ const migrated=migrateContainerCloud(snapshot,'archive:slot');
+ assert.ok(migrated.runs['10']);
+ assert.equal(migrated.migration,undefined);
+});
+
+test('TapTap H5 backs up the original archive before isolating incompatible runs',async t=>{
+ t.mock.timers.enable({apis:['Date','setTimeout'],now:8000000});
+ const m=mockRuntime(),remote=saveFor('legacy-container-owner');
+ remote.win(18,2,4);
+ remote.writeRun(10,Core.make(10),1,0);
+ remote.writeRun(11,Core.make(11),1,0);
+ const snapshot=remote.exportCloud();
+ snapshot.runs['10'].levelRevision=0;
+ const raw=JSON.stringify(snapshot);
+ m.archives.push({name:'jade_save_v1',uuid:'slot',fileId:'file',modifiedTime:10});
+ m.files.set('cloud',raw);
+ const existing=saveFor('archive:slot');
+ existing.markAttempt(Date.now());
+ const p=new TapPlatform(new Save(),false,m.api,{...config,target:'taptap-h5'});
+ await p.start();
+ assert.equal(p.ready,true);
+ assert.equal(p.playAllowed,true);
+ assert.equal(p.save.owner,'archive:slot');
+ assert.equal(p.save.data.records[18].stars,3);
+ assert.equal(p.save.readRun(10),null);
+ assert.ok(p.save.readRun(11));
+ assert.equal(p.save.cloudDirty,true);
+ assert.match(p.restoreNotice,/第1关/);
+ const backups=[...m.files.entries()].filter(([name])=>name.includes('jade_recovery_'));
+ assert.equal(backups.length,1);
+ assert.equal(backups[0][1],raw);
+ // The old cloud file is not replaced until the backed-up migration is uploaded.
+ assert.equal(m.files.get('cloud'),raw);
+ assert.equal(m.archives.length,1);
+ p.dispose();
+});
+
+test('failed local backup blocks migration and leaves the original cloud archive untouched',async()=>{
+ const m=mockRuntime(),remote=saveFor('backup-failure-owner');
+ remote.writeRun(10,Core.make(10),1,0);
+ const snapshot=remote.exportCloud();
+ snapshot.runs['10'].levelRevision=0;
+ const raw=JSON.stringify(snapshot);
+ m.archives.push({name:'jade_save_v1',uuid:'slot',fileId:'file'});
+ m.files.set('cloud',raw);
+ const originalFS=m.api.getFileSystemManager;
+ m.api.getFileSystemManager=()=>({...originalFS(),writeFile:o=>o.fail({errCode:1300201,errMsg:'backup storage unavailable'})});
+ const p=new TapPlatform(new Save(),false,m.api,{...config,target:'taptap-h5'});
+ await p.start();
+ assert.equal(p.ready,false);
+ assert.equal(p.playAllowed,false);
+ assert.equal(m.files.get('cloud'),raw);
+ assert.equal(m.archives.length,1);
+ p.dispose();
+});
+
+test('Connection refused is retryable, while invalid archive data remains a manual-repair error',async t=>{
+ t.mock.timers.enable({apis:['Date','setTimeout'],now:9000000});
+ assert.equal(retryable('cloud',{code:'-1',message:'获取存档列表失败: Connection refused'}),true);
+ assert.equal(retryable('cloud',{code:'-1',message:'Invalid run'}),false);
+ const m=mockRuntime(),original=m.api.getCloudSaveManager;
+ let attempts=0;
+ m.api.getCloudSaveManager=()=>({...original(),getArchiveList:o=>{
+  attempts++;
+  if(attempts===1)o.fail({errCode:-1,errMsg:'获取存档列表失败: Connection refused'});
+  else original().getArchiveList(o);
+ }});
+ const p=new TapPlatform(new Save(),false,m.api,{...config,target:'taptap-h5'});
+ await p.start();
+ assert.equal(p.ready,false);
+ assert.equal(p.diagnostics.at(-1).code,'-1');
+ t.mock.timers.tick(5000);await settle();
+ assert.equal(attempts,2);
+ assert.equal(p.ready,true);
+ assert.equal(p.playAllowed,true);
+ assert.equal(m.archives.length,1);
+ p.dispose();
 });
