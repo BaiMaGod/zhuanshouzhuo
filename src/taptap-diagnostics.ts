@@ -11,8 +11,10 @@ export function platformError(error:unknown):PlatformError{
 }
 export function retryable(capability:Capability,error:PlatformError):boolean{
  if(error.code==='CLIENT_TIMEOUT')return capability!=='login';
- return ['400007','400100','408','429','500','502','503','504','NETWORK_ERROR'].includes(error.code)||
-  error.code==='UNKNOWN'&&/network|offline|timeout|网络|断网|超时/i.test(error.message);
+ const transientMessage=/connection refused|econnrefused|connection reset|connection aborted|failed to connect|network|offline|socket|dns|timeout|网络|断网|连接被拒绝|连接重置|超时/i.test(error.message);
+ return ['-1','400007','400100','408','429','500','502','503','504','NETWORK_ERROR'].includes(error.code)&&
+  (error.code!=='-1'||transientMessage)||
+  transientMessage&&error.code==='UNKNOWN';
 }
 interface Event {id:number;capability:Capability;operation:string;phase:string;at:number;elapsed:number;error?:PlatformError}
 export class TapDiagnostics {
