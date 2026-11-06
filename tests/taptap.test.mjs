@@ -496,3 +496,37 @@ test('Connection refused is retryable, while invalid archive data remains a manu
  assert.equal(m.archives.length,1);
  p.dispose();
 });
+
+
+test('legacy run migration respects the 65-second cooldown while replaying a matching local transaction',async t=>{
+ t.mock.timers.enable({apis:['Date','setTimeout'],now:10000000});
+ const m=mockRuntime(),strict={...config,target:'taptap-h5'};
+ const base=saveFor('archive:slot');
+ base.writeRun(10,Core.make(10),1,0);
+ base.win(20,2,4);
+ base.markSynced(base.revision);
+ const cloud=base.exportCloud();
+ cloud.runs['10'].levelRevision=0;
+ const raw=JSON.stringify(cloud);
+ const local=saveFor('archive:slot');
+ local.win(21,1,3);
+ m.archives.push({name:'jade_save_v1',uuid:'slot',fileId:'file',modifiedTime:10});
+ m.files.set('cloud',raw);
+ const p=new TapPlatform(new Save(),false,m.api,strict);
+ const starting=p.start();
+ await settle();
+ assert.equal(p.ready,false,'restore must wait for the migration write window');
+ assert.equal(p.save.cloudDirty,true,'the local transaction must remain pending');
+ assert.equal(m.files.get('cloud'),raw,'cloud must not be overwritten before the cooldown');
+ t.mock.timers.tick(64999);await settle();
+ assert.equal(m.files.get('cloud'),raw);
+ t.mock.timers.tick(1);await starting;
+ assert.equal(p.ready,true);
+ assert.equal(p.save.cloudDirty,false);
+ const uploaded=JSON.parse(m.files.get('cloud'));
+ assert.equal(uploaded.progress.records[21].stars,3,'local pending progress must survive migration');
+ assert.ok(uploaded.runs['10'],'a valid newer local run must survive the stale remote run');
+ assert.equal(uploaded.runs['10'].levelRevision,Core.levels[10].revision||0);
+ assert.equal(m.archives.length,1);
+ p.dispose();
+});
