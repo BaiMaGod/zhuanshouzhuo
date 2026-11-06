@@ -94,6 +94,13 @@ class Game {
    {label:'平台连接检查',action:()=>this.showPlatformCheck(),primary:false}
   ]);
  }
+ private showCloudMigrationNotice():void{
+  if(!this.platform.restoreNotice||this.mode!=='home'||this.modalOpen||!this.platform.playAllowed)return;
+  const notice=this.platform.takeRestoreNotice();
+  this.modal('云存档已安全恢复',[notice,'已保留所有有效的永久进度、通关成绩、星星、道具和未完成盘面。'],[
+   {label:'知道了',action:()=>this.hideModal(),primary:true}
+  ]);
+ }
  async loginTap(autoTutorial=false):Promise<void>{
   if(this.mode!=='home')return;
   const view=++this.connectionView;
@@ -261,6 +268,7 @@ class Game {
     if(this.modalOpen)this.hideModal();
     if(this.mode==='home'){this.home();if(this.save.shouldAutoStartTutorial())this.beginFirstVisit()}
    }
+   this.showCloudMigrationNotice();
   };
   Laya.timer.frameLoop(1,this,this.tick);this.home();
   // Restore in the background; applying an archive is deferred while playing.
@@ -998,6 +1006,7 @@ class Game {
   if(this.platform.requiresCloud&&!this.platform.playAllowed&&!this.modalOpen&&this.mode==='home'&&this.platform.states.cloud!=='busy'){
    this.cloudRestoreModal=false;this.showCloudRestoreBlocked();
   }
+  this.showCloudMigrationNotice();
   if(this.mode==='home'&&this.homeSignDot&&Date.now()>=this.nextSignBadgeCheck){
    this.nextSignBadgeCheck=Date.now()+60000;
    const state=this.save.dailySignInStatus();
