@@ -17,7 +17,7 @@ const RELEASE_GLOW:Record<JadeName,string> = {
 const HALF_GAP = Math.asin(C.GAP/(2*(C.R-C.BAND/2)))/C.D;
 
 export class Board {
- viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();effects=new Laya.Sprite();
+ viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();fixedRods=new Laya.Sprite();effects=new Laya.Sprite();
  private petals=new JadePetals(this.effects);
  backdrop:Laya.Sprite|null=null;
  rings=new Map<string,RingView>();
@@ -41,15 +41,20 @@ export class Board {
   this.viewport.pos(rect.x,rect.y);this.viewport.size(rect.w,rect.h);this.viewport.scrollRect=new Laya.Rectangle(0,0,rect.w,rect.h);this.viewport.mouseEnabled=false;
   parent.addChild(this.viewport);this.viewport.addChild(this.root);this.root.addChild(this.space);
   this.rods.name='board-rods';this.rods.cacheAs='normal';
+  // Background fixed clasps change visibility when either endpoint ring is
+  // removed. Keep them outside the cached moving-rod batch so GPU bitmap caches
+  // cannot preserve the final clasp after its Sprite has been hidden.
+  this.fixedRods.name='board-fixed-rods';this.fixedRods.cacheAs='none';
   this.effects.name='board-effects';
-  this.space.addChild(this.rods);this.space.addChild(this.effects);
-  this.rods.zOrder=10;this.effects.zOrder=20;this.root.mouseEnabled=false;
+  this.space.addChild(this.rods);this.space.addChild(this.fixedRods);this.space.addChild(this.effects);
+  this.rods.zOrder=10;this.fixedRods.zOrder=11;this.effects.zOrder=20;this.root.mouseEnabled=false;
  }
  load(s:State,traySize?:{w:number;h:number}):void{
   if(traySize)this.traySize=traySize;
   this.lastState=null;this.rodsDrawKey='';this.highlightedRing=null;this.focusId=null;
   this.rods.graphics.clear();
   for(let i=this.rods.numChildren-1;i>=0;i--)this.rods.getChildAt(i).destroy(true);
+  for(let i=this.fixedRods.numChildren-1;i>=0;i--)this.fixedRods.getChildAt(i).destroy(true);
   this.fixedRodViews.clear();this.fixedRodKeys.clear();
   // Cache only the immutable jade/ring bodies and the clasp batch; never
   // cache the moving whole scene, input targets or zoomable camera.
@@ -103,7 +108,7 @@ export class Board {
   // controlled by the two endpoint rings, not by the moving-clasp batch cache.
   for(const z of s.rods)if(z.kind==='b'){
    const view=new Laya.Sprite();view.name='background-fixed-rod:'+z.id;view.mouseEnabled=false;
-   this.rods.addChild(view);this.fixedRodViews.set(z.id,view);
+   this.fixedRods.addChild(view);this.fixedRodViews.set(z.id,view);
   }
  }
  focus(id:string|null):void{
@@ -218,6 +223,7 @@ export class Board {
    if(e.id===id&&after.states[z.id][j]==='aligned'&&before.states[z.id]?.[j]!=='aligned')this.flash(e.p,now);
   });
  }
+ get hasVisibleFixedRods():boolean{return [...this.fixedRodViews.values()].some(view=>view.visible)}
  get animating():boolean {return this.ghosts.length>0||performance.now()-this.clearAt<(this.quiet?180:FEEDBACK.clear)}
  get hasFeedback():boolean{return this.animating||this.petals.count>0||this.sparks.length>0||this.flashes.length>0}
  private line(g:Laya.Graphics,p:Point,q:Point,c:string,w:number):void{g.drawLine(p.x,p.y,q.x,q.y,c,w)}
