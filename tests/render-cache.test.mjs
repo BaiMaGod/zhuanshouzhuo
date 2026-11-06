@@ -9,24 +9,41 @@ await new Promise(resolve=>setImmediate(resolve));
 const game=window.jadeDebug.game,C=window.jadeDebug.Core;
 game.audio.enabled=false;
 
-test('background double-ended rods disappear only after both endpoint rings are removed in every level',()=>{
+test('the final bracelet removal clears every fixed clasp before victory on every level',()=>{
+ let checkedBackgroundRods=0;
  for(let index=0;index<C.levels.length;index++){
   game.load(index,true);
-  const state=game.model.state,board=game.board;
+  const model=game.model,state=model.state,board=game.board;
+  const before=C.clone(state),last=state.rings[state.rings.length-1];
+  for(const ring of state.rings)ring.life='removed';
+  C.update(state);
+  board.release(before,state,[last.id]);
+  board.draw(state);
+  assert.equal(model.cleared,true,'level '+(index+1)+' is cleared only after every rod is inactive');
+  assert.equal(board.fixedRods.parent,board.space,'level '+(index+1)+' fixed clasps live outside the cached rod batch');
+  assert.equal(board.fixedRods.cacheAs,'none','level '+(index+1)+' fixed clasp layer must not be bitmap-cached');
+  assert.equal(board.rods.cacheAs,'normal','level '+(index+1)+' moving-rod batch may retain its cache');
+  assert.equal(board.rods.numChildren,0,'level '+(index+1)+' must not nest dynamic clasps under the cached batch');
   for(const rod of state.rods.filter(z=>z.kind==='b')){
+   checkedBackgroundRods++;
    const view=board.fixedRodViews.get(rod.id);
-   assert.ok(view,'level '+(index+1)+' must create a separate view for '+rod.id);
-   const first=C.ring(state,rod.targets[0]),second=C.ring(state,rod.targets[1]);
-   assert.ok(first&&second,'background rod endpoints must resolve to rings');
-   assert.equal(view.visible,true,'level '+(index+1)+' starts with '+rod.id+' visible');
-   first.life='removed';C.update(state);board.draw(state);
-   assert.equal(view.visible,true,'level '+(index+1)+' keeps '+rod.id+' while one endpoint survives');
-   second.life='removed';C.update(state);board.draw(state);
-   assert.equal(view.visible,false,'level '+(index+1)+' removes the entire '+rod.id+' after both endpoints disappear');
-   first.life='active';second.life='active';C.update(state);board.draw(state);
-   assert.equal(view.visible,true,'level '+(index+1)+' restores '+rod.id+' when both endpoints return');
+   assert.ok(view,'level '+(index+1)+' must create a view for '+rod.id);
+   assert.equal(view.parent,board.fixedRods,'level '+(index+1)+' '+rod.id+' must be outside the cached batch');
+   assert.equal(view.visible,false,'level '+(index+1)+' leaves no visible '+rod.id+' after the last ring is gone');
+   assert.equal(view.graphics.ops.length,0,'level '+(index+1)+' clears all drawing commands for '+rod.id);
+  }
+  assert.equal(board.hasVisibleFixedRods,false,'level '+(index+1)+' must have no visible background clasp');
+  // Even if a stale view is accidentally marked visible, victory must wait.
+  const anyView=board.fixedRodViews.values().next().value;
+  if(anyView){
+   anyView.visible=true;
+   game.modalOpen=false;
+   game.win();
+   assert.equal(game.modalOpen,false,'level '+(index+1)+' must not cover a visible fixed clasp with victory');
+   anyView.visible=false;
   }
  }
+ assert.ok(checkedBackgroundRods>0,'campaign must include background fixed clasps');
  game.home();
 });
 
