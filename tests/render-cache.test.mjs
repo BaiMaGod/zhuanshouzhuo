@@ -4,7 +4,7 @@ import {installHarness} from './scene-harness.mjs';
 import {LEGACY_FORMAL_INDEX} from '../dist/js/levels.js';
 import {GameModel} from '../dist/js/model.js';
 
-installHarness();
+const harness=installHarness();
 await import('../dist/js/main.js');
 await new Promise(resolve=>setImmediate(resolve));
 const game=window.jadeDebug.game,C=window.jadeDebug.Core;
@@ -68,6 +68,43 @@ test('the final bracelet removal clears every fixed clasp before victory on ever
    assert.equal(game.modalOpen,false,'victory must wait while any fixed clasp remains visible');
    anyView.visible=false;
   }
+ }finally{
+  game.save.data.unlocked=previousUnlocked;
+  game.home();
+ }
+});
+test('the last action clears mounted clasps whether it removes one, two or three bracelets',()=>{
+ const index=C.levels.findIndex(level=>new Set(level.links.filter(link=>link[0]==='m').map(link=>link[1])).size>=3);
+ assert.ok(index>=0,'a level with at least three distinct mounted clasp owners must exist');
+ const previousUnlocked=game.save.data.unlocked;
+ game.save.data.unlocked=C.levels.length-1;
+ try{
+ for(const lastCount of [1,2,3]){
+  game.load(index,true);
+  const model=game.model,state=model.state,board=game.board;
+  const lastIds=[...new Set(state.rods.filter(rod=>rod.kind==='m').map(rod=>rod.owner))].slice(0,lastCount);
+  assert.equal(lastIds.length,lastCount,'sample has '+lastCount+' mounted clasp owners');
+  for(const ring of state.rings)ring.life=lastIds.includes(ring.id)?'active':'removed';
+  C.update(state);board.draw(state);
+  assert.equal(model.cleared,false);
+  assert.equal(board.rods.visible,true,'mounted clasp batch must render before the last move');
+  assert.ok(board.rods.graphics.ops.length>0,'live mounted clasps must be drawn');
+  const before=C.clone(state);
+  for(const ring of state.rings)ring.life='removed';
+  C.update(state);
+  board.release(before,state,lastIds);
+  board.draw(state);
+  assert.equal(model.cleared,true,'the final '+lastCount+' bracelet removal clears the model');
+  assert.equal(board.rods.visible,false,'cached mounted clasp batch must disappear immediately');
+  assert.equal(board.rods.cacheAs,'none','a cached last frame must never survive victory');
+  assert.equal(board.rods.graphics.ops.length,0,'no mounted clasp drawing commands survive');
+  assert.equal(board.hasVisibleClaspLayer,false,'no clasp layer is still visible');
+  assert.equal(board.ghosts.length,lastCount,'each departing bracelet keeps its fading ghost');
+  for(let frame=0;frame<80;frame++)harness.tick();
+  assert.equal(board.ghosts.length,0,'all departing clasps finish fading');
+  assert.equal(board.effects.numChildren,0,'no clasp ghost remains underneath victory');
+  assert.equal(game.modalCard?.name,'victory-card','victory waits for the cleanup');
+ }
  }finally{
   game.save.data.unlocked=previousUnlocked;
   game.home();
