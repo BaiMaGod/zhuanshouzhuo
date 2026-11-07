@@ -353,7 +353,7 @@ export class Board {
    if(r.burst||r.silkRemaining){
     v.special.visible=true;
     v.special.text=(r.burst?'✦':'')+((r.silkRemaining||0)>0?' 缠'+r.silkRemaining:'');
-    v.special.rotation=-r.a-this.turn;
+    v.special.rotation=-this.turn;
    }else v.special.visible=false;
    if(r.id===this.blockedRing&&now<this.blockUntil){
     if(!v.halo.name){
