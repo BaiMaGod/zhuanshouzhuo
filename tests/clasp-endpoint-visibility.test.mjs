@@ -16,7 +16,7 @@ const removeRings=(source,ids)=>{
  return state;
 };
 
-test('owner-mounted rod keeps its body but hides only the clasp on a removed receiver',()=>{
+test('owner-mounted lock stays physically complete until its owner ring disappears',()=>{
  g.save.data.unlocked=9; // The scene guard otherwise keeps a fresh profile on tutorial level 1.
  g.load(3,true);
  const board=g.board,initial=C.clone(g.model.state);
@@ -31,12 +31,12 @@ test('owner-mounted rod keeps its body but hides only the clasp on a removed rec
  const removed=removeRings(initial,[mounted[0].targets[0]]);
  board.draw(removed);
  assert.equal(board.rods.visible,true,'the surviving owner keeps its rods');
- assert.equal(countOps(board.rods,'poly'),6,'the removed receiver sleeve is no longer drawn');
+ assert.equal(countOps(board.rods,'poly'),9,'the entire lock including receiver sleeve remains while its owner exists');
  assert.equal(countOps(board.rods,'mesh'),3,'the surviving owner-mounted rod jewels remain');
- assert.equal(countOps(board.rods,'line'),16,'the rod body remains while only the removed endpoint sleeve lines disappear');
+ assert.equal(countOps(board.rods,'line'),18,'every mounted rod keeps all of its end fittings and body');
 
  board.draw(removed);
- assert.equal(countOps(board.rods,'poly'),6,'a subsequent cached frame cannot bring the removed clasp back');
+ assert.equal(countOps(board.rods,'poly'),9,'subsequent frames cannot partially hide a surviving lock');
 
  board.draw(initial);
  assert.equal(countOps(board.rods,'poly'),9,'an active receiver sleeve returns when the original active state is restored');
@@ -47,7 +47,7 @@ test('owner-mounted rod keeps its body but hides only the clasp on a removed rec
  assert.equal(countOps(board.rods,'mesh'),0,'removing the owner also removes its rod jewels');
 });
 
-test('background double-ended rod hides each removed endpoint clasp independently',()=>{
+test('background double-ended clasp remains whole until both associated rings disappear',()=>{
  g.save.data.unlocked=9; // Open tutorial level 2 explicitly in this isolated scene test.
  g.load(1,true);
  const board=g.board,initial=C.clone(g.model.state);
@@ -64,9 +64,11 @@ test('background double-ended rod hides each removed endpoint clasp independentl
   const oneRemoved=removeRings(initial,[endpointId]);
   board.draw(oneRemoved);
   assert.equal(view.visible,true,'the background rod remains while its other endpoint ring survives');
-  assert.equal(countOps(view,'poly'),3,'only the surviving endpoint sleeve is drawn');
+  assert.equal(countOps(view,'poly'),6,'both sleeves remain as one complete background clasp');
   assert.equal(countOps(view,'mesh'),1,'the shared rod jewel remains with the rod');
-  assert.ok(countOps(view,'line')>0,'the background rod body remains visible');
+  assert.ok(countOps(view,'line')>0,'the full background rod body remains visible');
+  board.draw(oneRemoved);
+  assert.equal(countOps(view,'poly'),6,'cache redraw never makes a partial clasp');
  }
 
  board.draw(initial);
