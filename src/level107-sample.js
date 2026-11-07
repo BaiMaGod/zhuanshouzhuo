@@ -1,0 +1,158 @@
+// Development-only Level 107 sample builder.
+// It reuses the already replay-verified 109-ring geometry of formal level 100,
+// then applies only the exact aggregate quota deltas required by level 107.
+// It is deliberately NOT imported by formal-campaign.js or levels.js.
+import Core from './core.js';
+import {formalLevels,formalSolutions} from './formal-campaign.js';
+
+const BASE_FORMAL_NUMBER=100;
+const REMOVED_BACKGROUND_ROD='L122';
+const BURST_RINGS=['R90','R98'];
+const EXTRA_MOUNTS=[
+ ['R30','R16'],['R30','R40'],
+ ['R19','R11'],['R19','R13'],
+ ['R53','R65'],['R53','R71'],
+ ['R67','R55'],['R67','R95']
+];
+const clone=value=>structuredClone(value);
+const isActive=(state,id)=>Core.ring(state,id)?.life==='active';
+const mountedCount=links=>links.filter(link=>link[0]==='m').length;
+const backgroundCount=links=>links.filter(link=>link[0]==='b').length;
+function ownerDistribution(links){
+ const counts=new Map();
+ for(const link of links)if(link[0]==='m')counts.set(link[1],(counts.get(link[1])||0)+1);
+ const distribution={0:0,1:0,2:0,3:0,4:0,5:0,6:0};
+ for(const count of counts.values())distribution[count]=(distribution[count]||0)+1;
+ distribution[0]=109-counts.size;
+ return distribution;
+}
+function baseRemovalSteps(baseIndex){
+ const state=Core.make(baseIndex),solution=formalSolutions[BASE_FORMAL_NUMBER-1],removedAt=new Map();
+ for(let i=0;i<solution.length;i++){
+  const action=solution[i],result=Core.request(state,action.id,action.delta);
+  if(result.blocked)throw Error('第100关基底路线失效：'+i+' '+JSON.stringify(result.blocked));
+  for(const id of result.removed)if(!removedAt.has(id))removedAt.set(id,i);
+ }
+ if(state.rings.some(r=>r.life!=='removed'))throw Error('第100关基底路线未完整清空');
+ return{removedAt,steps:solution.length};
+}
+function remapBaseRod(id,removedIndex){
+ if(!id||!/^L\\d+$/.test(id))return null;
+ const old=Number(id.slice(1));
+ if(old===removedIndex+1)return null;
+ return'L'+(old>removedIndex+1?old-1:old);
+}
+function alignToRod(state,ringId,rodId,route,label){
+ const ring=Core.ring(state,ringId),rod=state.rods.find(item=>item.id===rodId);
+ if(!ring||ring.life!=='active'||!rod||!Core.exists(state,rod))return false;
+ const endpoint=Core.endpoints(state,rod).find(item=>item.id===ringId);
+ if(!endpoint)return false;
+ const delta=Core.diff(Core.angle(ring,endpoint.p),ring.a);
+ if(Math.abs(delta)<.001)return false;
+ const result=Core.request(state,ringId,delta);
+ if(result.blocked)throw Error(label+' '+ringId+' / '+rodId+' 碰撞：'+JSON.stringify(result.blocked));
+ if(Math.abs(result.done)<.001)throw Error(label+' '+ringId+' / '+rodId+' 没有产生有效旋转');
+ route.push({id:ringId,delta:result.done,rod:rodId});
+ return true;
+}
+function finishWithLegalCandidates(state,route){
+ for(let pass=0;pass<300&&state.rings.some(r=>r.life==='active');pass++){
+  const options=[];
+  for(const action of Core.candidates(state)){
+   const trial=Core.clone(state),result=Core.request(trial,action.id,action.delta);
+   if(result.blocked||Math.abs(result.done)<.001)continue;
+   const score=result.removed.length*1000-Math.abs(result.done);
+   options.push({action,score});
+  }
+  options.sort((a,b)=>b.score-a.score);
+  const best=options[0];
+  if(!best)throw Error('第107关路线卡死，剩余：'+state.rings.filter(r=>r.life==='active').map(r=>r.id).join(','));
+  const result=Core.request(state,best.action.id,best.action.delta);
+  if(result.blocked||Math.abs(result.done)<.001)throw Error('第107关补全路线回放失败：'+JSON.stringify(result.blocked));
+  route.push({id:best.action.id,delta:result.done,rod:best.action.rod});
+ }
+ if(state.rings.some(r=>r.life==='active'))throw Error('第107关超过300步仍未清空');
+}
+function buildHintGraph(level,route){
+ const angles=new Map(level.points.map(point=>[point[0],point[3]]));
+ const stages=route.map((action,i)=>{
+  const targetAngle=Core.norm(angles.get(action.id)+action.delta);
+  angles.set(action.id,targetAngle);
+  return{id:'S'+(i+1),ringId:action.id,targetAngle,claspId:action.rod,requires:i?['S'+i]:[]};
+ });
+ return{kind:'stages',stages};
+}
+export function buildLevel107Sample(){
+ const baseIndex=Core.levels.indexOf(formalLevels[BASE_FORMAL_NUMBER-1]);
+ if(baseIndex<0)throw Error('找不到已验证的第100关基底');
+ const base=formalLevels[BASE_FORMAL_NUMBER-1],baseLinks=clone(base.links);
+ const removedIndex=baseLinks.findIndex((_,i)=>'L'+(i+1)===REMOVED_BACKGROUND_ROD);
+ if(removedIndex<0||baseLinks[removedIndex][0]!=='b')throw Error('待移除的背景扣不是第100关基底中的双头扣');
+ const {removedAt,steps:baseSteps}=baseRemovalSteps(baseIndex);
+ const level=clone(base);
+ level.name='第107关';
+ level.kind='formal';
+ level.revision=1;
+ level.tip='';
+ level.links=baseLinks.filter((_,i)=>i!==removedIndex);
+ for(const [owner,receiver] of EXTRA_MOUNTS)level.links.push(['m',owner,receiver]);
+ level.special={
+  rings:BURST_RINGS.map(id=>({id,attribute:'burst',silkLayers:0})),
+  silkEdges:[]
+ };
+ level.difficulty={
+  ...(level.difficulty||{}),
+  sample:'level107-verified-base100-geometry',
+  burstRings:BURST_RINGS,
+  additionalMountedRods:EXTRA_MOUNTS,
+  removedBackgroundRod:REMOVED_BACKGROUND_ROD
+ };
+ const distribution=ownerDistribution(level.links);
+ const expected={0:61,1:7,2:11,3:24,4:6,5:0,6:0};
+ if(JSON.stringify(distribution)!==JSON.stringify(expected))throw Error('第107关自带扣配额不匹配：'+JSON.stringify(distribution));
+ if(mountedCount(level.links)!==125||backgroundCount(level.links)!==14)throw Error('第107关杆件总数不匹配');
+ const extraByStep=new Map();
+ for(let i=0;i<EXTRA_MOUNTS.length;i++){
+  const [owner,target]=EXTRA_MOUNTS[i],step=removedAt.get(target);
+  if(!Number.isInteger(step)||!Number.isInteger(removedAt.get(owner))||step>=removedAt.get(owner))
+   throw Error('新增Owner/Receiver先后顺序不成立：'+owner+'→'+target);
+  const rodId='L'+(level.links.length-EXTRA_MOUNTS.length+i+1);
+  if(!extraByStep.has(step))extraByStep.set(step,[]);
+  extraByStep.get(step).push({owner,target,rodId});
+ }
+ const candidateIndex=Core.levels.push(level)-1;
+ try{
+  const state=Core.make(candidateIndex),errors=Core.validate(state);
+  if(errors.length)throw Error('第107关几何校验失败：'+errors.slice(0,12).join(' | '));
+  const premature=Core.settle(Core.clone(state));
+  if(premature.length)throw Error('第107关开局自动消除：'+premature.join(','));
+  const route=[],baseSolution=formalSolutions[BASE_FORMAL_NUMBER-1];
+  for(let i=0;i<baseSolution.length;i++){
+   const action=baseSolution[i],rodId=remapBaseRod(action.rod,removedIndex);
+   if(rodId)alignToRod(state,action.id,rodId,route,'基底路线');
+   for(const extra of extraByStep.get(i)||[]){
+    if(isActive(state,extra.target))alignToRod(state,extra.target,extra.rodId,route,'新增锁扣');
+   }
+  }
+  finishWithLegalCandidates(state,route);
+  if(state.rods.some(rod=>Core.exists(state,rod)))throw Error('第107关胜利后仍有锁扣残留');
+  level.hintGraph=buildHintGraph(level,route);
+  return{
+   level,route,
+   metrics:{
+    ringCount:state.rings.length,
+    mountedCount:mountedCount(level.links),
+    backgroundCount:backgroundCount(level.links),
+    ownerDistribution:distribution,
+    burstRings:BURST_RINGS,
+    burstNeighbors:Object.fromEntries(BURST_RINGS.map(id=>[id,state.rings.filter(r=>r.id!==id&&Math.abs(Core.dist(r,Core.ring(state,id))-92.0001)<.01).map(r=>r.id)])),
+    addedOwnerTargets:EXTRA_MOUNTS,
+    removedBackgroundRod:REMOVED_BACKGROUND_ROD,
+    baseRouteSteps:baseSteps,
+    verifiedRouteSteps:route.length
+   }
+  };
+ }finally{
+  Core.levels.pop();
+ }
+}
