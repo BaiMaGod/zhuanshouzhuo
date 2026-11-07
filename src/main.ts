@@ -645,7 +645,8 @@ class Game {
    this.wallpaper=wallpaper;
    const home=new Button('',28,26,76,64,()=>this.confirmExit(),false,'home');home.name='button:home';this.scene.addChild(home);
    const restart=new Button('',116,26,76,64,()=>this.confirmRestart(),false,'restart');restart.name='button:restart';this.scene.addChild(restart);
-   const title=text(this.scene,'第'+(i-TEACHING_COUNT+1)+'关',216,26,288,64,43,COLORS.ink,'center',true);
+   const levelTitle=i===this.sampleLevelIndex?'第107关 · 样板':'第'+(i-TEACHING_COUNT+1)+'关';
+   const title=text(this.scene,levelTitle,216,26,288,64,43,COLORS.ink,'center',true);
    const sound=new Button('',528,26,76,64,()=>this.settings(true),false,this.audio.enabled?'sound':'mute');sound.name='button:sound';this.scene.addChild(sound);
    const help=new Button('',616,26,76,64,()=>this.help(),false,'help');help.name='button:help';this.scene.addChild(help);
    // Both counters share one non-wrapping line under the level title.
