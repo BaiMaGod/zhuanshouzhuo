@@ -14,7 +14,6 @@ import type {RewardKind,RewardSource} from './storage.js';
 import {DAILY_REWARDS} from './signin-inventory.js';
 import {FEATURE_ART,FEATURE_ASSETS,paintFeature} from './feature-art.js';
 import {TapPlatform} from './taptap.js';
-import {cloudRestoreMessage} from './cloud-restore-message.js';
 import {copyPlatformText,finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug,setGameCursorHidden} from './web-shell.js';
 import {search,nextFrame} from './solver.js';
 interface GamePointer {pointerId:number;stageX:number;stageY:number;button?:number}
@@ -94,26 +93,6 @@ class Game {
    {label:'重新同步',action:()=>{void this.platform.retrySync()},primary:true},
    {label:'平台连接检查',action:()=>this.showPlatformCheck(),primary:false}
   ]);
- }
- private showCloudMigrationNotice():void{
-  if(!this.platform.restoreNotice||this.mode!=='home'||this.modalOpen||!this.platform.playAllowed)return;
-  const {lines,backupPath}=cloudRestoreMessage(this.platform.takeRestoreNotice());
-  let copyButton:Button|null=null;
-  this.modal('云存档已安全恢复',lines,[
-   ...(backupPath?[{label:'复制备份路径',action:()=>{
-    const card=this.modalCard;
-    void copyPlatformText(backupPath).then(ok=>{
-     if(this.modalCard===card&&copyButton)copyButton.label.text=ok?'路径已复制':'复制失败，请重试';
-    });
-   },primary:false}]:[]),
-   {label:'知道了',action:()=>this.hideModal(),primary:true}
-  ]);
-  if(backupPath&&this.modalCard){
-   for(let i=0;i<this.modalCard.numChildren;i++){
-    const child=this.modalCard.getChildAt(i);
-    if(child instanceof Button&&child.label.text==='复制备份路径'){copyButton=child;break}
-   }
-  }
  }
  async loginTap(autoTutorial=false):Promise<void>{
   if(this.mode!=='home')return;
@@ -1026,7 +1005,6 @@ class Game {
   if(this.platform.requiresCloud&&!this.platform.playAllowed&&!this.modalOpen&&this.mode==='home'&&this.platform.states.cloud!=='busy'){
    this.cloudRestoreModal=false;this.showCloudRestoreBlocked();
   }
-  this.showCloudMigrationNotice();
   if(this.mode==='home'&&this.homeSignDot&&Date.now()>=this.nextSignBadgeCheck){
    this.nextSignBadgeCheck=Date.now()+60000;
    const state=this.save.dailySignInStatus();
