@@ -9,7 +9,7 @@ import {THEME} from './ui.js';
 import {FEEDBACK,reducedMotion,easeOut,glint} from './feedback.js';
 const C=C0 as unknown as CoreAPI;
 export interface Ghost {r:Ring;start:number;rods:Laya.Sprite;glow:Laya.Sprite|null}
-interface RingView {material:JadeName;root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite}
+interface RingView {material:JadeName;root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite;special:Laya.Text|null}
 const RELEASE_GLOW:Record<JadeName,string> = {
  amber:'252,210,72', peach:'253,179,158', celadon:'174,221,164',
  ice:'166,231,219', ivory:'255,244,207'
@@ -104,7 +104,15 @@ export class Board {
    }
    focus.cacheAs='normal';root.addChild(focus);
    const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index>=TEACHING_COUNT||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
-   this.rings.set(r.id,{material,root,body,halo,focus,label,shadow});
+   // Temporary readable mechanism marker; special art can replace it later.
+   const special=r.burst||r.silkRemaining?new Laya.Text():null;
+   if(special){
+    special.name='mechanic:'+r.id;
+    special.size(82,44);special.pos(-41,-22);special.align='center';special.valign='middle';
+    special.fontSize=24;special.color='#996b45';special.bold=true;
+    special.mouseEnabled=false;root.addChild(special);
+   }
+   this.rings.set(r.id,{material,root,body,halo,focus,label,shadow,special});
   });
   // Background double-ended rods have their own render node. Their lifetime is
   // controlled by the two endpoint rings, not by the moving-clasp batch cache.
@@ -253,6 +261,21 @@ export class Board {
  }
   private drawBackgroundRod(s:State,z:State['rods'][number],g:Laya.Graphics,active:ReadonlySet<string>):void{
   const p=C.pose(s,z),a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
+  if(z.headPoints&&z.paths&&z.anchor){
+   // A multihead background piece is a fixed junction with independent sleeves.
+   const shadow=C.rot({x:1.1,y:1.8},-this.turn);
+   for(const path of z.paths)for(let j=1;j<path.length;j++){
+    const p=path[j-1],q=path[j];
+    this.line(g,{x:p.x+shadow.x,y:p.y+shadow.y},{x:q.x+shadow.x,y:q.y+shadow.y},'rgba(46,63,51,0.25)',5.3);
+    this.line(g,p,q,hot?'#c27051':'#537b6e',4.8);
+    this.line(g,p,q,hot?'#e4aa7b':'#d5e9e3',2.9);
+   }
+   C.endpoints(s,z).forEach((e,i)=>{
+    if(active.has(e.id))this.sleeve(g,e.p,C.angle(z.anchor!,e.p),s.states[z.id][i]);
+   });
+   this.jewel(g,z.anchor,0);
+   return;
+  }
   const shadow=C.rot({x:1.1,y:1.8},-this.turn);
   this.line(g,{x:p.p.x+shadow.x,y:p.p.y+shadow.y},{x:p.q.x+shadow.x,y:p.q.y+shadow.y},'rgba(46,63,51,0.25)',5.3);
   this.line(g,p.p,p.q,hot?'#c27051':'#537b6e',4.8);
@@ -274,11 +297,11 @@ export class Board {
   for(const z of s.rods){
    if(z.kind!=='b')continue;
    const view=this.fixedRodViews.get(z.id);if(!view)continue;
-   const visible=z.targets.some(id=>active.has(id));
+   const visible=C.exists(s,z);
    view.visible=visible;
    const hot=this.blocked?.rod===z.id&&now<this.blockUntil;
    const endpointKey=z.targets.map(id=>active.has(id)?'1':'0').join('');
-   const key=(s.states[z.id]||[]).join(',')+':'+endpointKey+':'+(hot?'1':'0')+':'+(visible?'1':'0');
+   const key=(s.states[z.id]||[]).join(',')+':'+endpointKey+':'+(z.broken?'broken':'whole')+':'+(hot?'1':'0')+':'+(visible?'1':'0');
    if(this.fixedRodKeys.get(z.id)!==key){
     view.graphics.clear();
     if(visible)this.drawBackgroundRod(s,z,view.graphics,active);
@@ -330,6 +353,13 @@ export class Board {
    if(v.shadow.rotation!==r.a)v.shadow.rotation=r.a;
    if(v.focus.rotation!==r.a)v.focus.rotation=r.a;
    v.label.alpha=r.id===this.selected?1:.55;
+   if(v.special){
+    v.special.visible=!!r.burst||!!r.silkRemaining;
+    if(v.special.visible){
+     v.special.text=(r.burst?'✦':'')+((r.silkRemaining||0)>0?' 缠'+r.silkRemaining:'');
+     v.special.rotation=-this.turn;
+    }
+   }
    if(r.id===this.blockedRing&&now<this.blockUntil){
     if(!v.halo.name){
      v.halo.name='blocked-edge:'+r.id;
@@ -366,7 +396,8 @@ export class Board {
    // Avoid rebuilding drawing commands on unchanged frames while rings remain.
    const hot=now<this.blockUntil?this.blocked?.rod||'':'';
    const key=[this.zoom,this.screen.x,this.screen.y,this.turn,hot,
-    ...s.rings.map(r=>r.id+':'+r.a+':'+r.life)].join('|');
+    ...s.rings.map(r=>r.id+':'+r.a+':'+r.life),
+    ...s.rods.filter(r=>r.kind==='m').map(r=>r.id+':'+(r.broken?'1':'0'))].join('|');
    if(this.rodsDrawKey!==key){
     this.rods.graphics.clear();this.drawRods(s,this.rods.graphics);
     this.rodsDrawKey=key;
