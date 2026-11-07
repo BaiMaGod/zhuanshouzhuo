@@ -1,0 +1,703 @@
+{
+  "schemaVersion": 1,
+  "project": "转手镯消除",
+  "source": "jade-levels-100-200.xlsx / Library workbook",
+  "status": "design_source_only_not_runtime_levels",
+  "levels": [
+    {
+      "level": 107,
+      "ringCount": 109,
+      "theme": "双爆裂接续入门",
+      "ownedClaspRingCounts": [
+        61,
+        7,
+        11,
+        24,
+        6,
+        0,
+        0
+      ],
+      "ownedClaspCount": 125,
+      "attributeCounts": {
+        "ordinary": 107,
+        "burstOnly": 2,
+        "silkOnly": 0,
+        "both": 0
+      },
+      "silkLayerCounts": [
+        0,
+        0,
+        0
+      ],
+      "backgroundPieceCounts": [
+        14,
+        0,
+        0,
+        0,
+        0
+      ],
+      "backgroundPieceCount": 14,
+      "backgroundEndpointCount": 28,
+      "focus": "双爆裂接续入门",
+      "pacing": "教学",
+      "relationshipType": "一对爆裂接续",
+      "branchCount": 2,
+      "keyDifference": "第一爆裂命中第二爆裂镯，震断其全部约束后接续。",
+      "entryPrerequisites": [
+        "R003",
+        "R005"
+      ],
+      "silkBranches": "支路1：R003、R004。支路2：R005、R006",
+      "burstActions": "R001影响R064、R065、R002；整件退出F001。R002影响R066、R067、R001；整件退出F002",
+      "layoutConstraints": "首对接续，其余爆裂须独立准备",
+      "rings": [],
+      "backgroundPieces": [
+        {
+          "id": "F001",
+          "heads": 2,
+          "targetRingIds": [
+            "R064",
+            "R003"
+          ],
+          "hitByBurstRingIds": [
+            "R001"
+          ],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F002",
+          "heads": 2,
+          "targetRingIds": [
+            "R066",
+            "R004"
+          ],
+          "hitByBurstRingIds": [
+            "R002"
+          ],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F003",
+          "heads": 2,
+          "targetRingIds": [
+            "R005",
+            "R006"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F004",
+          "heads": 2,
+          "targetRingIds": [
+            "R007",
+            "R008"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F005",
+          "heads": 2,
+          "targetRingIds": [
+            "R009",
+            "R010"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F006",
+          "heads": 2,
+          "targetRingIds": [
+            "R011",
+            "R012"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F007",
+          "heads": 2,
+          "targetRingIds": [
+            "R013",
+            "R014"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F008",
+          "heads": 2,
+          "targetRingIds": [
+            "R015",
+            "R016"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F009",
+          "heads": 2,
+          "targetRingIds": [
+            "R017",
+            "R018"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F010",
+          "heads": 2,
+          "targetRingIds": [
+            "R019",
+            "R020"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F011",
+          "heads": 2,
+          "targetRingIds": [
+            "R021",
+            "R022"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F012",
+          "heads": 2,
+          "targetRingIds": [
+            "R023",
+            "R024"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F013",
+          "heads": 2,
+          "targetRingIds": [
+            "R025",
+            "R026"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F014",
+          "heads": 2,
+          "targetRingIds": [
+            "R027",
+            "R028"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        }
+      ]
+    },
+    {
+      "level": 131,
+      "ringCount": 131,
+      "theme": "单层丝先找邻镯",
+      "ownedClaspRingCounts": [
+        52,
+        26,
+        35,
+        14,
+        4,
+        0,
+        0
+      ],
+      "ownedClaspCount": 154,
+      "attributeCounts": {
+        "ordinary": 128,
+        "burstOnly": 0,
+        "silkOnly": 3,
+        "both": 0
+      },
+      "silkLayerCounts": [
+        3,
+        0,
+        0
+      ],
+      "backgroundPieceCounts": [
+        13,
+        2,
+        1,
+        0,
+        0
+      ],
+      "backgroundPieceCount": 16,
+      "backgroundEndpointCount": 36,
+      "focus": "单层丝先找邻镯",
+      "pacing": "教学",
+      "relationshipType": "独立短支路",
+      "branchCount": 1,
+      "keyDifference": "首次缠丝只用单层，三只目标分别由不同邻镯消除来松丝。",
+      "entryPrerequisites": [
+        "R004"
+      ],
+      "silkBranches": "支路1：R001、R002、R003",
+      "burstActions": "",
+      "layoutConstraints": "只布缠丝属性，来源必须真实相邻且足量",
+      "rings": [],
+      "backgroundPieces": [
+        {
+          "id": "F001",
+          "heads": 4,
+          "targetRingIds": [
+            "R004",
+            "R005",
+            "R006",
+            "R007"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F002",
+          "heads": 3,
+          "targetRingIds": [
+            "R008",
+            "R009",
+            "R010"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F003",
+          "heads": 3,
+          "targetRingIds": [
+            "R011",
+            "R012",
+            "R013"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F004",
+          "heads": 2,
+          "targetRingIds": [
+            "R014",
+            "R015"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F005",
+          "heads": 2,
+          "targetRingIds": [
+            "R016",
+            "R017"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F006",
+          "heads": 2,
+          "targetRingIds": [
+            "R018",
+            "R019"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F007",
+          "heads": 2,
+          "targetRingIds": [
+            "R020",
+            "R021"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F008",
+          "heads": 2,
+          "targetRingIds": [
+            "R022",
+            "R023"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F009",
+          "heads": 2,
+          "targetRingIds": [
+            "R024",
+            "R025"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F010",
+          "heads": 2,
+          "targetRingIds": [
+            "R026",
+            "R027"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F011",
+          "heads": 2,
+          "targetRingIds": [
+            "R028",
+            "R029"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F012",
+          "heads": 2,
+          "targetRingIds": [
+            "R030",
+            "R031"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F013",
+          "heads": 2,
+          "targetRingIds": [
+            "R032",
+            "R033"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F014",
+          "heads": 2,
+          "targetRingIds": [
+            "R034",
+            "R035"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F015",
+          "heads": 2,
+          "targetRingIds": [
+            "R036",
+            "R037"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        },
+        {
+          "id": "F016",
+          "heads": 2,
+          "targetRingIds": [
+            "R038",
+            "R039"
+          ],
+          "hitByBurstRingIds": [],
+          "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+          "burstRemoval": "命中任一端即整件退出，逐扣ID去重"
+        }
+      ]
+    },
+    {
+      "level": 151,
+      "ringCount": 151,
+      "theme": "三层丝三个来源",
+      "ownedClaspRingCounts": [
+        64,
+        29,
+        34,
+        20,
+        4,
+        0,
+        0
+      ],
+      "ownedClaspCount": 173,
+      "attributeCounts": {
+        "ordinary": 139,
+        "burstOnly": 0,
+        "silkOnly": 12,
+        "both": 0
+      },
+      "silkLayerCounts": [
+        9,
+        2,
+        1
+      ],
+      "backgroundPieceCounts": [
+        18,
+        3,
+        1,
+        0,
+        0
+      ],
+      "backgroundPieceCount": 22,
+      "backgroundEndpointCount": 49,
+      "focus": "三层丝三个来源",
+      "pacing": "教学",
+      "relationshipType": "三来源解缠",
+      "branchCount": 3,
+      "keyDifference": "首次三层丝明确指定三只不同邻镯，先检验每个来源均可先消除。",
+      "entryPrerequisites": [
+        "R013",
+        "R015",
+        "R017"
+      ],
+      "silkBranches": "支路1：R001、R004、R007、R010。支路2：R002、R005、R008、R011。支路3：R003、R006、R009、R012",
+      "burstActions": "",
+      "layoutConstraints": "只布缠丝属性，来源必须真实相邻且足量",
+      "rings": [],
+      "backgroundPieces": []
+    },
+    {
+      "level": 161,
+      "ringCount": 161,
+      "theme": "两种特殊镯首次同场",
+      "ownedClaspRingCounts": [
+        64,
+        32,
+        42,
+        18,
+        5,
+        0,
+        0
+      ],
+      "ownedClaspCount": 190,
+      "attributeCounts": {
+        "ordinary": 145,
+        "burstOnly": 2,
+        "silkOnly": 14,
+        "both": 0
+      },
+      "silkLayerCounts": [
+        10,
+        3,
+        1
+      ],
+      "backgroundPieceCounts": [
+        15,
+        3,
+        2,
+        0,
+        0
+      ],
+      "backgroundPieceCount": 20,
+      "backgroundEndpointCount": 47,
+      "focus": "两种特殊镯首次同场",
+      "pacing": "教学",
+      "relationshipType": "断扣与解缠交替",
+      "branchCount": 2,
+      "keyDifference": "爆裂镯与缠丝镯分开配置，先断扣，再由邻镯实际消除完成松丝。",
+      "entryPrerequisites": [
+        "R017",
+        "R019"
+      ],
+      "silkBranches": "支路1：R003、R005、R007、R009、R011、R013、R015。支路2：R004、R006、R008、R010、R012、R014、R016",
+      "burstActions": "R001影响R081、R082；整件退出F001。R002影响R083、R084；整件退出F002",
+      "layoutConstraints": "两种特殊镯分开配置，爆裂本身不松丝",
+      "rings": [],
+      "backgroundPieces": []
+    },
+    {
+      "level": 171,
+      "ringCount": 171,
+      "theme": "五头扣局部样板",
+      "ownedClaspRingCounts": [
+        75,
+        32,
+        35,
+        24,
+        5,
+        0,
+        0
+      ],
+      "ownedClaspCount": 194,
+      "attributeCounts": {
+        "ordinary": 151,
+        "burstOnly": 1,
+        "silkOnly": 16,
+        "both": 3
+      },
+      "silkLayerCounts": [
+        12,
+        6,
+        1
+      ],
+      "backgroundPieceCounts": [
+        17,
+        4,
+        3,
+        1,
+        0
+      ],
+      "backgroundPieceCount": 25,
+      "backgroundEndpointCount": 63,
+      "focus": "五头扣局部样板",
+      "pacing": "教学",
+      "relationshipType": "多头扣局部组",
+      "branchCount": 3,
+      "keyDifference": "首件五头扣只覆盖一个局部区，先检验支杆空隙与移动端辨识。",
+      "entryPrerequisites": [
+        "R021",
+        "R022",
+        "R023",
+        "R024",
+        "R025",
+        "R026"
+      ],
+      "silkBranches": "支路1：R002、R005、R008、R011、R014、R017、R020。支路2：R003、R006、R009、R012、R015、R018。支路3：R004、R007、R010、R013、R016、R019",
+      "burstActions": "R001影响R096、R097；整件退出F001。R018影响R098、R099、R042、R043；整件退出F002。R019影响R100、R101、R044、R045；整件退出F003。R020影响R102、R103、R046、R047、R048；整件退出F004",
+      "layoutConstraints": "逐端脱开，整件退出另计",
+      "rings": [],
+      "backgroundPieces": []
+    },
+    {
+      "level": 191,
+      "ringCount": 191,
+      "theme": "六头扣几何样板",
+      "ownedClaspRingCounts": [
+        76,
+        38,
+        48,
+        23,
+        6,
+        0,
+        0
+      ],
+      "ownedClaspCount": 227,
+      "attributeCounts": {
+        "ordinary": 166,
+        "burstOnly": 1,
+        "silkOnly": 20,
+        "both": 4
+      },
+      "silkLayerCounts": [
+        14,
+        7,
+        3
+      ],
+      "backgroundPieceCounts": [
+        16,
+        5,
+        3,
+        0,
+        1
+      ],
+      "backgroundPieceCount": 25,
+      "backgroundEndpointCount": 65,
+      "focus": "六头扣几何样板",
+      "pacing": "教学",
+      "relationshipType": "多头扣局部组",
+      "branchCount": 3,
+      "keyDifference": "首件六头扣限制为局部样板，逐端验证支杆不阻断连续旋转。",
+      "entryPrerequisites": [
+        "R026",
+        "R027",
+        "R028",
+        "R029",
+        "R030",
+        "R031"
+      ],
+      "silkBranches": "支路1：R002、R005、R008、R011、R014、R017、R020、R023。支路2：R003、R006、R009、R012、R015、R018、R021、R024。支路3：R004、R007、R010、R013、R016、R019、R022、R025",
+      "burstActions": "R001影响R102、R103；整件退出F001。R022影响R104、R105、R053、R054；整件退出F002。R023影响R106、R107、R055、R056、R057；整件退出F003。R024影响R108、R109、R058、R059、R060；整件退出F004。R025影响R110、R111、R061、R062、R063；整件退出F005",
+      "layoutConstraints": "逐端脱开，整件退出另计",
+      "rings": [],
+      "backgroundPieces": []
+    },
+    {
+      "level": 200,
+      "ringCount": 200,
+      "theme": "百关机制综合",
+      "ownedClaspRingCounts": [
+        82,
+        44,
+        36,
+        29,
+        6,
+        2,
+        1
+      ],
+      "ownedClaspCount": 243,
+      "attributeCounts": {
+        "ordinary": 172,
+        "burstOnly": 2,
+        "silkOnly": 22,
+        "both": 4
+      },
+      "silkLayerCounts": [
+        15,
+        8,
+        3
+      ],
+      "backgroundPieceCounts": [
+        13,
+        5,
+        3,
+        1,
+        1
+      ],
+      "backgroundPieceCount": 23,
+      "backgroundEndpointCount": 64,
+      "focus": "百关机制综合",
+      "pacing": "限时压轴",
+      "relationshipType": "三来源解缠",
+      "branchCount": 3,
+      "keyDifference": "六头扣只承担一个局部任务，双层三层解缠与复合镯共同构成分阶段收束。",
+      "entryPrerequisites": [
+        "R029",
+        "R030",
+        "R031",
+        "R032",
+        "R033",
+        "R034"
+      ],
+      "silkBranches": "支路1：R003、R006、R009、R012、R015、R018、R021、R024、R027。支路2：R004、R007、R010、R013、R016、R019、R022、R025、R028。支路3：R005、R008、R011、R014、R017、R020、R023、R026",
+      "burstActions": "R001影响R111、R112、R113；整件退出F001。R002影响R114、R115；整件退出F002。R025影响R116、R117、R022、R044、R028；整件退出F003。R026影响R118、R119、R023、R045、R046；整件退出F004。R027影响R120、R121、R024、R047、R048；整件退出F005。R028影响R122、R123、R025、R049、R050；整件退出F006",
+      "layoutConstraints": "先后关系须由实际受扣关系落实",
+      "rings": [],
+      "backgroundPieces": []
+    }
+  ]
+}
