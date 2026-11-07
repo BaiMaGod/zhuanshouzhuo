@@ -54,11 +54,17 @@ test('five jade materials use their own petal rows and release input before peta
   const board=g.board,ring=g.model.state.rings[row];
   g.eraseRing(ring.id);
   wait(288);
-  const fresh=board.effects.children.filter(node=>{
-   const mesh=node.graphics.ops[0];
-   return mesh?.[1]==='assets/art-rose/jade-petals-v2.png'
-    &&Math.abs(mesh[5][1]-row/5)<1e-6&&node.alpha>.9;
-  });
+  // A tool removal can cascade into another bracelet with the same jade
+  // material. Count only this ring's petals instead of conflating same-color
+  // bursts from neighbouring rings.
+  const fresh=board.petals.active
+   .filter(p=>p.center.x===ring.x&&p.center.y===ring.y)
+   .map(p=>p.sprite)
+   .filter(node=>{
+    const mesh=node.graphics.ops[0];
+    return mesh?.[1]==='assets/art-rose/jade-petals-v2.png'
+     &&Math.abs(mesh[5][1]-row/5)<1e-6&&node.alpha>.9;
+   });
   assert.equal(fresh.length,48,'each jade releases 48 visible petals in its own color');
   assert.ok(fresh.every(node=>C.dist(node,ring)>C.R+2),
    'petals must bloom outward rather than remain on the original jade outline');
