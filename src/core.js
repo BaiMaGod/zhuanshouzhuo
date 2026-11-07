@@ -15,6 +15,12 @@ const rods=l.links.map((e,i)=>{const o=by(e[1]),t=by(e[2]),a=angle(o,t),p=point(
 const s={index,rings,rods,steps:0,states:{},events:[]};
 // Advanced rules are opt-in and cannot silently change the existing 100 levels.
 prepareSpecial(s,l);
+if(l.mountedRods){
+ for(const m of l.mountedRods){
+  if(!m.owner||!m.targets?.length||!m.local||!m.end)throw Error('Incomplete mounted rod '+m.id);
+  rods.push({id:m.id,kind:'m',owner:m.owner,targets:m.targets,local:m.local,end:m.end});
+ }
+}
 if(l.backgroundPieces){
  for(const piece of l.backgroundPieces){
   if(!piece.anchorWorld||!Array.isArray(piece.endpoints)||!Array.isArray(piece.branchPaths))throw Error('Incomplete background geometry '+piece.id);
@@ -79,7 +85,15 @@ if(Math.abs(done)>.001)s.events.push({id,delta:done,removed});return{done,remove
 function candidates(s){const a=[];for(const z of s.rods){if(!exists(s,z))continue;for(const e of endpoints(s,z)){const r=ring(s,e.id);if(r.life!=='active')continue;const d=diff(angle(r,e.p),r.a);if(Math.abs(d)>.001)for(const delta of[d,d>0?d-360:d+360])a.push({id:r.id,delta,rod:z.id});}}return a}
 const key=s=>s.rings.map(r=>r.life==='removed'?'x':Math.round(r.a*10)).join(',');
 function solve(initial,budget=450){const visited=new Set;let count=0;function dfs(s){if(s.rings.every(r=>r.life==='removed'))return[];if(++count>budget)return null;const k=key(s);if(visited.has(k))return null;visited.add(k);const opts=[];for(const a of candidates(s)){const c=clone(s),res=request(c,a.id,a.delta);if(res.blocked||Math.abs(res.done)<.001)continue;if(key(c)===k)continue;opts.push({a,c,res,score:res.removed.length*100-Math.abs(res.done)/360})}opts.sort((a,b)=>b.score-a.score);for(const o of opts){if(count>budget)return null;const rest=dfs(o.c);if(rest)return[{...o.a,delta:o.res.done},...rest]}return null}return{path:dfs(clone(initial)),visited:count}}
-function validate(s){const errors=[...validateSpecial(s)];for(const r of s.rings)for(const t of s.rings){if(r.id<t.id&&dist(r,t)<2*R+BAND)errors.push('环体重叠 '+r.id+t.id)}for(const z of s.rods){for(const e of endpoints(s,z))if(Math.abs(dist(ring(s,e.id),e.p)-R)>.0001)errors.push('活动扣悬空 '+z.id);if(z.kind==='m'&&Math.abs(dist(ring(s,z.owner),pose(s,z).p)-R)>.0001)errors.push('安装悬空 '+z.id)}for(const r of s.rings)if(!connections(s,r.id).length)errors.push('开局意外消除 '+r.id);return errors}
+function validate(s){const errors=[...validateSpecial(s)];for(const r of s.rings)for(const t of s.rings){if(r.id<t.id&&dist(r,t)<2*R+BAND)errors.push('环体重叠 '+r.id+t.id)}for(const z of s.rods){for(const e of endpoints(s,z)){
+ if(!ring(s,e.id)||!e.p||!Number.isFinite(e.p.x)||!Number.isFinite(e.p.y))errors.push('活动扣目标/世界坐标无效 '+z.id);
+ else if(Math.abs(dist(ring(s,e.id),e.p)-R)>.0001)errors.push('活动扣悬空 '+z.id);
+}
+ if(z.headPoints){
+  if(!z.anchor||!Number.isFinite(z.anchor.x)||!Number.isFinite(z.anchor.y)||!Array.isArray(z.paths)||z.paths.length<z.headPoints.length)
+   errors.push('多头锁扣缺失锚点/支杆 '+z.id);
+  else for(const p of z.paths)if(p.length<2||p.some(v=>!Number.isFinite(v.x)||!Number.isFinite(v.y)))errors.push('多头支杆点无效 '+z.id);
+ }if(z.kind==='m'&&Math.abs(dist(ring(s,z.owner),pose(s,z).p)-R)>.0001)errors.push('安装悬空 '+z.id)}for(const r of s.rings)if(!connections(s,r.id).length)errors.push('开局意外消除 '+r.id);return errors}
 return{R,BAND,GAP,END,D,tolerance,levels,norm,diff,clone,dist,rot,point,angle,make,ring,pose,exists,endpoints,update,connections,settle,request,candidates,solve,validate,blockage,processSpecialRemoval};})();
 export default Core;
 
