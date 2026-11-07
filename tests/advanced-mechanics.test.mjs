@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import C from '../dist/js/core.js';
+import {GameModel} from '../dist/js/model.js';
 import {prepareSpecial,processSpecialRemoval,challengeDuration} from '../dist/js/advanced-mechanics.js';
 import {compileApprovedSample} from '../dist/js/advanced-level-compiler.js';
 
@@ -91,4 +92,24 @@ test('限时时长只可由已验证无道具路线计算',()=>{
 });
 test('不能从七关仅有配额的骨架偷渡成正式关卡',()=>{
  assert.throws(()=>compileApprovedSample({level:107,ringCount:109,rings:[],validation:{}}),/样板未准备就绪/);
+});
+
+test('实机模型的消除道具与正常旋转共享解丝/结算状态',()=>{
+ const index=C.levels.push({
+  name:'special-integration-test',kind:'formal',revision:1,
+  points:[['A',0,0,150],['B',92.0001,0,25]],links:[['b','A','B']],
+  special:{rings:[{id:'B',attribute:'silk',silkLayers:1}],silkEdges:[{sourceId:'A',targetId:'B'}]},
+  hintGraph:{kind:'dependency',order:['A','B'],nodes:[{id:'A',requires:[]},{id:'B',requires:['A']}]}
+ })-1;
+ try{
+  const game=new GameModel(index);
+  assert.equal(game.turn('B',10).blocked?.kind,'silk');
+  assert.deepEqual(game.removeWithTool('A'),['A']);
+  assert.equal(C.ring(game.state,'B').silkRemaining,0);
+  const angle=C.angle(C.ring(game.state,'B'),C.endpoints(game.state,game.state.rods[0])[1].p);
+  const result=game.turn('B',C.diff(angle,C.ring(game.state,'B').a));
+  assert.equal(result.blocked,null);
+  assert.ok(result.removed.includes('B'),'released silk ring can clear normally');
+  assert.equal(game.cleared,true);
+ }finally{C.levels.pop()}
 });
