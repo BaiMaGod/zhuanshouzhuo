@@ -32,7 +32,7 @@ try{
  page.on('requestfailed',r=>report.errors.push('requestfailed: '+r.url()));
  page.on('response',r=>{if(r.status()>=400)report.errors.push('http '+r.status()+': '+r.url())});
  await page.goto('http://127.0.0.1:'+server.address().port+'/?debug=1&sample107=1');
- await page.waitForFunction(()=>window.jadeDebug?.game?.sampleLevelIndex!==null&&window.jadeDebug.game.model?.index===window.jadeDebug.game.sampleLevelIndex,{timeout:60000});
+ await page.waitForFunction(()=>window.jadeDebug?.game?.sampleLevelIndex!==null&&window.jadeDebug.game.model?.index===window.jadeDebug.game.sampleLevelIndex,null,{timeout:60000});
  const initial=await page.evaluate(()=>{
   const g=window.jadeDebug.game;
   const title=[];
@@ -67,7 +67,7 @@ try{
   await page.mouse.move(points[0].x,points[0].y);await page.mouse.down();
   for(const p of points.slice(1))await page.mouse.move(p.x,p.y);
   await page.mouse.up();
-  await page.waitForFunction(()=>!window.jadeDebug.game.board.animating,{timeout:10000});
+  await page.waitForFunction(()=>!window.jadeDebug.game.board.animating,null,{timeout:10000});
  }
  for(let i=0;i<route.length;i++){
   await drag(route[i]);
@@ -77,7 +77,7 @@ try{
   }));
   if(state.active===0)break;
  }
- await page.waitForFunction(()=>window.jadeDebug.game.model?.cleared&&window.jadeDebug.game.settled&&window.jadeDebug.game.modalOpen,{timeout:30000});
+ await page.waitForFunction(()=>window.jadeDebug.game.model?.cleared&&window.jadeDebug.game.settled&&window.jadeDebug.game.modalOpen,null,{timeout:30000});
  const final=await page.evaluate(()=>{
   const g=window.jadeDebug.game;
   return{steps:g.model.state.steps,activeRings:g.model.state.rings.filter(r=>r.life==='active').length,
