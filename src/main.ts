@@ -20,6 +20,7 @@ import {search,nextFrame} from './solver.js';
 interface GamePointer {pointerId:number;stageX:number;stageY:number;button?:number}
 import {JADE_ASSETS,jadeSprite} from './jade.js';
 import solutions from './solutions.js';
+import {buildLevel107Sample} from './level107-sample.js';
 import {TEACHING_COUNT,FORMAL_INDEX} from './levels.js';
 import type {Action,Point,State,Result} from './types.js';
 
@@ -43,6 +44,7 @@ const GAME_VERSION='__GAME_VERSION__';
 const ASSETS=[HINT_HAND_ASSET,PETAL_ASSET,...JADE_ASSETS,...FEATURE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,...HOME_LOGO_PARTS,'assets/art-v3/clasp.png'];
 class Game {
  readonly debugMode=debugHintEnabled();
+ sampleLevelIndex:number|null=null;
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
  cursorHand:GestureHand;activeHandPointer:number|null=null;
  garden:Laya.Sprite|null=null;wallpaper:Laya.Sprite|null=null;
@@ -506,9 +508,13 @@ class Game {
   for(let index=0;index<TEACHING_COUNT;index++)if(!this.save.data.records[index])return Math.min(index,this.save.data.unlocked);
   return TEACHING_COUNT-1; // All tutorial levels cleared: replay the final one.
  }
+ private officialLevelCount():number{
+  return C.levels.length-(this.sampleLevelIndex===C.levels.length-1?1:0);
+ }
  formalCurrent():number{
   let index=TEACHING_COUNT;
-  while(index<C.levels.length-1&&this.save.data.records[index])index++;
+  const total=this.officialLevelCount();
+  while(index<total-1&&this.save.data.records[index])index++;
   return index;
  }
  levels():void{
@@ -525,7 +531,7 @@ class Game {
   // normal row-gap after the previous block instead of one full viewport later.
   this.atlasCardHeight=Math.min(132,Math.max(88,Math.floor((this.atlasViewportHeight-90)/5)-16));
   this.atlasHeight=80+5*this.atlasCardHeight;
-  const total=C.levels.length-TEACHING_COUNT;
+  const total=this.officialLevelCount()-TEACHING_COUNT;
   this.atlasPageCount=Math.max(1,Math.ceil(total/20));
   this.atlasMaxOffset=Math.max(0,this.atlasPageCount*this.atlasHeight-this.atlasViewportHeight);
   this.atlasPage=-1;this.atlasOffset=0;this.atlasTargetOffset=0;this.atlasPageNodes.clear();this.atlasTickAt=performance.now();
@@ -558,7 +564,7 @@ class Game {
  }
  private renderAtlasPage(page:number):void{
   if(!this.atlas)return;
-  const total=C.levels.length-TEACHING_COUNT,current=this.formalCurrent(),w=148,h=this.atlasCardHeight,nodes:Laya.Sprite[]=[];
+  const total=this.officialLevelCount()-TEACHING_COUNT,current=this.formalCurrent(),w=148,h=this.atlasCardHeight,nodes:Laya.Sprite[]=[];
   for(let j=page*20;j<Math.min(total,(page+1)*20);j++){
    const index=TEACHING_COUNT+j,slot=j%20,locked=!this.debugMode&&index>current&&!this.save.data.records[index];
    const x=37+(slot%4)*(w+18),y=page*this.atlasHeight+12+Math.floor(slot/4)*(h+16);
@@ -1078,13 +1084,21 @@ class Game {
   const i=this.model.index,steps=this.model.state.steps;
   this.save.clearRun(i);
   if(this.formal){
-   const stars=this.save.win(i,steps,solutions[i].length,!debugEnabled()),last=i===C.levels.length-1,level='第'+(i-TEACHING_COUNT+1)+'关';
-   void this.platform.sync();void this.platform.submitScores().catch(()=>{});this.audio.play('win');
-   this.showVictory({title:level+' · 全部解开',subtitle:stars===3?'三星达成，解得漂亮':'又解开一盘玉镯',count:C.levels[i].points.length,steps,stars,note:last?'全部关卡已完成，随时回来再挑战':'下一关已开启',actions:[
-    {label:last?'关卡图谱':'下一关',action:()=>last?this.levels():this.load(i+1),primary:true},
-    {label:'回到首页',action:()=>this.home(),primary:false},
-    {label:'再挑战一次',action:()=>this.load(i,true),primary:false}
-   ]});return;
+   const sample=i===this.sampleLevelIndex;
+   const stars=this.save.win(i,steps,solutions[i].length,!debugEnabled()),last=!sample&&i===this.officialLevelCount()-1;
+   const level=sample?'第107关样板':'第'+(i-TEACHING_COUNT+1)+'关';
+   if(!sample){void this.platform.sync();void this.platform.submitScores().catch(()=>{})}
+   this.audio.play('win');
+   this.showVictory({title:level+' · 全部解开',subtitle:sample?'样板关完整通关，物理路线已走通':stars===3?'三星达成，解得漂亮':'又解开一盘玉镯',count:C.levels[i].points.length,steps,stars,
+    note:sample?'开发验收样板，不计入正式关卡进度':last?'全部关卡已完成，随时回来再挑战':'下一关已开启',
+    actions:sample?[
+     {label:'再挑战样板',action:()=>this.load(i,true),primary:true},
+     {label:'回到首页',action:()=>this.home(),primary:false}
+    ]:[
+     {label:last?'关卡图谱':'下一关',action:()=>last?this.levels():this.load(i+1),primary:true},
+     {label:'回到首页',action:()=>this.home(),primary:false},
+     {label:'再挑战一次',action:()=>this.load(i,true),primary:false}
+    ]});return;
   }
   const stars=this.save.win(i,steps,solutions[i].length,!debugEnabled());if(i<3){this.save.data.tutorial=Math.max(this.save.data.tutorial,i+1);this.save.persist()}this.stopGuide(false);this.audio.play('win');
   this.showVictory({title:i===9?'教学全部完成':'这一境，解开了',subtitle:C.levels[i].name,count:C.levels[i].points.length,steps,stars,note:i===9?'准备好，开始正式挑战吧':'下一节练习已开启',actions:[
@@ -1251,7 +1265,13 @@ async function boot():Promise<void>{
  Laya.stage.size(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
  Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor=THEME.paper;
  await Laya.loader.load(['assets/fonts/jade-song.woff','assets/fonts/jade-text.woff']);
- await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load().catch(e=>console.warn('Recorded audio unavailable',e));finishWebShell();void g.platform.reportReady(performance.now()-BOOT_STARTED);
+ await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load().catch(e=>console.warn('Recorded audio unavailable',e));
+ const params=typeof location!=='undefined'?new URLSearchParams(location.search):null;
+ if(debugHintEnabled()&&params?.get('sample107')==='1'&&!g.platform.requiresCloud){
+  const sample=buildLevel107Sample(),index=C.levels.push(sample.level)-1;
+  solutions.push(sample.route);g.sampleLevelIndex=index;g.load(index,true);
+ }
+ finishWebShell();void g.platform.reportReady(performance.now()-BOOT_STARTED);
  if(debugEnabled()){
   exposeDebug({game:g,Core:C,getState:()=>g.model?C.clone(g.model.state):null});
  }
