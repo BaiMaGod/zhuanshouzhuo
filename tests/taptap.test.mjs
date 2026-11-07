@@ -541,7 +541,7 @@ test('legacy run migration cooldown survives restart without restarting the full
  const snapshot=remote.exportCloud();
  snapshot.runs['10'].levelRevision=0;
  const raw=JSON.stringify(snapshot);
- m.archives.push({name:'jade_save_v1',uuid:'slot',fileId:'file',modifiedTime:10});
+ m.archives.push({name:'jade_save_v1',uuid:'migration-restart-slot',fileId:'file',modifiedTime:10});
  m.files.set('cloud',raw);
  const first=new TapPlatform(new Save(),false,m.api,strict);
  await first.start();
