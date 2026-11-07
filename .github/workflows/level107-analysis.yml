@@ -16,10 +16,12 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: node --test tests/level107-base-analysis.test.mjs
+      - run: node --test tests/level107-base-analysis.test.mjs tests/level107-sample.test.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: level107-base-analysis
-          path: tests/results/level107-base-analysis.json
+          path: |
+            tests/results/level107-base-analysis.json
+            tests/results/level107-sample-candidate.json
           if-no-files-found: error
           retention-days: 3
