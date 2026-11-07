@@ -54,6 +54,13 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm run test:fast
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: level107-base-analysis
+          path: tests/results/level107-base-analysis.json
+          if-no-files-found: warn
+          retention-days: 3
       - run: npm install --no-save --no-audit --no-fund playwright pngjs
       - uses: actions/cache@v4
         with:
