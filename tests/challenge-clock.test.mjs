@@ -17,8 +17,11 @@ test('恰好截止时逻辑解除通过，而动画时间不会导致后续失�
  assert.equal(c.clearAt(9999),true);
  assert.equal(c.timeOut(20000),false);
  const another=new ChallengeClock(10);another.begin(0);
- assert.equal(another.clearAt(10000),false);
- assert.equal(another.timeOut(10001),true);
+ assert.equal(another.clearAt(10000),true);
+ assert.equal(another.timeOut(10001),false);
+ const late=new ChallengeClock(10);late.begin(0);
+ assert.equal(late.clearAt(10000.1),false);
+ assert.equal(late.timeOut(10001),true);
 });
 test('超时不能继续操作，重试使用新时钟而不是失败前余量',()=>{
  const c=new ChallengeClock(5);c.begin(1000);
