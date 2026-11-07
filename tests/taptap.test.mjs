@@ -514,14 +514,14 @@ test('legacy run migration respects the 65-second cooldown while replaying a mat
  m.archives.push({name:'jade_save_v1',uuid:'slot',fileId:'file',modifiedTime:10});
  m.files.set('cloud',raw);
  const p=new TapPlatform(new Save(),false,m.api,strict);
- const starting=p.start();
- await settle();
- assert.equal(p.ready,false,'restore must wait for the migration write window');
+ await p.start();
+ assert.equal(p.ready,true,'validated local progress should remain playable during the background migration cooldown');
+ assert.equal(p.playAllowed,true);
  assert.equal(p.save.cloudDirty,true,'the local transaction must remain pending');
  assert.equal(m.files.get('cloud'),raw,'cloud must not be overwritten before the cooldown');
  t.mock.timers.tick(64999);await settle();
  assert.equal(m.files.get('cloud'),raw);
- t.mock.timers.tick(1);await starting;
+ t.mock.timers.tick(1);await settle();await p.sync();
  assert.equal(p.ready,true);
  assert.equal(p.save.cloudDirty,false);
  const uploaded=JSON.parse(m.files.get('cloud'));
@@ -554,14 +554,14 @@ test('legacy run migration cooldown survives restart without restarting the full
 
  t.mock.timers.tick(20000);
  const second=new TapPlatform(new Save(),false,m.api,strict);
- const restoring=second.start();
- await settle();
- assert.equal(second.ready,false,'a restart must continue waiting for the original migration deadline');
+ await second.start();
+ assert.equal(second.ready,true,'a restart should restore validated progress without waiting for the background upload');
+ assert.equal(second.playAllowed,true);
  assert.equal(second.save.writeNotBeforeAt,notBefore,'the deadline must survive local save reconstruction');
  assert.equal(second.retryAt,notBefore);
  t.mock.timers.tick(44999);await settle();
  assert.equal(m.files.get('cloud'),raw,'the cloud archive must not be written before the shared cooldown');
- t.mock.timers.tick(1);await restoring;
+ t.mock.timers.tick(1);await settle();await second.sync();
  assert.equal(second.ready,true);
  assert.equal(second.save.cloudDirty,false);
  assert.equal(second.save.writeNotBeforeAt,0,'confirmed migration clears the local cooldown marker');
