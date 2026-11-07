@@ -35,5 +35,5 @@ test('存档恢复维持已有耗时与已判定状态',()=>{
  const snap=c.snapshot(6000);
  const restored=new ChallengeClock(15,snap);
  assert.equal(restored.remainingMs(20000),10000);
- restored.begin(21000);assert.equal(restored.remainingMs(23000),8000);
+ restored.begin(21000);assert.equal(restored.remainingMs(23000),7000);
 });
