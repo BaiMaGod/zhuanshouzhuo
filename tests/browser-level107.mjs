@@ -3,12 +3,12 @@ import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {extname,resolve,sep} from 'node:path';
 import {chromium} from 'playwright';
-import {buildLevel107Sample} from '../src/level107-sample.js';
 
 const dist=resolve(process.env.JADE_DIST||'dist');
 const out=resolve(process.env.JADE_REPORT||'tests/results/level107-browser');
 await mkdir(out,{recursive:true});
-const {route}=buildLevel107Sample();
+const candidate=JSON.parse(await readFile(resolve('tests/results/level107-sample-candidate.json'),'utf8'));
+const route=candidate.proof.route.map(({id,delta,rod})=>({id,delta,rod}));
 const mime={
  '.html':'text/html','.js':'text/javascript','.json':'application/json',
  '.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp',
