@@ -268,11 +268,15 @@ export class Board {
   this.line(g,{x:mid.x+1.1,y:mid.y-1.1},{x:mid.x-1.1,y:mid.y+1.1},'#fffef2',.7);
  }
  private syncBackgroundRods(s:State,now:number):void{
-  // A background clasp is drawn as a whole or not at all.
+  // Build the active-ring lookup once per frame. Do not call Core.exists for
+  // every background rod: it performs repeated state/ring lookups on mobile.
+  // Visibility is still atomic: the whole clasp remains until both endpoints
+  // are removed; drawBackgroundRod always renders both end sleeves together.
+  const active=new Set(s.rings.filter(r=>r.life==='active').map(r=>r.id));
   for(const z of s.rods){
    if(z.kind!=='b')continue;
    const view=this.fixedRodViews.get(z.id);if(!view)continue;
-   const visible=C.exists(s,z);
+   const visible=z.targets.some(id=>active.has(id));
    view.visible=visible;
    const hot=this.blocked?.rod===z.id&&now<this.blockUntil;
    const key=(s.states[z.id]||[]).join(',')+':'+(hot?'1':'0')+':'+(visible?'1':'0');
