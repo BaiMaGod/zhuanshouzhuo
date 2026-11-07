@@ -8,7 +8,7 @@
   "rules": {
     "ringRule": "101..109=109; 110..200=level",
     "specialSeries": [
-      "101-130:bustOnly",
+      "101-130:burstOnly",
       "131-160:silkOnly",
       "161-170:bothOnDifferentRings",
       "171-200:compositeAllowed"
