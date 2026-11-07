@@ -51,7 +51,7 @@ try{
  assert.equal(initial.mounted,125);
  assert.equal(initial.background,14);
  assert.deepEqual(initial.errors,[]);
- assert.match(initial.title||'第107关 · 样板',/第107关/);
+ assert.equal(initial.title,'第107关 · 样板');
  await page.screenshot({path:resolve(out,'level107-initial-mobile.png')});
 
  async function drag(action){
