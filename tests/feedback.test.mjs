@@ -56,10 +56,14 @@ test('five jade materials use their own petal rows and release input before peta
   wait(288);
   const fresh=board.effects.children.filter(node=>{
    const mesh=node.graphics.ops[0];
-   return mesh?.[1]==='assets/art-rose/jade-petals-v2.png'&&Math.abs(C.dist(node,ring)-C.R)<2
+   return mesh?.[1]==='assets/art-rose/jade-petals-v2.png'
     &&Math.abs(mesh[5][1]-row/5)<1e-6&&node.alpha>.9;
   });
-  assert.equal(fresh.length,24,'each jade releases a full arc in its own color');
+  assert.equal(fresh.length,48,'each jade releases 48 visible petals in its own color');
+  assert.ok(fresh.every(node=>C.dist(node,ring)>C.R+2),
+   'petals must bloom outward rather than remain on the original jade outline');
+  assert.ok(fresh.some(node=>C.dist(node,ring)>C.R+18),
+   'the bloom must form an obvious outward burst');
   assert.ok(fresh.every(node=>Number.isFinite(node.scaleY)&&node.scaleY===node.scaleX),
    'real LayaAir requires both scale arguments for visible petals');
   assert.equal(board.animating,true);
@@ -80,11 +84,13 @@ test('simultaneous releases keep a complete petal arc per ring within the budget
  board.release(before,g.model.state,ids);
  board.draw(g.model.state);
  wait(288);
- assert.equal(board.petals.count,128);
+ assert.equal(board.petals.count,192,'simultaneous release respects the updated particle budget');
  for(const id of ids){
   const ring=C.ring(g.model.state,id);
-  const aroundRing=board.effects.children.filter(node=>node.graphics.ops[0]?.[1]==='assets/art-rose/jade-petals-v2.png'&&Math.abs(C.dist(node,ring)-C.R)<2);
-  assert.ok(aroundRing.length>=16,'each departing jade has an arc at its original radius');
+  const ownPetals=board.petals.active.filter(p=>p.center.x===ring.x&&p.center.y===ring.y);
+  assert.equal(ownPetals.length,24,'the 192-petal budget is shared equally across eight rings');
+  assert.ok(ownPetals.some(p=>C.dist(p.sprite,ring)>C.R+18),
+   'each ring retains a visibly expanding burst');
  }
  g.load(10,true);
  assert.equal(g.board.effects.numChildren,0);
