@@ -9,6 +9,7 @@ import {GestureHand} from './gesture-hand.js';
 import {Audio} from './audio.js';
 import {Haptics} from './haptics.js';
 import {snapDelta} from './snap.js';
+import {ChallengeClock} from './challenge-clock.js';
 import {Save} from './storage.js';
 import type {RewardKind,RewardSource} from './storage.js';
 import {DAILY_REWARDS} from './signin-inventory.js';
@@ -46,7 +47,8 @@ class Game {
  cursorHand:GestureHand;activeHandPointer:number|null=null;
  garden:Laya.Sprite|null=null;wallpaper:Laya.Sprite|null=null;
  save=new Save();platform=new TapPlatform(this.save,debugEnabled());accountStatus:Laya.Text|null=null;audio=new Audio();haptics=new Haptics();model:GameModel|null=null;board:Board|null=null;
- mode:'home'|'levels'|'game'='home';message:Laya.Text|null=null;status:Laya.Text|null=null
+ mode:'home'|'levels'|'game'='home';message:Laya.Text|null=null;status:Laya.Text|null=null;
+ challengeClock:ChallengeClock|null=null;challengeLabel:Laya.Text|null=null
  controls:Button[]=[];undoButton:Button|null=null;hintButton:Button|null=null;eraseButton:Button|null=null;eraseTip:Laya.Text|null=null;toolNoticeBox:Laya.Sprite|null=null;eraseMode=false;eraseTap:{id:string;pointer:number;start:Point}|null=null;
  pointers=new Map<number,Point>();panMode=false;viewLabel:Laya.Text|null=null;panButton:Button|null=null;
  viewGesture:{kind:'pinch'|'pan';start:Point;screen:Point;zoom:number;distance:number;anchor:Point}|null=null;
@@ -207,7 +209,10 @@ class Game {
   finally{if(this.model===model){this.busy=false;this.syncTools()}}
  }
 
- persistRun():void{if(this.formal&&this.model)this.save.writeRun(this.model.index,this.model.state,this.hintLeft,this.eraseLeft,this.model.hints?.progress||0)}
+ persistRun():void{if(this.formal&&this.model){
+  if(this.challengeClock)this.model.state.challengeClock=this.challengeClock.snapshot(performance.now());
+  this.save.writeRun(this.model.index,this.model.state,this.hintLeft,this.eraseLeft,this.model.hints?.progress||0);
+ }}
  toolNotice(message:string):void{
   if(this.eraseTip&&this.toolNoticeBox){this.eraseTip.text=message;this.toolNoticeBox.visible=true;this.noticeUntil=performance.now()+3200}
  }
@@ -284,7 +289,7 @@ class Game {
  }
  clear(mode:Game['mode']):void{
   this.accountStatus=null;this.atlas=null;this.atlasPageNodes.clear();this.atlasDrag=null;this.atlasPage=-1;this.atlasOffset=0;this.atlasTargetOffset=0;this.atlasHeight=0;this.atlasViewportHeight=0;this.atlasPageCount=0;this.atlasMaxOffset=0;this.atlasTickAt=0;
-  this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.board?.destroy();this.board=null;this.model=null;
+  this.cancel();this.guide?.destroy();this.guide=null;this.guideTitle=null;this.guideSkip=null;this.homePreview?.destroy();this.homePreview=null;this.board?.destroy();this.board=null;this.model=null;this.challengeClock=null;this.challengeLabel=null;
   // Dispose the fixed decorative wallpaper separately: it lives under the
   // gameplay scene, never inside the tray/ring rendering pass.
   this.wallpaper?.destroy(true);this.wallpaper=null;
@@ -623,6 +628,8 @@ class Game {
    if(!restart&&saved){this.model.state=saved.state;this.model.selected=null;this.model.resetHint(saved.hintProgress||0);this.hintLeft=saved.hint;this.eraseLeft=0}
    if(restart){this.save.clearRun(i);this.save.resetRewards(i)}
   }
+  const timed=C.levels[i].timed;
+  this.challengeClock=timed?new ChallengeClock(timed.durationSeconds,this.model.state.challengeClock):null;
   if(this.formal){
    // The wallpaper must be behind the *entire cached gameplay scene*, not
    // another child of it: otherwise Laya's bitmap cache can flatten it
@@ -638,6 +645,11 @@ class Game {
    // Both counters share one non-wrapping line under the level title.
    this.status=text(this.scene,'',90,101,540,34,23,COLORS.ink,'center');
    this.status.wordWrap=false;
+   if(this.challengeClock){
+    this.status.width=388;
+    this.challengeLabel=text(this.scene,'',473,101,208,34,24,COLORS.ink,'center',true);
+    this.challengeLabel.name='challenge-countdown';
+   }
   }else{
   panel(this.scene,105,105,510,113,22,THEME.white,THEME.faint);
   const practiceHome=new Button('',28,26,76,64,()=>this.home(),false,'home');practiceHome.name='button:home';this.scene.addChild(practiceHome);
@@ -719,12 +731,26 @@ class Game {
   if(!this.model||!this.board)return;
   const s=this.model.state,n=s.rings.filter(r=>r.life==='active').length;
    this.status!.text='剩余 '+n+' 个  ·  已转 '+s.steps+' 次'+(!this.formal&&this.model.selected?'  ·  选中 '+this.model.selected:'');
+  this.renderChallenge(performance.now());
   this.board.selected=this.model.selected;this.board.focus(this.drag?.id||null);if(redraw)this.board.draw(s);this.syncTools();if(!this.drag)this.persistRun();
   this.controls.forEach(b=>b.enabled=this.platform.playAllowed&&!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.undoButton)this.undoButton.enabled=this.platform.playAllowed&&this.model.history.length>0&&!this.modalOpen;
   if(this.demoButton)this.demoButton.label.text=this.busy?'停止':'演示';
   if(this.hintButton)this.hintButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
   if(this.eraseButton)this.eraseButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
+ }
+ renderChallenge(now:number):void{
+  if(!this.challengeClock||!this.challengeLabel)return;
+  const seconds=Math.ceil(this.challengeClock.remainingMs(now)/1000);
+  this.challengeLabel.text='剩余时间 '+String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
+ }
+ challengeFailed():void{
+  if(!this.model||this.settled)return;
+  const index=this.model.index;this.settled=true;this.releasePointers();
+  this.modal('挑战失败',['倒计时结束，未能在限定时间内消除全部手镯。'],[
+   {label:'重新挑战',action:()=>this.load(index,true),primary:true},
+   {label:'返回首页',action:()=>this.home(),primary:false}
+  ]);
  }
  releaseDrag(releaseCapture=true):void{
   this.board?.focus(null);
@@ -855,8 +881,11 @@ class Game {
   this.guideSelect(this.model.selected);this.audio.resetContact();this.model.begin();this.board!.hint=null;this.perform(this.model.selected,delta);
  }
  perform(id:string,d:number):Result{
-  if(this.progressRestoreBlocked())return {done:0,removed:[],blocked:null};
+  if(this.progressRestoreBlocked()||this.challengeClock?.result==='failed')return {done:0,removed:[],blocked:null};
+  const startedAt=performance.now();
   const model=this.model!,before=C.clone(model.state),res=model.turn(id,d);
+  if(res.done&&this.challengeClock)this.challengeClock.begin(startedAt);
+  if(this.challengeClock&&model.cleared)this.challengeClock.clearAt(performance.now());
   if(res.done){this.audio.motion(res.done);if(!res.blocked)this.audio.resetContact()}
   if(res.removed.length){
    this.haptics.pulse('snap');
@@ -1011,6 +1040,13 @@ class Game {
    this.homeSignDot.visible=!state.claimedToday&&!state.clockInvalid;
   }
   if(Date.now()>=this.nextCloudCheck){this.nextCloudCheck=Date.now()+1000;void this.platform.sync()}
+  // Settings, hint and item popups all pause the countdown without double counting.
+  const challengeNow=performance.now();
+  if(this.challengeClock&&this.mode==='game'){
+   this.challengeClock.syncPaused('dialog-or-reward',this.modalOpen||this.platform.rewardBusy,challengeNow);
+   this.renderChallenge(challengeNow);
+   if(!this.model?.cleared&&this.challengeClock.timeOut(challengeNow)&&!this.settled){this.challengeFailed();return}
+  }
   if(this.platform.rewardBusy)return;
   this.audio.tick(performance.now());
   const now=performance.now();
@@ -1037,7 +1073,9 @@ class Game {
   if(cleared&&!this.board.hasVisibleClaspLayer&&!this.board.animating&&!this.busy&&!this.settled){this.settled=true;this.win()}
  }
  win():void{
-  if(this.progressRestoreBlocked()||!this.model||!this.board||!this.model.cleared||this.board.hasVisibleClaspLayer||this.board.animating||this.busy)return;const i=this.model.index,steps=this.model.state.steps;
+  if(this.progressRestoreBlocked()||!this.model||!this.board||!this.model.cleared||this.board.hasVisibleClaspLayer||this.board.animating||this.busy)return;
+  if(this.challengeClock&&!this.challengeClock.clearAt(performance.now())){this.challengeFailed();return}
+  const i=this.model.index,steps=this.model.state.steps;
   this.save.clearRun(i);
   if(this.formal){
    const stars=this.save.win(i,steps,solutions[i].length,!debugEnabled()),last=i===C.levels.length-1,level='第'+(i-TEACHING_COUNT+1)+'关';
@@ -1104,6 +1142,7 @@ class Game {
   if(this.progressRestoreBlocked()||!this.formal||!this.model||!this.board||!this.debugMode&&this.toolLeft('erase')===0)return;
   const before=C.clone(this.model.state);
   const removed=this.model.removeWithTool(id);
+  if(this.challengeClock&&this.model.cleared)this.challengeClock.clearAt(performance.now());
   this.hideModal();
   if(!removed.length)return;
   if(!this.debugMode)this.consumeTool('erase');
