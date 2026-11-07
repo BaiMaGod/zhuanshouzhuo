@@ -21,7 +21,8 @@ test('七关汇总配额与自带扣、属性、背景扣头数交叉一致', ()
     assert.equal(level.ownedClaspRingCounts.reduce((sum, count, i) => sum + count * i, 0), level.ownedClaspCount, 'M weighted count: ' + level.level);
     assert.equal(Object.values(level.attributeCounts).reduce((a, b) => a + b, 0), level.ringCount, 'attribute count: ' + level.level);
     assert.equal(Object.values(level.backgroundPieceCountsByHeads).reduce((a, b) => a + b, 0), level.backgroundPieceCount, 'background piece count: ' + level.level);
-    assert.equal(Object.entries(level.backgroundPieceCountsByHeads).reduce((sum, [heads, count]) => sum + Number(heads) * count, 0), level.backgroundEndpointCount, 'background endpoint count: ' + level.level);
+    const headValues = { two: 2, three: 3, four: 4, five: 5, six: 6 };
+    assert.equal(Object.entries(level.backgroundPieceCountsByHeads).reduce((sum, [heads, count]) => sum + headValues[heads] * count, 0), level.backgroundEndpointCount, 'background endpoint count: ' + level.level);
     assert.deepEqual(level.staticDifferences, { ringCount: 0, attribute: 0, silk: 0 }, 'static differences: ' + level.level);
     assert.equal(level.ownedClaspCountCrossCheck, level.ownedClaspCount, 'summary cross-check: ' + level.level);
   }
