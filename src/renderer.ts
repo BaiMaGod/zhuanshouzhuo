@@ -9,7 +9,7 @@ import {THEME} from './ui.js';
 import {FEEDBACK,reducedMotion,easeOut,glint} from './feedback.js';
 const C=C0 as unknown as CoreAPI;
 export interface Ghost {r:Ring;start:number;rods:Laya.Sprite;glow:Laya.Sprite|null}
-interface RingView {material:JadeName;root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite;special:Laya.Text}
+interface RingView {material:JadeName;root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite;special:Laya.Text|null}
 const RELEASE_GLOW:Record<JadeName,string> = {
  amber:'252,210,72', peach:'253,179,158', celadon:'174,221,164',
  ice:'166,231,219', ivory:'255,244,207'
@@ -105,10 +105,13 @@ export class Board {
    focus.cacheAs='normal';root.addChild(focus);
    const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index>=TEACHING_COUNT||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
    // Temporary readable mechanism marker; special art can replace it later.
-   const special=new Laya.Text();special.name='mechanic:'+r.id;
-   special.size(82,44);special.pos(-41,-22);special.align='center';special.valign='middle';
-   special.fontSize=24;special.color='#996b45';special.bold=true;
-   special.visible=!!r.burst||!!r.silkRemaining;special.mouseEnabled=false;root.addChild(special);
+   const special=r.burst||r.silkRemaining?new Laya.Text():null;
+   if(special){
+    special.name='mechanic:'+r.id;
+    special.size(82,44);special.pos(-41,-22);special.align='center';special.valign='middle';
+    special.fontSize=24;special.color='#996b45';special.bold=true;
+    special.mouseEnabled=false;root.addChild(special);
+   }
    this.rings.set(r.id,{material,root,body,halo,focus,label,shadow,special});
   });
   // Background double-ended rods have their own render node. Their lifetime is
@@ -350,11 +353,13 @@ export class Board {
    if(v.shadow.rotation!==r.a)v.shadow.rotation=r.a;
    if(v.focus.rotation!==r.a)v.focus.rotation=r.a;
    v.label.alpha=r.id===this.selected?1:.55;
-   if(r.burst||r.silkRemaining){
-    v.special.visible=true;
-    v.special.text=(r.burst?'✦':'')+((r.silkRemaining||0)>0?' 缠'+r.silkRemaining:'');
-    v.special.rotation=-this.turn;
-   }else v.special.visible=false;
+   if(v.special){
+    v.special.visible=!!r.burst||!!r.silkRemaining;
+    if(v.special.visible){
+     v.special.text=(r.burst?'✦':'')+((r.silkRemaining||0)>0?' 缠'+r.silkRemaining:'');
+     v.special.rotation=-this.turn;
+    }
+   }
    if(r.id===this.blockedRing&&now<this.blockUntil){
     if(!v.halo.name){
      v.halo.name='blocked-edge:'+r.id;
