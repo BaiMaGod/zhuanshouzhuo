@@ -326,7 +326,10 @@ test('TapTap H5 restart reads cloud first, then replays only a matching pending 
  firstSave.win(44,2,3);assert.equal(firstSave.baseRevision,confirmed);assert.equal(firstSave.cloudDirty,true);
  firstSave.markAttempt(Date.now()-66000);first.dispose();
  const nextSave=new Save(),next=new TapPlatform(nextSave,false,m.api,strict);await next.start();
- assert.equal(next.ready,true);assert.equal(nextSave.cloudDirty,false);assert.equal(nextSave.data.records[44].stars,3);assert.equal(m.archives.length,1);next.dispose();
+ assert.equal(next.ready,true,'restore should make the validated cloud save playable before background sync');
+ assert.equal(next.playAllowed,true);
+ await next.sync();
+ assert.equal(nextSave.cloudDirty,false,'the pending matching transaction should sync in the background');assert.equal(nextSave.data.records[44].stars,3);assert.equal(m.archives.length,1);next.dispose();
 });
 
 test('TapTap H5 cloud wins when a local pending transaction has a stale base revision',async()=>{
