@@ -37,3 +37,11 @@ test('存档恢复维持已有耗时与已判定状态',()=>{
  assert.equal(restored.remainingMs(20000),10000);
  restored.begin(21000);assert.equal(restored.remainingMs(23000),7000);
 });
+
+test('截止同一时间戳先触发超时回调，再结算逻辑解除仍然可通关',()=>{
+ const c=new ChallengeClock(5);c.begin(0);
+ assert.equal(c.timeOut(5000),true);
+ assert.equal(c.clearAt(5000),true);
+ assert.equal(c.result,'won');
+ assert.equal(c.timeOut(5001),false);
+});
