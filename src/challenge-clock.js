@@ -34,7 +34,11 @@ export class ChallengeClock {
  clearAt(now){
   // Invoke synchronously when the final bracelet *logically* disappears.
   this.advance(now);
-  if(this.result==='failed')return this.elapsedMs===this.limitMs&&now===this.lastAt;
+  if(this.result==='failed'){
+   // Resolve a same-timestamp deadline tie in favor of logical clearance.
+   if(this.elapsedMs===this.limitMs&&now===this.lastAt){this.result='won';return true}
+   return false;
+  }
   if(this.result==='won')return true;
   if(this.started&&this.elapsedMs>this.limitMs){this.result='failed';return false}
   this.result='won';return true;
