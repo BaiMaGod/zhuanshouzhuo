@@ -253,6 +253,21 @@ export class Board {
  }
   private drawBackgroundRod(s:State,z:State['rods'][number],g:Laya.Graphics,active:ReadonlySet<string>):void{
   const p=C.pose(s,z),a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
+  if(z.headPoints&&z.paths&&z.anchor){
+   // A multihead background piece is a fixed junction with independent sleeves.
+   const shadow=C.rot({x:1.1,y:1.8},-this.turn);
+   for(const path of z.paths)for(let j=1;j<path.length;j++){
+    const p=path[j-1],q=path[j];
+    this.line(g,{x:p.x+shadow.x,y:p.y+shadow.y},{x:q.x+shadow.x,y:q.y+shadow.y},'rgba(46,63,51,0.25)',5.3);
+    this.line(g,p,q,hot?'#c27051':'#537b6e',4.8);
+    this.line(g,p,q,hot?'#e4aa7b':'#d5e9e3',2.9);
+   }
+   C.endpoints(s,z).forEach((e,i)=>{
+    if(active.has(e.id))this.sleeve(g,e.p,C.angle(z.anchor!,e.p),s.states[z.id][i]);
+   });
+   this.jewel(g,z.anchor,0);
+   return;
+  }
   const shadow=C.rot({x:1.1,y:1.8},-this.turn);
   this.line(g,{x:p.p.x+shadow.x,y:p.p.y+shadow.y},{x:p.q.x+shadow.x,y:p.q.y+shadow.y},'rgba(46,63,51,0.25)',5.3);
   this.line(g,p.p,p.q,hot?'#c27051':'#537b6e',4.8);
@@ -274,11 +289,11 @@ export class Board {
   for(const z of s.rods){
    if(z.kind!=='b')continue;
    const view=this.fixedRodViews.get(z.id);if(!view)continue;
-   const visible=z.targets.some(id=>active.has(id));
+   const visible=C.exists(s,z);
    view.visible=visible;
    const hot=this.blocked?.rod===z.id&&now<this.blockUntil;
    const endpointKey=z.targets.map(id=>active.has(id)?'1':'0').join('');
-   const key=(s.states[z.id]||[]).join(',')+':'+endpointKey+':'+(hot?'1':'0')+':'+(visible?'1':'0');
+   const key=(s.states[z.id]||[]).join(',')+':'+endpointKey+':'+(z.broken?'broken':'whole')+':'+(hot?'1':'0')+':'+(visible?'1':'0');
    if(this.fixedRodKeys.get(z.id)!==key){
     view.graphics.clear();
     if(visible)this.drawBackgroundRod(s,z,view.graphics,active);
@@ -366,7 +381,8 @@ export class Board {
    // Avoid rebuilding drawing commands on unchanged frames while rings remain.
    const hot=now<this.blockUntil?this.blocked?.rod||'':'';
    const key=[this.zoom,this.screen.x,this.screen.y,this.turn,hot,
-    ...s.rings.map(r=>r.id+':'+r.a+':'+r.life)].join('|');
+    ...s.rings.map(r=>r.id+':'+r.a+':'+r.life),
+    ...s.rods.filter(r=>r.kind==='m').map(r=>r.id+':'+(r.broken?'1':'0'))].join('|');
    if(this.rodsDrawKey!==key){
     this.rods.graphics.clear();this.drawRods(s,this.rods.graphics);
     this.rodsDrawKey=key;
