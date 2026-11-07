@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {installHarness} from './scene-harness.mjs';
 installHarness();
 const {Save,containerCloud,migrateContainerCloud}=await import('../dist/js/storage.js');
@@ -325,7 +326,10 @@ test('TapTap H5 restart reads cloud first, then replays only a matching pending 
  firstSave.win(44,2,3);assert.equal(firstSave.baseRevision,confirmed);assert.equal(firstSave.cloudDirty,true);
  firstSave.markAttempt(Date.now()-66000);first.dispose();
  const nextSave=new Save(),next=new TapPlatform(nextSave,false,m.api,strict);await next.start();
- assert.equal(next.ready,true);assert.equal(nextSave.cloudDirty,false);assert.equal(nextSave.data.records[44].stars,3);assert.equal(m.archives.length,1);next.dispose();
+ assert.equal(next.ready,true,'restore should make the validated cloud save playable before background sync');
+ assert.equal(next.playAllowed,true);
+ await next.sync();
+ assert.equal(nextSave.cloudDirty,false,'the pending matching transaction should sync in the background');assert.equal(nextSave.data.records[44].stars,3);assert.equal(m.archives.length,1);next.dispose();
 });
 
 test('TapTap H5 cloud wins when a local pending transaction has a stale base revision',async()=>{
@@ -513,14 +517,14 @@ test('legacy run migration respects the 65-second cooldown while replaying a mat
  m.archives.push({name:'jade_save_v1',uuid:'slot',fileId:'file',modifiedTime:10});
  m.files.set('cloud',raw);
  const p=new TapPlatform(new Save(),false,m.api,strict);
- const starting=p.start();
- await settle();
- assert.equal(p.ready,false,'restore must wait for the migration write window');
+ await p.start();
+ assert.equal(p.ready,true,'validated local progress should remain playable during the background migration cooldown');
+ assert.equal(p.playAllowed,true);
  assert.equal(p.save.cloudDirty,true,'the local transaction must remain pending');
  assert.equal(m.files.get('cloud'),raw,'cloud must not be overwritten before the cooldown');
  t.mock.timers.tick(64999);await settle();
  assert.equal(m.files.get('cloud'),raw);
- t.mock.timers.tick(1);await starting;
+ t.mock.timers.tick(1);await settle();await p.sync();
  assert.equal(p.ready,true);
  assert.equal(p.save.cloudDirty,false);
  const uploaded=JSON.parse(m.files.get('cloud'));
@@ -529,4 +533,60 @@ test('legacy run migration respects the 65-second cooldown while replaying a mat
  assert.equal(uploaded.runs['10'].levelRevision,Core.levels[10].revision||0);
  assert.equal(m.archives.length,1);
  p.dispose();
+});
+ 
+test('legacy run migration cooldown survives restart without restarting the full 65-second window',async t=>{
+ t.mock.timers.enable({apis:['Date','setTimeout'],now:40000000});
+ const m=mockRuntime(),strict={...config,target:'taptap-h5'};
+ const remote=saveFor('migration-restart-source');
+ remote.win(18,2,4);
+ remote.writeRun(10,Core.make(10),1,0);
+ const snapshot=remote.exportCloud();
+ snapshot.runs['10'].levelRevision=0;
+ const raw=JSON.stringify(snapshot);
+ m.archives.push({name:'jade_save_v1',uuid:'migration-restart-slot',fileId:'file',modifiedTime:10});
+ m.files.set('cloud',raw);
+ const first=new TapPlatform(new Save(),false,m.api,strict);
+ await first.start();
+ const notBefore=first.save.writeNotBeforeAt;
+ assert.equal(first.ready,true,'the restored archive remains playable while background migration waits');
+ assert.equal(notBefore,40000000+65000);
+ assert.equal(first.save.cloudDirty,true);
+ assert.equal(m.files.get('cloud'),raw);
+ first.dispose();
+
+ t.mock.timers.tick(20000);
+ const second=new TapPlatform(new Save(),false,m.api,strict);
+ await second.start();
+ assert.equal(second.ready,true,'a restart should restore validated progress without waiting for the background upload');
+ assert.equal(second.playAllowed,true);
+ assert.equal(second.save.writeNotBeforeAt,notBefore,'the deadline must survive local save reconstruction');
+ assert.equal(second.retryAt,notBefore);
+ t.mock.timers.tick(44999);await settle();
+ assert.equal(m.files.get('cloud'),raw,'the cloud archive must not be written before the shared cooldown');
+ t.mock.timers.tick(1);await settle();await second.sync();
+ assert.equal(second.ready,true);
+ assert.equal(second.save.cloudDirty,false);
+ assert.equal(second.save.writeNotBeforeAt,0,'confirmed migration clears the local cooldown marker');
+ const uploaded=JSON.parse(m.files.get('cloud'));
+ assert.equal(uploaded.progress.records[18].stars,3);
+ assert.equal(uploaded.runs['10'],undefined,'the incompatible run must be removed from the cloud archive');
+ assert.equal(m.archives.length,1,'migration updates the existing archive instead of creating another');
+ second.dispose();
+});
+
+test('routine cloud migration no longer opens a blocking player modal',()=>{
+ const main=readFileSync(new URL('../dist/js/main.js',import.meta.url),'utf8');
+ assert.doesNotMatch(main,/showCloudMigrationNotice|云存档已安全恢复|复制备份路径/);
+});
+
+test('migration backup details are exposed only in developer diagnostics',()=>{
+ const regular=new TapPlatform(new Save(),false);
+ regular.restoreNotice='发现旧盘面；备份文件：tapfile://private/path.json';
+ assert.ok(!regular.connectionLines().some(line=>line.includes('tapfile://private')));
+ regular.dispose();
+ const debug=new TapPlatform(new Save(),true);
+ debug.restoreNotice='发现旧盘面；备份文件：tapfile://private/path.json';
+ assert.ok(debug.connectionLines().some(line=>line.includes('tapfile://private')));
+ debug.dispose();
 });

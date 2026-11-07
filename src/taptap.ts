@@ -101,7 +101,7 @@ export class TapPlatform {
    return [names[k]+'：'+states[this.states[k]]+(pending?' · '+pending:''),
     this.states[k]==='error'&&error?error.operation+' ['+error.code+'] '+error.message.slice(0,100):k==='login'?'接口存在不代表原生调用已就绪。':'云端是唯一权威，本机仅保留待同步事务。'];
   });
-  if(this.restoreNotice)lines.push('云存档兼容迁移：'+this.restoreNotice);
+  if(this.debug&&this.restoreNotice)lines.push('云存档兼容迁移：'+this.restoreNotice);
   return lines;
  }
  takeRestoreNotice():string{const notice=this.restoreNotice;this.restoreNotice='';return notice}
@@ -217,38 +217,36 @@ export class TapPlatform {
     const levels=dropped.slice(0,8).map(run=>'第'+(run.index-TEACHING_COUNT+1)+'关');
     const more=dropped.length>levels.length?'等'+dropped.length+'关':'';
     this.restoreNotice='发现 '+dropped.length+' 局旧版未完成盘面与当前关卡不兼容（'+levels.join('、')+more+'）。已备份原始云档并隔离不兼容盘面；已通关成绩、星星、道具和其他有效盘面均保留。备份文件：'+backupPath;
-    // The last cloud write may have happened on another device. Wait one full
-    // platform write window before uploading the migrated archive.
-    this.retryAt=Math.max(this.retryAt,Date.now()+WINDOW);
    }
    if(this.save.owner!==owner){this.ranked={levels:0,stars:0};this.rankAt=-Infinity}
    this.save.bindAccount(owner,false);this.archive=slot;this.lastAttempt=this.save.lastAttemptAt;
-   if(dropped.length)this.lastAttempt=Math.max(this.lastAttempt,Date.now());
+   this.retryAt=Math.max(this.retryAt,this.save.writeNotBeforeAt);
    const localRevision=this.save.revision,localBase=this.save.baseRevision,localDirty=this.save.cloudDirty,localInFlight=this.save.inFlightRevision;
    const remoteRevision=remote.meta.revision;
    const confirmedInFlight=localInFlight===remoteRevision&&localRevision>remoteRevision&&this.save.inFlightBaseRevision===localBase;
    const pendingOnCurrentCloud=localBase===remoteRevision&&localRevision>remoteRevision;
    if(localDirty&&localRevision>remoteRevision&&(pendingOnCurrentCloud||confirmedInFlight)){
+    if(dropped.length)this.save.ensureCloudWriteNotBefore(Date.now()+WINDOW);
+    this.retryAt=Math.max(this.retryAt,this.save.writeNotBeforeAt);
     if(confirmedInFlight&&localBase!==remoteRevision)this.save.markSynced(remoteRevision);
     // This is the only restart case in which a local transaction is safe to
     // replay: it is based exactly on the cloud revision just downloaded.
     containerCloud(this.save.exportCloud(),owner);
-    // A device with no local write timestamp cannot know when another device
-    // last wrote this archive. Wait one full window before replaying its txn.
-    if(!this.lastAttempt||!Number.isFinite(this.lastAttempt))this.lastAttempt=Date.now();
-    const wait=Math.max(0,this.lastAttempt+WINDOW-Date.now(),this.retryAt-Date.now());
-    if(wait>0){this.state('等待云存档写入冷却…');await new Promise<void>(resolve=>setTimeout(resolve,wait))}
-    this.syncing=true;this.state('正在补传上次未确认的进度…');
-    try{await this.uploadSnapshot(false)}finally{this.syncing=false}
+    // If the prior transaction has no attempt timestamp, establish one durable
+    // write deadline. The player can continue; the validated snapshot uploads
+    // in the background when TapTap's shared write window expires.
+    if(!this.lastAttempt||!Number.isFinite(this.lastAttempt))this.save.ensureCloudWriteNotBefore(Date.now()+WINDOW);
+    this.retryAt=Math.max(this.retryAt,this.save.writeNotBeforeAt);
    }else{
     // Cloud is authoritative. This also resolves an upload that reached the
     // server before the app closed but whose local acknowledgement was missed.
     this.save.replaceCloud(remote);
-    if(dropped.length)this.save.markMigrationPending();
+    if(dropped.length){this.save.markMigrationPending();this.save.ensureCloudWriteNotBefore(Date.now()+WINDOW)}
+    this.retryAt=this.save.writeNotBeforeAt;
    }
    this.pendingCloud=null;this.ready=true;this.cloudBlocked=false;this.states.cloud='ready';
-   this.state(dropped.length?'云存档已恢复，旧版盘面已安全隔离':'云存档已恢复');
-   if(dropped.length)this.scheduleSync();
+   this.state(dropped.length?'云存档已恢复，旧版盘面已安全隔离':this.save.cloudDirty?'云存档已恢复，进度待后台同步':'云存档已恢复');
+   if(this.save.cloudDirty)this.scheduleSync();
   }catch(e){
    if(!this.disposed){this.ready=false;this.failure('cloud','restore',e);this.state('云档读取失败，请检查网络后重试')}
   }
@@ -284,7 +282,7 @@ export class TapPlatform {
  }
  private scheduleSync():void{
   if(this.retryTimer||!this.ready||this.disposed||this.cloudBlocked||this.blocked.has('cloud')||!this.save.cloudDirty)return;
-  const delay=Math.max(0,this.lastAttempt+WINDOW-Date.now(),this.retryAt-Date.now());
+  const delay=Math.max(0,this.lastAttempt+WINDOW-Date.now(),this.retryAt-Date.now(),this.save.writeNotBeforeAt-Date.now());
   this.retryTimer=setTimeout(()=>{this.retryTimer=null;void this.sync()},delay);
   (this.retryTimer as unknown as {unref?:()=>void}).unref?.();
  }
@@ -300,7 +298,7 @@ export class TapPlatform {
    this.uncertainWrite=true;this.cloudBlocked=true;this.failure('cloud','archive-missing',Error('当前账号云存档槽位丢失，禁止自动创建新档'));
    this.state('云存档槽位无法确认，游戏已暂停');return;
   }
-  if(!force&&(Date.now()<this.retryAt||Date.now()-this.lastAttempt<WINDOW)){this.scheduleSync();return}
+  if(!force&&(Date.now()<this.retryAt||Date.now()<this.save.writeNotBeforeAt||Date.now()-this.lastAttempt<WINDOW)){this.scheduleSync();return}
   this.syncing=true;this.states.cloud='busy';this.state('正在后台同步云存档…');
   try{
    await this.uploadSnapshot(false);
@@ -309,7 +307,8 @@ export class TapPlatform {
   }catch(e){
    if(!this.disposed){
     const d=detail(e),rateLimited=d.code==='400001';
-    this.retryAt=Math.max(this.lastAttempt+WINDOW,Date.now()+(rateLimited?WINDOW:0));
+     this.retryAt=Math.max(this.lastAttempt+WINDOW,Date.now()+(rateLimited?WINDOW:0));
+     try{this.save.deferCloudWriteUntil(this.retryAt)}catch(persistError){this.failure('cloud','persist-retry-window',persistError)}
     this.uncertainWrite=true;this.cloudBlocked=true;
     this.failure('cloud','upload',e);this.state('云存档同步异常，游戏已暂停');
    }
@@ -317,7 +316,7 @@ export class TapPlatform {
  }
  private async uploadSnapshot(create:boolean):Promise<void>{
   if(!this.api||!this.capabilities.cloud)throw {code:'CLOUD_SAVE_UNAVAILABLE',message:'TapTap 云存档接口不可用'};
-  const cooldown=Math.max(0,this.lastAttempt+WINDOW-Date.now());
+  const cooldown=Math.max(0,this.lastAttempt+WINDOW-Date.now(),this.retryAt-Date.now(),this.save.writeNotBeforeAt-Date.now());
   if(cooldown>0)await new Promise<void>(resolve=>setTimeout(resolve,cooldown));
   const revision=this.save.revision,owner=this.save.owner,snapshot=this.save.exportCloud();
   const filePath=this.api.env!.USER_DATA_PATH+'/jade_save.json';
@@ -345,7 +344,7 @@ export class TapPlatform {
    this.refreshCapabilities();
    if(!this.api||!this.capabilities.cloud)throw {code:'CLOUD_SAVE_UNAVAILABLE',message:'TapTap 云存档接口仍不可用'};
    this.blocked.delete('cloud');
-   const wait=Math.max(0,this.lastAttempt+WINDOW-Date.now(),this.retryAt-Date.now());
+   const wait=Math.max(0,this.lastAttempt+WINDOW-Date.now(),this.retryAt-Date.now(),this.save.writeNotBeforeAt-Date.now());
    if(wait>0){this.state('等待云存档写入冷却…');await new Promise<void>(resolve=>setTimeout(resolve,wait))}
    if(this.uncertainWrite)await this.reconcileUncertainWrite();
    if(this.cloudBlocked)await this.syncNow(true);
@@ -375,10 +374,13 @@ export class TapPlatform {
    this.save.bindAccount(owner,preserve);
   }
   this.archive=slot;this.lastAttempt=this.save.lastAttemptAt;
-  if(dropped.length)this.lastAttempt=Math.max(this.lastAttempt,Date.now());
+   if(dropped.length)this.save.ensureCloudWriteNotBefore(Date.now()+WINDOW);
+   this.retryAt=Math.max(this.retryAt,this.save.writeNotBeforeAt);
   const localRevision=this.save.revision,remoteRevision=remote.meta.revision;
   if(remoteRevision>=localRevision){
-   this.save.replaceCloud(remote);if(dropped.length){this.save.markMigrationPending();this.lastAttempt=Math.max(this.lastAttempt,Date.now())}this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
+   this.save.replaceCloud(remote);
+    if(dropped.length){this.save.markMigrationPending();this.save.ensureCloudWriteNotBefore(Date.now()+WINDOW)}
+    this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=this.save.writeNotBeforeAt;
    this.ready=true;this.states.cloud='ready';this.state(dropped.length?'云存档已确认，旧版盘面已安全隔离':'云存档已确认');
    if(dropped.length)this.scheduleSync();return;
   }
@@ -391,12 +393,14 @@ export class TapPlatform {
    // The server is still at the transaction's base revision, or just confirmed
    // the in-flight snapshot; the latest complete local snapshot is safe to send.
    this.lastAttempt=this.save.lastAttemptAt;
-   if(dropped.length)this.lastAttempt=Math.max(this.lastAttempt,Date.now());
-   else if(!this.lastAttempt||!Number.isFinite(this.lastAttempt))this.lastAttempt=Date.now();
-   return;
+    if(dropped.length||!this.lastAttempt||!Number.isFinite(this.lastAttempt))this.save.ensureCloudWriteNotBefore(Date.now()+WINDOW);
+    this.retryAt=Math.max(this.retryAt,this.save.writeNotBeforeAt);
+    return;
   }
   // A different cloud revision won. Do not overwrite it with a stale cache.
-  this.save.replaceCloud(remote);if(dropped.length){this.save.markMigrationPending();this.lastAttempt=Math.max(this.lastAttempt,Date.now())}this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=0;
+  this.save.replaceCloud(remote);
+    if(dropped.length){this.save.markMigrationPending();this.save.ensureCloudWriteNotBefore(Date.now()+WINDOW)}
+    this.cloudBlocked=false;this.uncertainWrite=false;this.retryAt=this.save.writeNotBeforeAt;
   this.ready=true;this.states.cloud='ready';this.state(dropped.length?'已恢复云端最新进度，旧版盘面已安全隔离':'已恢复云端最新进度');
   if(dropped.length)this.scheduleSync();
  }

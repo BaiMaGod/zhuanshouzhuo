@@ -11,7 +11,7 @@ type RewardKey=RewardKind|'shareHint'|'shareErase';
 const REWARD_KEYS:RewardKey[]=['hint','erase','shareHint','shareErase'];
 const rewardKey=(kind:RewardKind,source:RewardSource):RewardKey=>source==='video'?kind:kind==='hint'?'shareHint':'shareErase';
 interface Reward {claimed:boolean;remaining:number;generation?:number}
-interface SaveMeta {revision:number;baseRevision:number;lastAttemptAt:number;inFlightRevision:number|null;inFlightBaseRevision:number|null;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>;economy:Economy}
+interface SaveMeta {revision:number;baseRevision:number;lastAttemptAt:number;writeNotBeforeAt:number;inFlightRevision:number|null;inFlightBaseRevision:number|null;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>;economy:Economy}
 export interface CloudRunMigration {index:number;reason:string}
 export interface CloudMigrationReport {droppedRuns:CloudRunMigration[]}
 interface CloudSave {version:1|2;owner:string;progress:Progress;runs:Record<string,unknown>;meta:SaveMeta;migration?:CloudMigrationReport}
@@ -19,7 +19,7 @@ const freshProgress=():Progress=>({version:2,unlocked:0,records:{},sound:true,tu
 export class Save {
  private key=LEGACY_KEY;
  owner='';
- meta:SaveMeta={revision:0,baseRevision:0,lastAttemptAt:0,inFlightRevision:null,inFlightBaseRevision:null,dirty:false,tainted:false,rankRecords:{},rewards:{},economy:emptyEconomy()};
+ meta:SaveMeta={revision:0,baseRevision:0,lastAttemptAt:0,writeNotBeforeAt:0,inFlightRevision:null,inFlightBaseRevision:null,dirty:false,tainted:false,rankRecords:{},rewards:{},economy:emptyEconomy()};
  onChange:()=>void=()=>{};
  storageError:unknown=null;
  get storageHealthy():boolean{return this.storageError===null}
@@ -27,6 +27,7 @@ export class Save {
  get revision():number{return this.meta.revision}
  get baseRevision():number{return this.meta.baseRevision}
  get lastAttemptAt():number{return this.meta.lastAttemptAt}
+ get writeNotBeforeAt():number{return this.meta.writeNotBeforeAt}
  get inFlightRevision():number|null{return this.meta.inFlightRevision}
  get inFlightBaseRevision():number|null{return this.meta.inFlightBaseRevision}
  get rankTainted():boolean{return this.meta.tainted}
@@ -188,25 +189,40 @@ export class Save {
   if(!Number.isSafeInteger(revision)||revision<0||revision>this.revision)return;
   this.meta.baseRevision=Math.max(this.meta.baseRevision,revision);
   if(this.meta.inFlightRevision!==null&&this.meta.inFlightRevision<=revision){this.meta.inFlightRevision=null;this.meta.inFlightBaseRevision=null}
+  this.meta.writeNotBeforeAt=0;
   if(revision===this.revision)this.meta.dirty=false;
   try{this.persistMeta();this.storageError=null}catch(error){this.storageError=error;this.onChange()}
  }
  // A validated cloud migration is a new local transaction based on the exact
  // cloud revision just restored. It must be uploaded, never silently forgotten.
  markMigrationPending():void{this.changed()}
+ // Persist the one-time migration delay locally so restarting the app cannot
+ // restart the full 65-second TapTap write window on every launch.
+ ensureCloudWriteNotBefore(at:number):void{
+  if(!Number.isFinite(at)||at<0)throw Error('Invalid cloud write cooldown');
+  if(this.meta.writeNotBeforeAt>0)return;
+  this.deferCloudWriteUntil(at);
+ }
+ deferCloudWriteUntil(at:number):void{
+  if(!Number.isFinite(at)||at<0)throw Error('Invalid cloud write cooldown');
+  if(at<=this.meta.writeNotBeforeAt)return;
+  const previous=this.meta.writeNotBeforeAt;this.meta.writeNotBeforeAt=at;
+  try{this.persistMeta();this.storageError=null}
+  catch(error){this.meta.writeNotBeforeAt=previous;this.storageError=error;this.onChange();throw error}
+ }
  exportCloud():CloudSave{
   const runs:Record<string,unknown>={};
   for(let i=TEACHING_COUNT;i<Core.levels.length;i++){
    const run=this.readRun(i);if(run)runs[i]=run;
   }
   // dirty/lastAttemptAt describe this device's transaction queue, not cloud state.
-  const meta={...this.meta,baseRevision:this.revision,lastAttemptAt:0,inFlightRevision:null,inFlightBaseRevision:null,dirty:false};
+  const meta={...this.meta,baseRevision:this.revision,lastAttemptAt:0,writeNotBeforeAt:0,inFlightRevision:null,inFlightBaseRevision:null,dirty:false};
   return JSON.parse(JSON.stringify({version:2,owner:this.owner,progress:this.data,runs,meta}));
  }
  replaceCloud(value:unknown):void{
   const cloud=validateCloud(value,this.owner),lastAttemptAt=this.meta.lastAttemptAt||0;
   this.data=JSON.parse(JSON.stringify(cloud.progress));
-  this.meta={...cloud.meta,revision:cloud.meta.revision,baseRevision:cloud.meta.revision,lastAttemptAt,inFlightRevision:null,inFlightBaseRevision:null,dirty:false};
+  this.meta={...cloud.meta,revision:cloud.meta.revision,baseRevision:cloud.meta.revision,lastAttemptAt,writeNotBeforeAt:0,inFlightRevision:null,inFlightBaseRevision:null,dirty:false};
   this.runCache.clear();this.runDataCache.clear();
   try{
    Laya.LocalStorage.setItem(this.key,JSON.stringify(this.data));
@@ -279,6 +295,7 @@ function validateMeta(value:unknown):SaveMeta{
  const hasBase=Number.isSafeInteger(m.baseRevision)&&m.baseRevision! >= 0 && m.baseRevision! <= m.revision;
  const baseRevision=hasBase?m.baseRevision!:m.revision;
  const lastAttemptAt=Number.isFinite(m.lastAttemptAt)&&m.lastAttemptAt! >= 0 ? m.lastAttemptAt! : 0;
+  const writeNotBeforeAt=Number.isFinite(m.writeNotBeforeAt)&&m.writeNotBeforeAt! >= 0 ? m.writeNotBeforeAt! : 0;
  const inFlightRevision=Number.isSafeInteger(m.inFlightRevision)&&m.inFlightRevision! >= 0&&m.inFlightRevision! <= m.revision?m.inFlightRevision!:null;
  const inFlightBaseRevision=Number.isSafeInteger(m.inFlightBaseRevision)&&m.inFlightBaseRevision! >= 0&&inFlightRevision!==null&&m.inFlightBaseRevision! <= inFlightRevision?m.inFlightBaseRevision!:null;
  const rewards:SaveMeta['rewards']={};
@@ -293,7 +310,7 @@ function validateMeta(value:unknown):SaveMeta{
  }
  // Older cache files have no baseRevision. They are not safe to replay over cloud;
  // normalize them to a clean snapshot at their recorded revision.
- return {revision:m.revision,baseRevision,lastAttemptAt,inFlightRevision,inFlightBaseRevision,dirty:hasBase&&m.dirty,tainted:m.tainted,rankRecords,rewards,economy:validateEconomy(m.economy)};
+ return {revision:m.revision,baseRevision,lastAttemptAt,writeNotBeforeAt,inFlightRevision,inFlightBaseRevision,dirty:hasBase&&m.dirty,tainted:m.tainted,rankRecords,rewards,economy:validateEconomy(m.economy)};
 }
 function validateCloud(value:unknown,owner:string,quarantineRuns=false):CloudSave{
  const v=value as CloudSave;
