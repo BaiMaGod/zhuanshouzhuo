@@ -41,3 +41,8 @@ npm run levels:verify-advanced -- ./path/to/filled-and-verified-seven-samples.js
 ```
 
 **注意**：当前7关骨架仍包含空值，调用上述命令应该明确失败，直到真实几何与合法动作列表齐全。状态哈希采用`scripts/verify-advanced-samples.mjs`中的规范化JSON结构进行SHA256计算，不能用随机字符串伪造。原来的100关与教学关完全不依赖该脚本。
+
+
+## 2026-11-07 源数据覆盖复审
+
+复审当前 Library 工作簿后，发现七个样板关的源数据覆盖不完整：逐镯分配表仅有101–106；背景扣端点表仅有101–136（七个样板中只有107、131有端点编号）；属性交叉表仅有101–186（191、200缺失）。七关聚合配额可交叉核对，但全部缺少权威逐镯分配；所有全盘物理回放仍为待测。原先含第107关109条逐镯记录的候选文件无法追溯到当前工作簿，已归档为`docs/levels-101-200-sample-source-unverified-draft.json`，不得用于生成或编译。权威部分数据、逐表覆盖范围及后续补齐顺序见`docs/levels-101-200-sample-source.json`和`docs/levels-101-200-source-coverage-audit-20261107.md`。
