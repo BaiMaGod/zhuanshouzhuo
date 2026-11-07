@@ -13,7 +13,7 @@ export class ChallengeClock {
  advance(now){
   if(!Number.isFinite(now))throw Error('Invalid monotonic clock');
   if(this.lastAt!==null&&this.started&&!this.pauses.size&&!this.result)
-   this.elapsedMs=Math.min(this.limitMs,this.elapsedMs+Math.max(0,now-this.lastAt));
+   this.elapsedMs+=Math.max(0,now-this.lastAt);
   this.lastAt=now;
  }
  begin(now){this.advance(now);if(!this.started&&!this.result)this.started=true}
@@ -30,9 +30,9 @@ export class ChallengeClock {
  clearAt(now){
   // Invoke synchronously when the final bracelet *logically* disappears.
   this.advance(now);
-  if(this.result==='failed')return false;
+  if(this.result==='failed')return this.elapsedMs===this.limitMs&&now===this.lastAt;
   if(this.result==='won')return true;
-  if(this.started&&this.elapsedMs>=this.limitMs){this.result='failed';return false}
+  if(this.started&&this.elapsedMs>this.limitMs){this.result='failed';return false}
   this.result='won';return true;
  }
  snapshot(now){this.advance(now);return{started:this.started,elapsedMs:this.elapsedMs,result:this.result}}
