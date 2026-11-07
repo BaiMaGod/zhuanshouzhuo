@@ -69,6 +69,16 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node tests/browser-buttons.mjs
       - run: node tests/browser-campaign.mjs
+      - run: node tests/browser-level107.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: level107-playable-sample-proof
+          path: |
+            tests/results/level107-sample-candidate.json
+            tests/results/level107-browser/
+          if-no-files-found: warn
+          retention-days: 7
       - run: node tests/browser-input.mjs
 
   full:
