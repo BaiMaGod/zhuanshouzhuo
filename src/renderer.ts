@@ -268,9 +268,7 @@ export class Board {
   this.line(g,{x:mid.x+1.1,y:mid.y-1.1},{x:mid.x-1.1,y:mid.y+1.1},'#fffef2',.7);
  }
  private syncBackgroundRods(s:State,now:number):void{
-  // Build one live endpoint set per frame. This bypasses the renderer's shared
-  // ring lookup cache while keeping lifecycle checks O(rings + rods).
-  const active=new Set(s.rings.filter(r=>r.life==='active').map(r=>r.id));
+  // A background clasp is drawn as a whole or not at all.
   for(const z of s.rods){
    if(z.kind!=='b')continue;
    const view=this.fixedRodViews.get(z.id);if(!view)continue;
