@@ -1,6 +1,10 @@
 // Monotonic, overlap-safe timed challenge. All times are milliseconds.
 // A cleared board is adjudicated from its logical removal event, not animation.
 export class ChallengeClock {
+ /**
+  * @param {number} durationSeconds
+  * @param {{started:boolean,elapsedMs:number,result:string|null}|null} [snapshot]
+  */
  constructor(durationSeconds,snapshot=null){
   if(!Number.isFinite(durationSeconds)||durationSeconds<=0)throw Error('Invalid challenge duration');
   this.limitMs=durationSeconds*1000;
