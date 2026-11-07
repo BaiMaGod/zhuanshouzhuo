@@ -232,14 +232,11 @@ export class TapPlatform {
     // This is the only restart case in which a local transaction is safe to
     // replay: it is based exactly on the cloud revision just downloaded.
     containerCloud(this.save.exportCloud(),owner);
-    // A device with no local write timestamp cannot know when another device
-    // last wrote this archive. Wait one full window before replaying its txn.
+    // If the prior transaction has no attempt timestamp, establish one durable
+    // write deadline. The player can continue; the validated snapshot uploads
+    // in the background when TapTap's shared write window expires.
     if(!this.lastAttempt||!Number.isFinite(this.lastAttempt))this.save.ensureCloudWriteNotBefore(Date.now()+WINDOW);
-     this.retryAt=Math.max(this.retryAt,this.save.writeNotBeforeAt);
-     const wait=Math.max(0,this.lastAttempt+WINDOW-Date.now(),this.retryAt-Date.now(),this.save.writeNotBeforeAt-Date.now());
-    if(wait>0){this.state('等待云存档写入冷却…');await new Promise<void>(resolve=>setTimeout(resolve,wait))}
-    this.syncing=true;this.state('正在补传上次未确认的进度…');
-    try{await this.uploadSnapshot(false)}finally{this.syncing=false}
+    this.retryAt=Math.max(this.retryAt,this.save.writeNotBeforeAt);
    }else{
     // Cloud is authoritative. This also resolves an upload that reached the
     // server before the app closed but whose local acknowledgement was missed.
@@ -248,8 +245,8 @@ export class TapPlatform {
     this.retryAt=this.save.writeNotBeforeAt;
    }
    this.pendingCloud=null;this.ready=true;this.cloudBlocked=false;this.states.cloud='ready';
-   this.state(dropped.length?'云存档已恢复，旧版盘面已安全隔离':'云存档已恢复');
-   if(dropped.length)this.scheduleSync();
+   this.state(dropped.length?'云存档已恢复，旧版盘面已安全隔离':this.save.cloudDirty?'云存档已恢复，进度待后台同步':'云存档已恢复');
+   if(this.save.cloudDirty)this.scheduleSync();
   }catch(e){
    if(!this.disposed){this.ready=false;this.failure('cloud','restore',e);this.state('云档读取失败，请检查网络后重试')}
   }
