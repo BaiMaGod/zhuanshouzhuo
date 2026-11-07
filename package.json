@@ -23,7 +23,8 @@
     "release:ios": "node scripts/build-platform.mjs ios",
     "release:taptap": "node scripts/build-taptap.mjs",
     "package:taptap": "node scripts/package-taptap.mjs",
-    "verify:taptap": "node scripts/verify-taptap.mjs"
+    "verify:taptap": "node scripts/verify-taptap.mjs",
+    "levels:verify-advanced": "npm run build && node scripts/verify-advanced-samples.mjs"
   },
   "devDependencies": {
     "typescript": "5.9.3"
