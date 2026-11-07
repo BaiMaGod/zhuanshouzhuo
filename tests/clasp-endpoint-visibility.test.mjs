@@ -17,6 +17,7 @@ const removeRings=(source,ids)=>{
 };
 
 test('owner-mounted rod keeps its body but hides only the clasp on a removed receiver',()=>{
+ g.save.data.unlocked=9; // The scene guard otherwise keeps a fresh profile on tutorial level 1.
  g.load(3,true);
  const board=g.board,initial=C.clone(g.model.state);
  const mounted=initial.rods.filter(rod=>rod.kind==='m');
@@ -47,6 +48,7 @@ test('owner-mounted rod keeps its body but hides only the clasp on a removed rec
 });
 
 test('background double-ended rod hides each removed endpoint clasp independently',()=>{
+ g.save.data.unlocked=9; // Open tutorial level 2 explicitly in this isolated scene test.
  g.load(1,true);
  const board=g.board,initial=C.clone(g.model.state);
  const rod=initial.rods.find(item=>item.kind==='b');
