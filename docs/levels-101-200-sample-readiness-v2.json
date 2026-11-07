@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 2,
+  "project": "转手镯消除",
+  "updatedAt": "2026-11-07",
+  "basedOnGitSha": "7202e8e88854622947f7d8255de4035b2ee64d12",
+  "source": "docs/levels-101-200-design.json",
+  "status": "design_preparation_only_not_runtime_levels",
+  "rules": {
+    "ringRule": "101..109=109; 110..200=level",
+    "specialSeries": [
+      "101-130:bustOnly",
+      "131-160:silkOnly",
+      "161-170:bothOnDifferentRings",
+      "171-200:compositeAllowed"
+    ],
+    "timedEvery5": true,
+    "timedLevels": [
+      105,
+      110,
+      115,
+      120,
+      125,
+      130,
+      135,
+      140,
+      145,
+      150,
+      155,
+      160,
+      165,
+      170,
+      175,
+      180,
+      185,
+      190,
+      195,
+      200
+    ],
+    "timedRule": "T=5*ceil((S*t+H)/5); timeout=failure"
+  },
+  "checks": {
+    "staticSourceIntegrity": "passed_on_xlsx_2026-11-06",
+    "mountedReceiverComplete": false,
+    "geometryVerified": false,
+    "fullRouteVerified": false,
+    "difficultyVerified": false,
+    "mobilePlaytested": false,
+    "allPublishReady": false
+  },
+  "sampleLevels": [
+    {
+      "level": 107,
+      "rings": 109,
+      "mountedClaspPlaceholders": 125,
+      "backgroundPieces": 14,
+      "backgroundEndpoints": 28,
+      "silkSourceEdges": 0,
+      "burstNeighborCandidates": 6,
+      "focus": "双爆裂接续",
+      "critical": "R001→R002仅实际消除后接续"
+    },
+    {
+      "level": 131,
+      "rings": 131,
+      "mountedClaspPlaceholders": 154,
+      "backgroundPieces": 16,
+      "backgroundEndpoints": 36,
+      "silkSourceEdges": 3,
+      "burstNeighborCandidates": 0,
+      "focus": "四头扣+单层缠丝",
+      "critical": "F001四头几何与R006–R008来源"
+    },
+    {
+      "level": 151,
+      "rings": 151,
+      "mountedClaspPlaceholders": 173,
+      "backgroundPieces": 22,
+      "backgroundEndpoints": 49,
+      "silkSourceEdges": 16,
+      "burstNeighborCandidates": 0,
+      "focus": "三层缠丝",
+      "critical": "R012的R026–R028三来源真实相邻"
+    },
+    {
+      "level": 161,
+      "rings": 161,
+      "mountedClaspPlaceholders": 190,
+      "backgroundPieces": 20,
+      "backgroundEndpoints": 47,
+      "silkSourceEdges": 19,
+      "burstNeighborCandidates": 4,
+      "focus": "两机制首次同场",
+      "critical": "爆裂断扣不直接松丝"
+    },
+    {
+      "level": 171,
+      "rings": 171,
+      "mountedClaspPlaceholders": 194,
+      "backgroundPieces": 25,
+      "backgroundEndpoints": 63,
+      "silkSourceEdges": 27,
+      "burstNeighborCandidates": 15,
+      "focus": "五头扣+复合",
+      "critical": "F001五头；R018–R020先解丝"
+    },
+    {
+      "level": 191,
+      "rings": 191,
+      "mountedClaspPlaceholders": 227,
+      "backgroundPieces": 25,
+      "backgroundEndpoints": 65,
+      "silkSourceEdges": 37,
+      "burstNeighborCandidates": 21,
+      "focus": "六头扣",
+      "critical": "F001六头真实扫掠"
+    },
+    {
+      "level": 200,
+      "rings": 200,
+      "mountedClaspPlaceholders": 243,
+      "backgroundPieces": 23,
+      "backgroundEndpoints": 64,
+      "silkSourceEdges": 40,
+      "burstNeighborCandidates": 25,
+      "focus": "综合限时",
+      "critical": "先无道具回放求S再算T"
+    }
+  ],
+  "disclaimer": "占位编号、目标候选和静态一致性检查均不代表可执行/可玩/可发布；游戏代码未修改。"
+}
