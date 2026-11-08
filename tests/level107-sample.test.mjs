@@ -24,7 +24,7 @@ test('第107关候选：109镯、125自带扣、14背景双头扣、双爆裂接
  assert.deepEqual(sample.metrics.ownerDistribution,{0:61,1:7,2:11,3:24,4:6,5:0,6:0});
  assert.deepEqual(sample.metrics.burstRings,['R90','R98']);
  assert.equal(sample.metrics.receiverReleaseAngles.length,8);
- assert.ok(sample.metrics.receiverReleaseAngles.every(item=>Math.abs(item.delta)<=65));
+ assert.ok(sample.metrics.receiverReleaseAngles.every(item=>Math.abs(item.delta)<=Core.tolerance));
  assert.deepEqual(sample.metrics.burstNeighbors.R90,['R50','R62','R78','R98']);
  assert.deepEqual(sample.metrics.burstNeighbors.R98,['R62','R74','R90']);
  assert.equal(level.links.length,139);
