@@ -15,7 +15,8 @@ export function compileApprovedSample(spec){
  requireField(Number.isInteger(spec.level)&&spec.level>=101&&spec.level<=200,'关卡编号');
  const n=spec.level,expected=n<=109?109:n;
  requireField(spec.ringCount===expected&&spec.rings?.length===expected,'镯数');
- requireField(spec.validation&&Object.values(spec.validation).every(v=>v===true),'验收证据未齐备');
+ const validationGates=['staticIntegrity','connectivityComplete','geometryVerified','sweepVerified','fullRouteVerified','difficultyVerified','mobilePlaytested','publishReady'];
+ for(const gate of validationGates)requireField(spec.validation?.[gate]===true,'验收证据未齐备 '+gate);
  const rings=new Map,attrs=[],points=[],ownerQuota=new Map;
  for(const r of spec.rings){
   requireField(!rings.has(r.id)&&TYPES[r.attribute]!==undefined,'镯ID/属性 '+r.id);
@@ -66,8 +67,10 @@ export function compileApprovedSample(spec){
   }
   seen.add(b.id);backgroundPieces.push({id:b.id,anchorWorld:b.anchorWorld,endpoints,branchPaths:b.branchPaths});
  }
- if(Number.isInteger(spec.backgroundPieceCount))requireField(backgroundPieces.length===spec.backgroundPieceCount,'背景扣件数');
- if(Number.isInteger(spec.backgroundEndpointCount))requireField(backgroundPieces.reduce((sum,piece)=>sum+piece.endpoints.length,0)===spec.backgroundEndpointCount,'背景扣端点总数');
+ requireField(Number.isInteger(spec.backgroundPieceCount)&&spec.backgroundPieceCount>=0,'背景扣件数缺失');
+ requireField(Number.isInteger(spec.backgroundEndpointCount)&&spec.backgroundEndpointCount>=0,'背景扣端点数缺失');
+ requireField(backgroundPieces.length===spec.backgroundPieceCount,'背景扣件数');
+ requireField(backgroundPieces.reduce((sum,piece)=>sum+piece.endpoints.length,0)===spec.backgroundEndpointCount,'背景扣端点总数');
  const silkEdges=[],silkTargetCounts=new Map;
  for(const e of spec.silkEdges||[]){
   requireField(e.validatedAdjacent===true&&rings.has(e.sourceId)&&rings.has(e.targetId)&&e.sourceId!==e.targetId,'解缠邻接证据 '+e.sourceId);
@@ -88,8 +91,9 @@ export function compileApprovedSample(spec){
   }
  }
  const route=spec.verifiedRoute;
- requireField(route?.replayReport?.passed===true&&route.initialStateHash&&route.finalStateHash,
-  '缺少引擎全盘回放证据');
+ const sha256=value=>typeof value==='string'&&/^[0-9a-f]{64}$/.test(value);
+ requireField(route?.replayReport?.passed===true&&sha256(route.initialStateHash)&&sha256(route.finalStateHash),
+  '缺少引擎全盘回放证据或状态SHA256格式错误');
  requireField(Array.isArray(route.orderedSteps)&&route.orderedSteps.length===route.stepsS&&route.stepsS>0,'完整动作与计步');
  const phases=[],angles=new Map(points.map(p=>[p[0],p[3]]));
  for(const step of route.orderedSteps){
