@@ -143,7 +143,7 @@ class Game {
  private showPlatformCheck():void{
   const read=()=>[...this.platform.connectionLines(),...(this.platform.debug?['排行 '+this.platform.states.leaderboard+' · 广告 '+this.platform.states.ads+' · 埋点 '+this.platform.states.report]:[])];
   this.modal('平台检查',read(),[
-   {label:'复制诊断',action:()=>{void copyPlatformText(this.platform.exportDiagnostics(GAME_VERSION)).then(ok=>{
+   {label:'复制诊断',action:()=>{void copyPlatformText(this.platform.exportDiagnostics(GAME_VERSION,getRenderDiagnostics(this,{designWidth:W,designHeight:H,renderWidth:RENDER_W,renderScale:RENDER_SCALE}))).then(ok=>{
     if(!ok&&this.modalCard===this.platformLive?.card&&this.platformLive.labels[3])this.platformLive.labels[3].text='复制不可用，请从自测反馈上传日志。';
    })},primary:true},
    {label:this.platform.connecting?'查看连接进度':'重试连接',action:()=>{if(this.platform.cloudBlocked)void this.platform.retrySync();else void this.platform.login(true)},primary:false},
