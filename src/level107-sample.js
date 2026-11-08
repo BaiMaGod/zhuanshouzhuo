@@ -56,22 +56,9 @@ function alignToRod(state,ringId,rodId,route,label){
  return true;
 }
 function finishWithLegalCandidates(state,route){
- for(let pass=0;pass<300&&state.rings.some(r=>r.life==='active');pass++){
-  const options=[];
-  for(const action of Core.candidates(state)){
-   const trial=Core.clone(state),result=Core.request(trial,action.id,action.delta);
-   if(result.blocked||Math.abs(result.done)<.001)continue;
-   const score=result.removed.length*1000-Math.abs(result.done);
-   options.push({action,score});
-  }
-  options.sort((a,b)=>b.score-a.score);
-  const best=options[0];
-  if(!best)throw Error('第107关路线卡死，剩余：'+state.rings.filter(r=>r.life==='active').map(r=>r.id).join(','));
-  const result=Core.request(state,best.action.id,best.action.delta);
-  if(result.blocked||Math.abs(result.done)<.001)throw Error('第107关补全路线回放失败：'+JSON.stringify(result.blocked));
-  route.push({id:best.action.id,delta:result.done,rod:best.action.rod});
- }
- if(state.rings.some(r=>r.life==='active'))throw Error('第107关超过300步仍未清空');
+ const remaining=state.rings.filter(r=>r.life==='active').map(r=>r.id);
+ if(remaining.length)throw Error('第107关基底路线未能覆盖新增锁扣，剩余'+remaining.length+'只：'+remaining.join(','));
+ if(state.rods.some(rod=>Core.exists(state,rod)))throw Error('第107关基底路线完成后仍有活动锁扣');
 }
 function buildHintGraph(level,route){
  const angles=new Map(level.points.map(point=>[point[0],point[3]]));
