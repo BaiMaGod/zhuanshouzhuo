@@ -107,7 +107,7 @@ export class Board {
    this.rings.set(r.id,{material,root,body,halo,focus,label,shadow});
   });
   // Background double-ended rods have their own render node. Their lifetime is
-  // controlled by the two endpoint rings, not by the moving-clasp batch cache.
+  // controlled by the two endpoint rings, not by the moving-clasp batch.
   for(const z of s.rods)if(z.kind==='b'){
    const view=new Laya.Sprite();view.name='background-fixed-rod:'+z.id;view.mouseEnabled=false;
    this.fixedRods.addChild(view);this.fixedRodViews.set(z.id,view);
