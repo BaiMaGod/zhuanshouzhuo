@@ -1670,8 +1670,278 @@
       "ownedClaspCountCrossCheck": 173,
       "backgroundEndpointAssignments": {
         "status": "target_ring_ID_assignments_present_geometry_missing",
-        "items": [],
-        "itemsEmbedded": false,
+        "items": [
+          {
+            "id": "F001",
+            "heads": 4,
+            "targetRingIds": [
+              "R013",
+              "R014",
+              "R015",
+              "R016"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F002",
+            "heads": 3,
+            "targetRingIds": [
+              "R017",
+              "R018",
+              "R019"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F003",
+            "heads": 3,
+            "targetRingIds": [
+              "R020",
+              "R021",
+              "R022"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F004",
+            "heads": 3,
+            "targetRingIds": [
+              "R023",
+              "R024",
+              "R025"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F005",
+            "heads": 2,
+            "targetRingIds": [
+              "R026",
+              "R027"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F006",
+            "heads": 2,
+            "targetRingIds": [
+              "R028",
+              "R029"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F007",
+            "heads": 2,
+            "targetRingIds": [
+              "R030",
+              "R031"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F008",
+            "heads": 2,
+            "targetRingIds": [
+              "R032",
+              "R033"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F009",
+            "heads": 2,
+            "targetRingIds": [
+              "R034",
+              "R035"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F010",
+            "heads": 2,
+            "targetRingIds": [
+              "R036",
+              "R037"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F011",
+            "heads": 2,
+            "targetRingIds": [
+              "R038",
+              "R039"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F012",
+            "heads": 2,
+            "targetRingIds": [
+              "R040",
+              "R041"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F013",
+            "heads": 2,
+            "targetRingIds": [
+              "R042",
+              "R043"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F014",
+            "heads": 2,
+            "targetRingIds": [
+              "R044",
+              "R045"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F015",
+            "heads": 2,
+            "targetRingIds": [
+              "R046",
+              "R047"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F016",
+            "heads": 2,
+            "targetRingIds": [
+              "R048",
+              "R049"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F017",
+            "heads": 2,
+            "targetRingIds": [
+              "R050",
+              "R051"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F018",
+            "heads": 2,
+            "targetRingIds": [
+              "R052",
+              "R053"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F019",
+            "heads": 2,
+            "targetRingIds": [
+              "R054",
+              "R055"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F020",
+            "heads": 2,
+            "targetRingIds": [
+              "R056",
+              "R057"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F021",
+            "heads": 2,
+            "targetRingIds": [
+              "R058",
+              "R059"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F022",
+            "heads": 2,
+            "targetRingIds": [
+              "R060",
+              "R061"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          }
+        ],
+        "itemsEmbedded": true,
         "sourceSheet": "背景扣端点",
         "sourceLevels": [
           101,
@@ -2057,8 +2327,260 @@
       "ownedClaspCountCrossCheck": 190,
       "backgroundEndpointAssignments": {
         "status": "target_ring_ID_assignments_present_geometry_missing",
-        "items": [],
-        "itemsEmbedded": false,
+        "items": [
+          {
+            "id": "F001",
+            "heads": 4,
+            "targetRingIds": [
+              "R081",
+              "R017",
+              "R018",
+              "R019"
+            ],
+            "burstHitRingIds": [
+              "R001"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F002",
+            "heads": 4,
+            "targetRingIds": [
+              "R083",
+              "R020",
+              "R021",
+              "R022"
+            ],
+            "burstHitRingIds": [
+              "R002"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F003",
+            "heads": 3,
+            "targetRingIds": [
+              "R023",
+              "R024",
+              "R025"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F004",
+            "heads": 3,
+            "targetRingIds": [
+              "R026",
+              "R027",
+              "R028"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F005",
+            "heads": 3,
+            "targetRingIds": [
+              "R029",
+              "R030",
+              "R031"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F006",
+            "heads": 2,
+            "targetRingIds": [
+              "R032",
+              "R033"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F007",
+            "heads": 2,
+            "targetRingIds": [
+              "R034",
+              "R035"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F008",
+            "heads": 2,
+            "targetRingIds": [
+              "R036",
+              "R037"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F009",
+            "heads": 2,
+            "targetRingIds": [
+              "R038",
+              "R039"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F010",
+            "heads": 2,
+            "targetRingIds": [
+              "R040",
+              "R041"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F011",
+            "heads": 2,
+            "targetRingIds": [
+              "R042",
+              "R043"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F012",
+            "heads": 2,
+            "targetRingIds": [
+              "R044",
+              "R045"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F013",
+            "heads": 2,
+            "targetRingIds": [
+              "R046",
+              "R047"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F014",
+            "heads": 2,
+            "targetRingIds": [
+              "R048",
+              "R049"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F015",
+            "heads": 2,
+            "targetRingIds": [
+              "R050",
+              "R051"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F016",
+            "heads": 2,
+            "targetRingIds": [
+              "R052",
+              "R053"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F017",
+            "heads": 2,
+            "targetRingIds": [
+              "R054",
+              "R055"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F018",
+            "heads": 2,
+            "targetRingIds": [
+              "R056",
+              "R057"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F019",
+            "heads": 2,
+            "targetRingIds": [
+              "R058",
+              "R059"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F020",
+            "heads": 2,
+            "targetRingIds": [
+              "R060",
+              "R061"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          }
+        ],
+        "itemsEmbedded": true,
         "sourceSheet": "背景扣端点",
         "sourceLevels": [
           101,
@@ -2444,8 +2966,330 @@
       "ownedClaspCountCrossCheck": 194,
       "backgroundEndpointAssignments": {
         "status": "target_ring_ID_assignments_present_geometry_missing",
-        "items": [],
-        "itemsEmbedded": false,
+        "items": [
+          {
+            "id": "F001",
+            "heads": 5,
+            "targetRingIds": [
+              "R096",
+              "R021",
+              "R022",
+              "R023",
+              "R024"
+            ],
+            "burstHitRingIds": [
+              "R001"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F002",
+            "heads": 4,
+            "targetRingIds": [
+              "R098",
+              "R025",
+              "R026",
+              "R027"
+            ],
+            "burstHitRingIds": [
+              "R018"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F003",
+            "heads": 4,
+            "targetRingIds": [
+              "R100",
+              "R028",
+              "R029",
+              "R030"
+            ],
+            "burstHitRingIds": [
+              "R019"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F004",
+            "heads": 4,
+            "targetRingIds": [
+              "R102",
+              "R031",
+              "R032",
+              "R033"
+            ],
+            "burstHitRingIds": [
+              "R020"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F005",
+            "heads": 3,
+            "targetRingIds": [
+              "R034",
+              "R035",
+              "R036"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F006",
+            "heads": 3,
+            "targetRingIds": [
+              "R037",
+              "R038",
+              "R039"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F007",
+            "heads": 3,
+            "targetRingIds": [
+              "R040",
+              "R041",
+              "R049"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F008",
+            "heads": 3,
+            "targetRingIds": [
+              "R050",
+              "R051",
+              "R052"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F009",
+            "heads": 2,
+            "targetRingIds": [
+              "R053",
+              "R054"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F010",
+            "heads": 2,
+            "targetRingIds": [
+              "R055",
+              "R056"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F011",
+            "heads": 2,
+            "targetRingIds": [
+              "R057",
+              "R058"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F012",
+            "heads": 2,
+            "targetRingIds": [
+              "R059",
+              "R060"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F013",
+            "heads": 2,
+            "targetRingIds": [
+              "R061",
+              "R062"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F014",
+            "heads": 2,
+            "targetRingIds": [
+              "R063",
+              "R064"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F015",
+            "heads": 2,
+            "targetRingIds": [
+              "R065",
+              "R066"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F016",
+            "heads": 2,
+            "targetRingIds": [
+              "R067",
+              "R068"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F017",
+            "heads": 2,
+            "targetRingIds": [
+              "R069",
+              "R070"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F018",
+            "heads": 2,
+            "targetRingIds": [
+              "R071",
+              "R072"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F019",
+            "heads": 2,
+            "targetRingIds": [
+              "R073",
+              "R074"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F020",
+            "heads": 2,
+            "targetRingIds": [
+              "R075",
+              "R076"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F021",
+            "heads": 2,
+            "targetRingIds": [
+              "R077",
+              "R078"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F022",
+            "heads": 2,
+            "targetRingIds": [
+              "R079",
+              "R080"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F023",
+            "heads": 2,
+            "targetRingIds": [
+              "R081",
+              "R082"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F024",
+            "heads": 2,
+            "targetRingIds": [
+              "R083",
+              "R084"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F025",
+            "heads": 2,
+            "targetRingIds": [
+              "R085",
+              "R086"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          }
+        ],
+        "itemsEmbedded": true,
         "sourceSheet": "背景扣端点",
         "sourceLevels": [
           101,
@@ -2831,8 +3675,334 @@
       "ownedClaspCountCrossCheck": 227,
       "backgroundEndpointAssignments": {
         "status": "target_ring_ID_assignments_present_geometry_missing",
-        "items": [],
-        "itemsEmbedded": false,
+        "items": [
+          {
+            "id": "F001",
+            "heads": 6,
+            "targetRingIds": [
+              "R102",
+              "R026",
+              "R027",
+              "R028",
+              "R029",
+              "R030"
+            ],
+            "burstHitRingIds": [
+              "R001"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F002",
+            "heads": 4,
+            "targetRingIds": [
+              "R104",
+              "R031",
+              "R032",
+              "R033"
+            ],
+            "burstHitRingIds": [
+              "R022"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F003",
+            "heads": 4,
+            "targetRingIds": [
+              "R106",
+              "R034",
+              "R035",
+              "R036"
+            ],
+            "burstHitRingIds": [
+              "R023"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F004",
+            "heads": 4,
+            "targetRingIds": [
+              "R108",
+              "R037",
+              "R038",
+              "R039"
+            ],
+            "burstHitRingIds": [
+              "R024"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F005",
+            "heads": 3,
+            "targetRingIds": [
+              "R110",
+              "R040",
+              "R041"
+            ],
+            "burstHitRingIds": [
+              "R025"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F006",
+            "heads": 3,
+            "targetRingIds": [
+              "R042",
+              "R043",
+              "R044"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F007",
+            "heads": 3,
+            "targetRingIds": [
+              "R045",
+              "R046",
+              "R047"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F008",
+            "heads": 3,
+            "targetRingIds": [
+              "R048",
+              "R049",
+              "R050"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F009",
+            "heads": 3,
+            "targetRingIds": [
+              "R051",
+              "R052",
+              "R064"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F010",
+            "heads": 2,
+            "targetRingIds": [
+              "R065",
+              "R066"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F011",
+            "heads": 2,
+            "targetRingIds": [
+              "R067",
+              "R068"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F012",
+            "heads": 2,
+            "targetRingIds": [
+              "R069",
+              "R070"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F013",
+            "heads": 2,
+            "targetRingIds": [
+              "R071",
+              "R072"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F014",
+            "heads": 2,
+            "targetRingIds": [
+              "R073",
+              "R074"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F015",
+            "heads": 2,
+            "targetRingIds": [
+              "R075",
+              "R076"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F016",
+            "heads": 2,
+            "targetRingIds": [
+              "R077",
+              "R078"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F017",
+            "heads": 2,
+            "targetRingIds": [
+              "R079",
+              "R080"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F018",
+            "heads": 2,
+            "targetRingIds": [
+              "R081",
+              "R082"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F019",
+            "heads": 2,
+            "targetRingIds": [
+              "R083",
+              "R084"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F020",
+            "heads": 2,
+            "targetRingIds": [
+              "R085",
+              "R086"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F021",
+            "heads": 2,
+            "targetRingIds": [
+              "R087",
+              "R088"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F022",
+            "heads": 2,
+            "targetRingIds": [
+              "R089",
+              "R090"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F023",
+            "heads": 2,
+            "targetRingIds": [
+              "R091",
+              "R092"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F024",
+            "heads": 2,
+            "targetRingIds": [
+              "R093",
+              "R094"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F025",
+            "heads": 2,
+            "targetRingIds": [
+              "R095",
+              "R096"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          }
+        ],
+        "itemsEmbedded": true,
         "sourceSheet": "背景扣端点",
         "sourceLevels": [
           101,
@@ -2941,8 +4111,86 @@
       },
       "attributeCrossBreakdown": {
         "status": "present_in_workbook_not_embedded",
-        "rows": [],
-        "rowsEmbedded": false
+        "rows": [
+          {
+            "ownedClaspCount": 0,
+            "ringCount": 76,
+            "attributeCounts": {
+              "ordinary": 76,
+              "burstOnly": 0,
+              "silkOnly": 0,
+              "both": 0
+            },
+            "difference": 0
+          },
+          {
+            "ownedClaspCount": 1,
+            "ringCount": 38,
+            "attributeCounts": {
+              "ordinary": 38,
+              "burstOnly": 0,
+              "silkOnly": 0,
+              "both": 0
+            },
+            "difference": 0
+          },
+          {
+            "ownedClaspCount": 2,
+            "ringCount": 48,
+            "attributeCounts": {
+              "ordinary": 23,
+              "burstOnly": 1,
+              "silkOnly": 20,
+              "both": 4
+            },
+            "difference": 0
+          },
+          {
+            "ownedClaspCount": 3,
+            "ringCount": 23,
+            "attributeCounts": {
+              "ordinary": 23,
+              "burstOnly": 0,
+              "silkOnly": 0,
+              "both": 0
+            },
+            "difference": 0
+          },
+          {
+            "ownedClaspCount": 4,
+            "ringCount": 6,
+            "attributeCounts": {
+              "ordinary": 6,
+              "burstOnly": 0,
+              "silkOnly": 0,
+              "both": 0
+            },
+            "difference": 0
+          },
+          {
+            "ownedClaspCount": 5,
+            "ringCount": 0,
+            "attributeCounts": {
+              "ordinary": 0,
+              "burstOnly": 0,
+              "silkOnly": 0,
+              "both": 0
+            },
+            "difference": 0
+          },
+          {
+            "ownedClaspCount": 6,
+            "ringCount": 0,
+            "attributeCounts": {
+              "ordinary": 0,
+              "burstOnly": 0,
+              "silkOnly": 0,
+              "both": 0
+            },
+            "difference": 0
+          }
+        ],
+        "rowsEmbedded": true
       },
       "designBrief": {
         "pacing": "教学",
@@ -3140,8 +4388,315 @@
       "ownedClaspCountCrossCheck": 243,
       "backgroundEndpointAssignments": {
         "status": "target_ring_ID_assignments_present_geometry_missing",
-        "items": [],
-        "itemsEmbedded": false,
+        "items": [
+          {
+            "id": "F001",
+            "heads": 6,
+            "targetRingIds": [
+              "R111",
+              "R029",
+              "R030",
+              "R031",
+              "R032",
+              "R033"
+            ],
+            "burstHitRingIds": [
+              "R001"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F002",
+            "heads": 5,
+            "targetRingIds": [
+              "R114",
+              "R034",
+              "R035",
+              "R036",
+              "R037"
+            ],
+            "burstHitRingIds": [
+              "R002"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F003",
+            "heads": 4,
+            "targetRingIds": [
+              "R116",
+              "R038",
+              "R039",
+              "R040"
+            ],
+            "burstHitRingIds": [
+              "R025"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F004",
+            "heads": 4,
+            "targetRingIds": [
+              "R118",
+              "R041",
+              "R042",
+              "R043"
+            ],
+            "burstHitRingIds": [
+              "R026"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F005",
+            "heads": 4,
+            "targetRingIds": [
+              "R120",
+              "R051",
+              "R052",
+              "R053"
+            ],
+            "burstHitRingIds": [
+              "R027"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F006",
+            "heads": 3,
+            "targetRingIds": [
+              "R122",
+              "R054",
+              "R055"
+            ],
+            "burstHitRingIds": [
+              "R028"
+            ],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F007",
+            "heads": 3,
+            "targetRingIds": [
+              "R056",
+              "R057",
+              "R058"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F008",
+            "heads": 3,
+            "targetRingIds": [
+              "R059",
+              "R060",
+              "R061"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F009",
+            "heads": 3,
+            "targetRingIds": [
+              "R062",
+              "R063",
+              "R064"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F010",
+            "heads": 3,
+            "targetRingIds": [
+              "R065",
+              "R066",
+              "R067"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F011",
+            "heads": 2,
+            "targetRingIds": [
+              "R068",
+              "R069"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F012",
+            "heads": 2,
+            "targetRingIds": [
+              "R070",
+              "R071"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F013",
+            "heads": 2,
+            "targetRingIds": [
+              "R072",
+              "R073"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F014",
+            "heads": 2,
+            "targetRingIds": [
+              "R074",
+              "R075"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F015",
+            "heads": 2,
+            "targetRingIds": [
+              "R076",
+              "R077"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F016",
+            "heads": 2,
+            "targetRingIds": [
+              "R078",
+              "R079"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F017",
+            "heads": 2,
+            "targetRingIds": [
+              "R080",
+              "R081"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F018",
+            "heads": 2,
+            "targetRingIds": [
+              "R082",
+              "R083"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F019",
+            "heads": 2,
+            "targetRingIds": [
+              "R084",
+              "R085"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F020",
+            "heads": 2,
+            "targetRingIds": [
+              "R086",
+              "R087"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F021",
+            "heads": 2,
+            "targetRingIds": [
+              "R088",
+              "R089"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F022",
+            "heads": 2,
+            "targetRingIds": [
+              "R090",
+              "R091"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          },
+          {
+            "id": "F023",
+            "heads": 2,
+            "targetRingIds": [
+              "R092",
+              "R093"
+            ],
+            "burstHitRingIds": [],
+            "ordinaryRemoval": "每端独立对齐，最后目标消除后整件退出",
+            "burstRemoval": "命中任一端即整件退出，逐扣ID去重",
+            "sourceValidationStatus": "端点分配完成；锚点与支杆待验证"
+          }
+        ],
+        "itemsEmbedded": true,
         "sourceSheet": "背景扣端点",
         "sourceLevels": [
           101,
@@ -3250,8 +4805,86 @@
       },
       "attributeCrossBreakdown": {
         "status": "present_in_workbook_not_embedded",
-        "rows": [],
-        "rowsEmbedded": false
+        "rows": [
+          {
+            "ownedClaspCount": 0,
+            "ringCount": 82,
+            "attributeCounts": {
+              "ordinary": 82,
+              "burstOnly": 0,
+              "silkOnly": 0,
+              "both": 0
+            },
+            "difference": 0
+          },
+          {
+            "ownedClaspCount": 1,
+            "ringCount": 44,
+            "attributeCounts": {
+              "ordinary": 44,
+              "burstOnly": 0,
+              "silkOnly": 0,
+              "both": 0
+            },
+            "difference": 0
+          },
+          {
+            "ownedClaspCount": 2,
+            "ringCount": 36,
+            "attributeCounts": {
+              "ordinary": 8,
+              "burstOnly": 2,
+              "silkOnly": 22,
+              "both": 4
+            },
+            "difference": 0
+          },
+          {
+            "ownedClaspCount": 3,
+            "ringCount": 29,
+            "attributeCounts": {
+              "ordinary": 29,
+              "burstOnly": 0,
+              "silkOnly": 0,
+              "both": 0
+            },
+            "difference": 0
+          },
+          {
+            "ownedClaspCount": 4,
+            "ringCount": 6,
+            "attributeCounts": {
+              "ordinary": 6,
+              "burstOnly": 0,
+              "silkOnly": 0,
+              "both": 0
+            },
+            "difference": 0
+          },
+          {
+            "ownedClaspCount": 5,
+            "ringCount": 2,
+            "attributeCounts": {
+              "ordinary": 2,
+              "burstOnly": 0,
+              "silkOnly": 0,
+              "both": 0
+            },
+            "difference": 0
+          },
+          {
+            "ownedClaspCount": 6,
+            "ringCount": 1,
+            "attributeCounts": {
+              "ordinary": 1,
+              "burstOnly": 0,
+              "silkOnly": 0,
+              "both": 0
+            },
+            "difference": 0
+          }
+        ],
+        "rowsEmbedded": true
       },
       "designBrief": {
         "pacing": "限时压轴",
