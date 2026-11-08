@@ -42,6 +42,6 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
   removals
  };
  mkdirSync('tests/results',{recursive:true});
- writeFileSync('tests/results/level107-base-analysis.json',JSON.stringify(report,null,2)+'\\n');
+ writeFileSync('tests/results/level107-base-analysis.json',JSON.stringify(report,null,2)+'\n');
  console.log('LEVEL107_BASE_ANALYSIS='+JSON.stringify(report));
 });
