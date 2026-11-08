@@ -103,14 +103,12 @@ export function buildLevel107Sample(){
  const distribution=ownerDistribution(level.links);
  const pointById=new Map(level.points.map(([id,x,y])=>[id,{x,y}]));
  const receiverReleaseAngles=EXTRA_MOUNTS.map(([owner,target])=>{
-  if(baseLinks.some(link=>link[0]==='m'&&link[1]===target))
-   throw Error('新增锁扣接收端不能仍拥有活动扣：'+target);
   const targetStep=removedAt.get(target),ownerStep=removedAt.get(owner);
   if(!Number.isInteger(targetStep)||!Number.isInteger(ownerStep)||targetStep>=ownerStep)
    throw Error('新增锁扣必须先释放接收端：'+owner+'→'+target);
   const requiredAngle=Core.angle(pointById.get(target),pointById.get(owner));
   const angleAtRemoval=removalAngles.get(target),delta=Core.diff(requiredAngle,angleAtRemoval);
-  if(Math.abs(delta)>65)throw Error('新增锁扣旋转成本超出65°：'+owner+'→'+target+' '+delta);
+  if(Math.abs(delta)>Core.tolerance)throw Error('新增锁扣接收端缺口不对齐：'+owner+'→'+target+' '+delta+'°，容差 '+Core.tolerance+'°');
   return{owner,target,targetStep,ownerStep,requiredAngle,angleAtRemoval,delta};
  });
  const expected={0:61,1:7,2:11,3:24,4:6,5:0,6:0};
