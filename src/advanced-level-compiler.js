@@ -27,6 +27,10 @@ export function compileApprovedSample(spec){
   attrs.push({id:r.id,attribute:TYPES[r.attribute],silkLayers:r.silkLayers});
  }
  requireField(spec.mountedRods?.length===spec.rings.reduce((a,r)=>a+r.mountedClaspQuota,0),'自带锁杆总数');
+ // Do not require all endpoints on one receiver to share an angle here.
+ // A mounted owner can be destroyed by a verified burst before the receiver is
+ // cleared, and a background piece can be broken as a whole. Only the full
+ // Core.request replay can prove that the remaining constraints are solvable.
  const mountedRods=[],seen=new Set;
  for(const m of spec.mountedRods){
   requireField(!seen.has(m.id)&&rings.has(m.ownerId)&&rings.has(m.receiverId)&&m.ownerId!==m.receiverId,'活动杆唯一ID/连接 '+m.id);
