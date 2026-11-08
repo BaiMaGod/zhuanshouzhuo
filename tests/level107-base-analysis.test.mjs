@@ -74,7 +74,7 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
   }catch(error){return{valid:false,reason:'exception',detail:String(error.message||error)}}
   finally{Core.levels.pop()}
  };
- const physicalOwnerCandidates=[];
+ const physicalOwnerCandidates=[],physicalPairDiagnostics=[];
  const usedOwners=new Set(),usedTargets=new Set();
  const ownerPool=sinkCandidates.filter(owner=>owner.outDegree===0&&owner.targetCandidates.length>=2)
   .sort((a,b)=>b.targetCandidates.length-a.targetCandidates.length||b.removedAt-a.removedAt);
@@ -84,6 +84,7 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
   for(const target of [...owner.targetCandidates].sort((a,b)=>Math.abs(a.delta)-Math.abs(b.delta))){
    if(usedTargets.has(target.id))continue;
    const result=replayCandidatePair(owner.id,target.id);
+   physicalPairDiagnostics.push({owner:owner.id,target:target.id,result});
    if(result.valid)accepted.push({id:target.id,step:target.step,delta:target.delta});
    if(accepted.length===2)break;
   }
@@ -104,7 +105,7 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
   burstPairCandidates:burstPairs.slice(0,30),newOwnerCandidates:sinkCandidates.filter(x=>x.targetCandidates.length>=2).sort((a,b)=>b.removedAt-a.removedAt).slice(0,40),
   alreadyAlignedOwnerCandidates:sinkCandidates.map(x=>({...x,targetCandidates:x.targetCandidates.filter(t=>t.alreadyAligned)})).filter(x=>x.targetCandidates.length>=2).sort((a,b)=>b.removedAt-a.removedAt),
   bestSinkPairs:sinkCandidates.filter(x=>x.targetCandidates.length>=2).map(x=>({...x,targetCandidates:x.targetCandidates.slice(0,8)})).sort((a,b)=>b.targetCandidates.length-a.targetCandidates.length),
-  physicalOwnerCandidates,
+  physicalOwnerCandidates,physicalPairDiagnostics,
   selectedMountCandidates:physicalOwnerCandidates.flatMap(item=>item.targets.map(target=>({owner:item.owner,target:target.id,ownerRelease:removedBy.get(item.owner),targetRelease:removedBy.get(target.id)}))),
   ownersWithTwoAlignedTargets:sinkCandidates.filter(x=>x.targetCandidates.length>=2).sort((a,b)=>b.targetCandidates.length-a.targetCandidates.length),
   ownersWithOneAlignedTarget:sinkCandidates.filter(x=>x.targetCandidates.length>=1).sort((a,b)=>b.targetCandidates.length-a.targetCandidates.length),
@@ -115,6 +116,7 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
  console.log('LEVEL107_BASE_ANALYSIS='+JSON.stringify({
   selectedMountCandidates:report.selectedMountCandidates,
   physicalOwnerCandidates:report.physicalOwnerCandidates,
+  physicalPairDiagnostics:report.physicalPairDiagnostics.slice(0,80),
   ownersWithTwoAlignedTargets:report.ownersWithTwoAlignedTargets.map(({id,outDegree,removedAt,firstMoveAt,targetCandidates})=>({id,outDegree,removedAt,firstMoveAt,targetCandidates:targetCandidates.slice(0,6)})),
   ownersWithOneAlignedTarget:report.ownersWithOneAlignedTarget.slice(0,24).map(({id,removedAt,firstMoveAt,targetCandidates})=>({id,removedAt,firstMoveAt,targetCandidates:targetCandidates.slice(0,4)})),
   bestSinkPairs:report.bestSinkPairs.slice(0,16)
