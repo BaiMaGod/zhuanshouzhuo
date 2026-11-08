@@ -46,7 +46,7 @@ test('the final bracelet removal clears every fixed clasp before victory on ever
   assert.equal(board.fixedRods.parent,board.space,'fixed clasps live outside the moving-clasp batch');
   assert.equal(board.fixedRods.cacheAs,'none','fixed clasp layer must not be bitmap-cached');
   assert.equal(board.rods.cacheAs,'none','moving-rod batch is rendered directly by LayaAir 3.4');
-  assert.equal(board.rods.numChildren,0,'dynamic clasps must not be nested under the cached batch');
+  assert.equal(board.rods.numChildren,0,'dynamic clasps must not be nested under the moving-clasp batch');
   for(const rod of state.rods.filter(z=>z.kind==='b')){
    const view=board.fixedRodViews.get(rod.id);
    assert.ok(view,'renderer must create a view for '+rod.id);
