@@ -12,10 +12,10 @@ const EXTRA_MOUNTS=[
  // Receivers are released by the verified base route before their owners
  // move or disappear. Each new mounted clasp is already aligned at release.
  // Each receiver releases before its owner begins rotating.
- ['R38','R13'],['R38','R32'],
- ['R101','R20'],['R101','R85'],
- ['R63','R6'],['R63','R25'],
- ['R97','R55'],['R97','R93']
+ ['R38','R32'],['R38','R70'],
+ ['R101','R20'],['R101','R65'],
+ ['R63','R25'],['R63','R55'],
+ ['R30','R1'],['R30','R23']
 ];
 const clone=value=>structuredClone(value);
 const isActive=(state,id)=>Core.ring(state,id)?.life==='active';
