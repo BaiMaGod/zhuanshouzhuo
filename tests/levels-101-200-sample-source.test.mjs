@@ -104,11 +104,11 @@ test('第107关逐镯与背景扣快照逐行哈希匹配原始工作簿', () =>
     ring.expectedPrerequisites, ring.backgroundPieceId, ring.burstNeighborCandidates,
     ring.burstHitBackgroundPieces, ring.backgroundRemovalAffects, ring.designLayer,
     ring.listedAdjacencyCount
-  ])).join('\\n');
+  ])).join('\n');
   const backgroundRows = sample.backgroundPieces.map(piece => JSON.stringify([
     piece.id, piece.heads, piece.targetRingIds, piece.hitByBurstRingIds,
     piece.ordinaryRemoval, piece.burstRemoval
-  ])).join('\\n');
+  ])).join('\n');
   assert.equal(fnv1a32(ringRows), sample.sourceVerification.checks.canonicalRingRecordsFnv1a32);
   assert.equal(fnv1a32(backgroundRows), sample.sourceVerification.checks.canonicalBackgroundRecordsFnv1a32);
   assert.equal(fnv1a32(ringRows), 'cd043048');
