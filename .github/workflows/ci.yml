@@ -63,6 +63,15 @@ jobs:
       - run: node tests/browser-buttons.mjs
       - run: node tests/browser-campaign.mjs
       - run: node tests/browser-input.mjs
+      - name: High-DPI rendering regression
+        run: node tests/browser-image-assets.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: high-dpi-render-diagnostics-${{ github.run_id }}
+          path: tests/results/images/
+          if-no-files-found: warn
+          retention-days: 7
 
   full:
     needs: changes

@@ -50,12 +50,12 @@ export class TapDiagnostics {
   this.finish(id);
  }
  private signature='';
- export(version:string,states:unknown):string{
+ export(version:string,states:unknown,render?:unknown):string{
   const locationInfo=typeof location==='undefined'||typeof location.origin!=='string'?'unknown':location.origin+location.pathname;
   const ua=typeof navigator==='undefined'?'unknown':navigator.userAgent;
   const globals=globalThis as {tap?:{version?:unknown};H5GameAPI?:{tapCustomCommandSync?:unknown}};
   const bridge={tap:typeof globals.tap,nativeBridge:typeof globals.H5GameAPI,customCommandSync:typeof globals.H5GameAPI?.tapCustomCommandSync,reportedVersion:typeof globals.tap?.version==='string'?redact(globals.tap.version):'not reported'};
   return JSON.stringify({version,session:this.session,page:locationInfo,userAgent:ua,bridge,
-   visibility:typeof document==='undefined'?'unknown':document.visibilityState,states,events:this.events},null,2);
+   visibility:typeof document==='undefined'?'unknown':document.visibilityState,states,...(render!==undefined?{render}:{}),events:this.events},null,2);
  }
 }

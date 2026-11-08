@@ -15,6 +15,7 @@ import {DAILY_REWARDS} from './signin-inventory.js';
 import {FEATURE_ART,FEATURE_ASSETS,paintFeature} from './feature-art.js';
 import {TapPlatform} from './taptap.js';
 import {copyPlatformText,finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug,setGameCursorHidden} from './web-shell.js';
+import {getRenderDiagnostics} from './render-diagnostics.js';
 import {search,nextFrame} from './solver.js';
 interface GamePointer {pointerId:number;stageX:number;stageY:number;button?:number}
 import {JADE_ASSETS,jadeSprite} from './jade.js';
@@ -24,7 +25,7 @@ import type {Action,Point,State,Result} from './types.js';
 
 const BOOT_STARTED=performance.now();
 const W=720;
-let H=1280,RENDER_W=720,RENDER_SCALE=1;
+let H=1280,RENDER_W=720,RENDER_SCALE=1,RENDER_DENSITY:number|null=null;
 const TRAY='assets/art-rose/tray.png';
 const HOME_BG='assets/art-rose/home-bg.jpg';
 const HOME_LOGO_PARTS=[
@@ -142,7 +143,7 @@ class Game {
  private showPlatformCheck():void{
   const read=()=>[...this.platform.connectionLines(),...(this.platform.debug?['排行 '+this.platform.states.leaderboard+' · 广告 '+this.platform.states.ads+' · 埋点 '+this.platform.states.report]:[])];
   this.modal('平台检查',read(),[
-   {label:'复制诊断',action:()=>{void copyPlatformText(this.platform.exportDiagnostics(GAME_VERSION)).then(ok=>{
+   {label:'复制诊断',action:()=>{void copyPlatformText(this.platform.exportDiagnostics(GAME_VERSION,getRenderDiagnostics(this,{designWidth:W,designHeight:H,renderWidth:RENDER_W,renderScale:RENDER_SCALE,renderDensity:RENDER_DENSITY}))).then(ok=>{
     if(!ok&&this.modalCard===this.platformLive?.card&&this.platformLive.labels[3])this.platformLive.labels[3].text='复制不可用，请从自测反馈上传日志。';
    })},primary:true},
    {label:this.platform.connecting?'查看连接进度':'重试连接',action:()=>{if(this.platform.cloudBlocked)void this.platform.retrySync();else void this.platform.login(true)},primary:false},
@@ -1208,13 +1209,19 @@ async function boot():Promise<void>{
  // Landscape keeps the former minimum play height until it has dedicated HUD layout.
  const fullHeight=viewportHeight/Math.max(1,viewportWidth)*W;
  H=Math.round(viewportHeight>=viewportWidth?fullHeight:Math.max(1180,fullHeight));
- RENDER_W=viewportWidth<600?Math.min(W,Math.round(viewportWidth*1.5)):W;RENDER_SCALE=RENDER_W/W;
+ RENDER_DENSITY=viewportWidth<600?Math.min(2,Math.max(1.5,typeof window!=='undefined'?(window.devicePixelRatio||1):1)):null;
+ RENDER_W=RENDER_DENSITY===null?W:Math.round(viewportWidth*RENDER_DENSITY);RENDER_SCALE=RENDER_W/W;
  Laya.stage.size(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
  Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor=THEME.paper;
  await Laya.loader.load(['assets/fonts/jade-song.woff','assets/fonts/jade-text.woff']);
  await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load().catch(e=>console.warn('Recorded audio unavailable',e));finishWebShell();void g.platform.reportReady(performance.now()-BOOT_STARTED);
  if(debugEnabled()){
-  exposeDebug({game:g,Core:C,getState:()=>g.model?C.clone(g.model.state):null});
+  exposeDebug({
+   game:g,
+   Core:C,
+   getState:()=>g.model?C.clone(g.model.state):null,
+   getRenderDiagnostics:()=>getRenderDiagnostics(g,{designWidth:W,designHeight:H,renderWidth:RENDER_W,renderScale:RENDER_SCALE,renderDensity:RENDER_DENSITY})
+  });
  }
 }
 boot().catch(e=>{
