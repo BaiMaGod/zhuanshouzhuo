@@ -88,7 +88,7 @@ test('compiler verifies burst candidate source attributes and actual neighbor di
 });
 
 
-test('compiler permits multiple incoming rods only when the single receiver gap can align them together', () => {
+test('compiler accepts multiple incoming rods at different receiver angles for sequential release', () => {
   const spec = makeSpec();
   const length = Math.hypot(52, 40);
   const angleA = Math.atan2(40, 52) * 180 / Math.PI;
@@ -104,7 +104,7 @@ test('compiler permits multiple incoming rods only when the single receiver gap 
   assert.equal(compileApprovedSample(spec).mountedRods.length, 2);
 });
 
-test('compiler rejects two incoming mounted rods that occupy different directions on one single-gap receiver', () => {
+test('compiler accepts two incoming mounted rods that the receiver must release at different angles', () => {
   const spec = makeSpec();
   const length = Math.hypot(52, 40);
   const angleA = Math.atan2(40, 52) * 180 / Math.PI;
@@ -117,11 +117,17 @@ test('compiler rejects two incoming mounted rods that occupy different direction
     { id: 'M001', ownerId: 'R001', receiverId: 'R002', anchorLocal: { x: 40, y: 0 }, angleLocal: angleA, length, endpointWidth: 7 },
     { id: 'M002', ownerId: 'R004', receiverId: 'R002', anchorLocal: { x: -40, y: 0 }, angleLocal: angleB, length, endpointWidth: 7 }
   ];
-  assert.throws(() => compileApprovedSample(spec), /同一接收镯的活动扣无法由单缺口同时对齐 R002/);
+  const level = compileApprovedSample(spec);
+  assert.equal(level.mountedRods.length, 2);
+  assert.notEqual(
+    Math.round(Math.atan2(40, 52) * 180 / Math.PI),
+    Math.round(Math.atan2(-40, -52) * 180 / Math.PI),
+    'the two receiver directions are intentionally different'
+  );
 });
 
 
-test('compiler rejects a background endpoint that conflicts with a mounted clasp on the same receiver', () => {
+test('compiler allows a background endpoint and mounted clasp to release at different receiver angles', () => {
   const spec = makeSpec();
   spec.backgroundPieceCount = 1;
   spec.backgroundEndpointCount = 2;
@@ -138,7 +144,9 @@ test('compiler rejects a background endpoint that conflicts with a mounted clasp
       [{ x: 0, y: 100 }, { x: 224.0002, y: 0 }]
     ]
   }];
-  assert.throws(() => compileApprovedSample(spec), /背景扣与活动扣无法由同一缺口同时对齐 R002/);
+  const level = compileApprovedSample(spec);
+  assert.equal(level.backgroundPieces.length, 1);
+  assert.equal(level.mountedRods.length, 1);
 });
 
 test('compiler rejects duplicate background receiver targets even when the head count matches', () => {
