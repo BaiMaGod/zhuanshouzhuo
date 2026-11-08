@@ -29,7 +29,7 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
  const neighbors=new Map(state.rings.map(r=>[r.id,state.rings.filter(t=>t.id!==r.id&&adjacent(r,t)).map(t=>t.id)]));
  const sinks=state.rings.filter(r=>out.get(r.id)===0);
  const sinkCandidates=state.rings.map(owner=>({
-  id:owner.id,degree:neighbors.get(owner.id).length,removedAt:removedAt.get(owner.id),firstMoveAt:firstMoveAt.get(owner.id),
+  id:owner.id,degree:neighbors.get(owner.id).length,outDegree:out.get(owner.id),removedAt:removedAt.get(owner.id),firstMoveAt:firstMoveAt.get(owner.id),
   targetCandidates:state.rings.filter(target=>target.id!==owner.id&&removedAt.get(target.id)!==undefined&&!level.links.some(e=>e[0]==='m'&&((e[1]===owner.id&&e[2]===target.id)||(e[1]===target.id&&e[2]===owner.id)))).map(target=>{const id=target.id;const step=removedAt.get(id),moveAt=firstMoveAt.get(owner.id),ownerRemovedAt=removedAt.get(owner.id),releasedBeforeOwnerMoves=step<moveAt,releasedAfterOwnerRemoved=step>ownerRemovedAt,ownerRing=byId.get(owner.id),targetRing=byId.get(id),ownerAngle=angleSnapshots[step]?.[owner.id]??ownerRing.a,initialBearing=Core.angle(ownerRing,targetRing),initialEnd=Core.point(targetRing,initialBearing+180),offset={x:initialEnd.x-ownerRing.x,y:initialEnd.y-ownerRing.y},rotatedEnd=Core.rot(offset,ownerAngle-initialAngleById.get(owner.id)),worldEnd={x:ownerRing.x+rotatedEnd.x,y:ownerRing.y+rotatedEnd.y},requiredAngle=Core.angle(targetRing,worldEnd),angleAtRemoval=removalAngles.get(id),delta=Core.diff(requiredAngle,angleAtRemoval),compatible=step<ownerRemovedAt&&step<moveAt&&Math.abs(delta)<=Core.tolerance;return{id,step,ownerAngle,requiredAngle,angleAtRemoval,delta,releasedBeforeOwnerMoves,releasedAfterOwnerRemoved,compatible}}).filter(x=>x.compatible)
  }));
  const burstPairs=[];
@@ -52,7 +52,7 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
  writeFileSync('tests/results/level107-base-analysis.json',JSON.stringify(report,null,2)+'\n');
  console.log('LEVEL107_BASE_ANALYSIS='+JSON.stringify({
   selectedMountCandidates:report.selectedMountCandidates,
-  ownersWithTwoAlignedTargets:report.ownersWithTwoAlignedTargets.map(({id,removedAt,firstMoveAt,targetCandidates})=>({id,removedAt,firstMoveAt,targetCandidates:targetCandidates.slice(0,6)})),
+  ownersWithTwoAlignedTargets:report.ownersWithTwoAlignedTargets.map(({id,outDegree,removedAt,firstMoveAt,targetCandidates})=>({id,outDegree,removedAt,firstMoveAt,targetCandidates:targetCandidates.slice(0,6)})),
   ownersWithOneAlignedTarget:report.ownersWithOneAlignedTarget.slice(0,24).map(({id,removedAt,firstMoveAt,targetCandidates})=>({id,removedAt,firstMoveAt,targetCandidates:targetCandidates.slice(0,4)})),
   bestSinkPairs:report.bestSinkPairs.slice(0,16)
  }));
