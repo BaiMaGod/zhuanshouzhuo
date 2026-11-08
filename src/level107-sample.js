@@ -30,14 +30,15 @@ function ownerDistribution(links){
  return distribution;
 }
 function baseRemovalSteps(baseIndex){
- const state=Core.make(baseIndex),solution=formalSolutions[BASE_FORMAL_NUMBER-1],removedAt=new Map(),removalAngles=new Map();
+ const state=Core.make(baseIndex),solution=formalSolutions[BASE_FORMAL_NUMBER-1],removedAt=new Map(),removalAngles=new Map(),angleSnapshots=[];
  for(let i=0;i<solution.length;i++){
   const action=solution[i],result=Core.request(state,action.id,action.delta);
   if(result.blocked)throw Error('第100关基底路线失效：'+i+' '+JSON.stringify(result.blocked));
   for(const id of result.removed)if(!removedAt.has(id)){removedAt.set(id,i);removalAngles.set(id,Core.ring(state,id).a)}
+  angleSnapshots[i]=Object.fromEntries(state.rings.map(r=>[r.id,r.a]));
  }
  if(state.rings.some(r=>r.life!=='removed'))throw Error('第100关基底路线未完整清空');
- return{removedAt,removalAngles,steps:solution.length};
+ return{removedAt,removalAngles,angleSnapshots,steps:solution.length};
 }
 function remapBaseRod(id,removedIndex){
  if(!id||!/^L\d+$/.test(id))return null;
@@ -81,7 +82,7 @@ export function buildLevel107Sample(){
  const base=formalLevels[BASE_FORMAL_NUMBER-1],baseLinks=clone(base.links);
  const removedIndex=baseLinks.findIndex((_,i)=>'L'+(i+1)===REMOVED_BACKGROUND_ROD);
  if(removedIndex<0||baseLinks[removedIndex][0]!=='b')throw Error('待移除的背景扣不是第100关基底中的双头扣');
- const {removedAt,removalAngles,steps:baseSteps}=baseRemovalSteps(baseIndex);
+ const {removedAt,removalAngles,angleSnapshots,steps:baseSteps}=baseRemovalSteps(baseIndex);
  const level=clone(base);
  level.name='第107关';
  level.kind='formal';
@@ -102,14 +103,15 @@ export function buildLevel107Sample(){
  };
  const distribution=ownerDistribution(level.links);
  const pointById=new Map(level.points.map(([id,x,y])=>[id,{x,y}]));
+ const initialAngleById=new Map(level.points.map(([id,x,y,a])=>[id,a]));
  const receiverReleaseAngles=EXTRA_MOUNTS.map(([owner,target])=>{
   const targetStep=removedAt.get(target),ownerStep=removedAt.get(owner);
   if(!Number.isInteger(targetStep)||!Number.isInteger(ownerStep)||targetStep>=ownerStep)
    throw Error('新增锁扣必须先释放接收端：'+owner+'→'+target);
-  const requiredAngle=Core.angle(pointById.get(target),pointById.get(owner));
+  const ownerCenter=pointById.get(owner),targetCenter=pointById.get(target),ownerInitialAngle=initialAngleById.get(owner),ownerAngleAtRelease=angleSnapshots[targetStep][owner],initialBearing=Core.angle(ownerCenter,targetCenter),initialEndpoint=Core.point(targetCenter,initialBearing+180),offset={x:initialEndpoint.x-ownerCenter.x,y:initialEndpoint.y-ownerCenter.y},rotatedEndpoint=Core.rot(offset,ownerAngleAtRelease-ownerInitialAngle),worldEndpoint={x:ownerCenter.x+rotatedEndpoint.x,y:ownerCenter.y+rotatedEndpoint.y},requiredAngle=Core.angle(targetCenter,worldEndpoint);
   const angleAtRemoval=removalAngles.get(target),delta=Core.diff(requiredAngle,angleAtRemoval);
   if(Math.abs(delta)>Core.tolerance)throw Error('新增锁扣接收端缺口不对齐：'+owner+'→'+target+' '+delta+'°，容差 '+Core.tolerance+'°');
-  return{owner,target,targetStep,ownerStep,requiredAngle,angleAtRemoval,delta};
+  return{owner,target,targetStep,ownerStep,ownerInitialAngle,ownerAngleAtRelease,requiredAngle,angleAtRemoval,delta};
  });
  const expected={0:61,1:7,2:11,3:24,4:6,5:0,6:0};
  if(JSON.stringify(distribution)!==JSON.stringify(expected))throw Error('第107关自带扣配额不匹配：'+JSON.stringify(distribution));
