@@ -285,8 +285,8 @@ export class Board {
  private drawRods(s:State,g:Laya.Graphics,ownerFilter?:string):void{
   const jewels:{p:Point;a:number}[]=[];
   for(const z of s.rods){
-   // Fixed background rods are independent child sprites with explicit
-   // endpoint-driven visibility; this batch contains only owner-mounted rods.
+   // Background fixed rods are drawn by syncBackgroundRods in their own
+   // shared batch; this batch contains only owner-mounted rods.
    if(z.kind==='b'||!C.exists(s,z)||(ownerFilter!==undefined&&z.owner!==ownerFilter))continue;
    const p=C.pose(s,z),sp=this.toScreen(p.p),sq=this.toScreen(p.q),margin=(ownerFilter===undefined?12:30)*this.zoom;
    if(Math.max(sp.x,sq.x)+margin<this.rect.x||Math.min(sp.x,sq.x)-margin>this.rect.x+this.rect.w||Math.max(sp.y,sq.y)+margin<this.rect.y||Math.min(sp.y,sq.y)-margin>this.rect.y+this.rect.h)continue;
