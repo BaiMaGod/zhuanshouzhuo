@@ -51,7 +51,10 @@ function alignToRod(state,ringId,rodId,route,label){
  const endpoint=Core.endpoints(state,rod).find(item=>item.id===ringId);
  if(!endpoint)return false;
  const delta=Core.diff(Core.angle(ring,endpoint.p),ring.a);
- if(Math.abs(delta)<.001)return false;
+ if(Math.abs(delta)<.001){
+  Core.settle(state);
+  return false;
+ }
  const result=Core.request(state,ringId,delta);
  if(result.blocked)throw Error(label+' '+ringId+' / '+rodId+' 碰撞：'+JSON.stringify(result.blocked));
  if(Math.abs(result.done)<.001)throw Error(label+' '+ringId+' / '+rodId+' 没有产生有效旋转');
@@ -135,7 +138,15 @@ export function buildLevel107Sample(){
    const action=baseSolution[i],rodId=remapBaseRod(action.rod,removedIndex);
    if(rodId){baseActionStats.withRod++;if(alignToRod(state,action.id,rodId,route,'基底路线'))baseActionStats.rotated++}else baseActionStats.skipped++;
    for(const extra of extraByStep.get(i)||[]){
-    if(isActive(state,extra.target))alignToRod(state,extra.target,extra.rodId,route,'新增锁扣');
+    if(isActive(state,extra.target)){
+     alignToRod(state,extra.target,extra.rodId,route,'新增锁扣');
+     if(isActive(state,extra.target)){
+      const receiver=Core.ring(state,extra.target),rod=state.rods.find(item=>item.id===extra.rodId);
+      const endpoint=Core.endpoints(state,rod).find(item=>item.id===extra.target);
+      const remaining=Core.connections(state,extra.target).map(item=>({rod:item.z.id,owner:item.z.owner||null,kind:item.z.kind,state:item.state}));
+      throw Error('新增锁扣接收端未按预定步骤消除：'+JSON.stringify({step:i,owner:extra.owner,target:extra.target,rod:extra.rodId,angle:receiver.a,requiredAngle:Core.angle(receiver,endpoint.p),delta:Core.diff(Core.angle(receiver,endpoint.p),receiver.a),remaining}));
+     }
+    }
    }
   }
   finishWithLegalCandidates(state,route,baseActionStats,baseRouteHead);
