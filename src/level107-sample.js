@@ -60,7 +60,7 @@ function alignToRod(state,ringId,rodId,route,label){
 }
 function finishWithLegalCandidates(state,route){
  const remaining=state.rings.filter(r=>r.life==='active').map(r=>r.id);
- if(remaining.length)throw Error('第107关基底路线未能覆盖新增锁扣，剩余'+remaining.length+'只：'+remaining.join(','));
+ if(remaining.length)throw Error('第107关基底路线未能覆盖新增锁扣，剩余'+remaining.length+'只；基础动作统计='+JSON.stringify(baseActionStats)+'；前8步='+JSON.stringify(baseRouteHead)+'；已执行路线步数='+route.length+'；剩余='+remaining.slice(0,30).join(','));
  if(state.rods.some(rod=>Core.exists(state,rod)))throw Error('第107关基底路线完成后仍有活动锁扣');
 }
 function buildHintGraph(level,route){
@@ -129,9 +129,11 @@ export function buildLevel107Sample(){
   const premature=Core.settle(Core.clone(state));
   if(premature.length)throw Error('第107关开局自动消除：'+premature.join(','));
   const route=[],baseSolution=formalSolutions[BASE_FORMAL_NUMBER-1];
+  const baseActionStats={total:baseSolution.length,withRod:0,rotated:0,skipped:0};
+  const baseRouteHead=baseSolution.slice(0,8).map(action=>({id:action.id,delta:action.delta,rod:action.rod,remappedRod:remapBaseRod(action.rod,removedIndex)}));
   for(let i=0;i<baseSolution.length;i++){
    const action=baseSolution[i],rodId=remapBaseRod(action.rod,removedIndex);
-   if(rodId)alignToRod(state,action.id,rodId,route,'基底路线');
+   if(rodId){baseActionStats.withRod++;if(alignToRod(state,action.id,rodId,route,'基底路线'))baseActionStats.rotated++}else baseActionStats.skipped++;
    for(const extra of extraByStep.get(i)||[]){
     if(isActive(state,extra.target))alignToRod(state,extra.target,extra.rodId,route,'新增锁扣');
    }
@@ -152,6 +154,7 @@ export function buildLevel107Sample(){
     receiverReleaseAngles,
     removedBackgroundRod:REMOVED_BACKGROUND_ROD,
     baseRouteSteps:baseSteps,
+    baseActionStats,baseRouteHead,
     verifiedRouteSteps:route.length
    }
   };
