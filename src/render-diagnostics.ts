@@ -56,6 +56,7 @@ export function getRenderDiagnostics(
  const rect=canvas?.getBoundingClientRect();
  const dpr=typeof window!=='undefined'?(window.devicePixelRatio||1):1;
  const browser=Laya.Browser as unknown as {pixelRatio?:number;clientWidth:number;clientHeight:number};
+ const engineConfig=Laya.Config as unknown as {useRetinalCanvas?:boolean;useWebGL2?:boolean};
  const rings=game.board?[...game.board.rings.entries()].slice(0,3):[];
  const stage=Laya.stage;
  const cssWidth=rect?.width??0,cssHeight=rect?.height??0;
@@ -83,6 +84,8 @@ export function getRenderDiagnostics(
   device:{
    dpr,
    enginePixelRatio:browser.pixelRatio??null,
+   useRetinalCanvas:engineConfig.useRetinalCanvas??null,
+   useWebGL2:engineConfig.useWebGL2??null,
    hardwareConcurrency:typeof navigator!=='undefined'?navigator.hardwareConcurrency??null:null,
    deviceMemory:typeof navigator!=='undefined'?(navigator as Navigator&{deviceMemory?:number}).deviceMemory??null:null
   },
