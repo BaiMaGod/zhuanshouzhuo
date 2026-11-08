@@ -11,11 +11,11 @@ const BURST_RINGS=['R90','R98'];
 const EXTRA_MOUNTS=[
  // Receivers are released by the verified base route before their owners
  // move or disappear. Each new mounted clasp is already aligned at release.
- // The dependency chain is intentional: R89→R66→R11.
- ['R89','R8'],['R89','R66'],
- ['R92','R13'],['R92','R73'],
- ['R11','R6'],['R11','R95'],
- ['R66','R9'],['R66','R11']
+ // Each receiver releases before its owner begins rotating.
+ ['R38','R13'],['R38','R32'],
+ ['R101','R20'],['R101','R85'],
+ ['R63','R6'],['R63','R25'],
+ ['R89','R8'],['R89','R66']
 ];
 const clone=value=>structuredClone(value);
 const isActive=(state,id)=>Core.ring(state,id)?.life==='active';
