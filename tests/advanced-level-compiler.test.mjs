@@ -92,7 +92,7 @@ test('compiler accepts multiple incoming rods at different receiver angles for s
   const spec = makeSpec();
   const length = Math.hypot(52, 40);
   const angleA = Math.atan2(40, 52) * 180 / Math.PI;
-  const angleB = Math.atan2(40, -52) * 180 / Math.PI;
+  const angleB = Math.atan2(-40, -52) * 180 / Math.PI;
   spec.rings[1].center = { x: 92.0001, y: 0 }; // R002 receiver
   spec.rings[2].center = { x: 10000, y: 10000 }; // keep unused R003 out of this local test
   spec.rings[3].center = { x: 184.0002, y: 0 }; // R004 second owner
