@@ -21,7 +21,7 @@ try{
   page.on('requestfailed',r=>errors.push(r.url()));page.on('response',r=>{if(r.status()>=400)errors.push(r.status()+' '+r.url())});
   await page.goto((process.env.JADE_URL||'http://127.0.0.1:'+server.address().port+'/')+'?debug');
   await page.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot'));
-  const shot=async name=>{await page.waitForTimeout(250);await page.mouse.move(0,0);await page.screenshot({path:`${out}/${width}-${name}.png`})};
+  const shot=async name=>{await page.waitForTimeout(250);await page.mouse.move(0,0);await page.screenshot({path:`${out}/${width}-${name}.png`});if(dpr===3&&name==='formal1')await page.screenshot({path:`${out}/${width}-formal1-device.png`,scale:'device'})};
   await shot('tutorial');
   async function click(label){
    const p=await page.evaluate(label=>{
@@ -41,16 +41,28 @@ try{
    `canvas backing height must not undersample CSS output: ${JSON.stringify(render.canvas)}`);
   assert.ok(render.canvas.backingPerCss.x>=1&&render.canvas.backingPerCss.y>=1,
    `canvas must render at least one backing pixel per CSS pixel: ${JSON.stringify(render.canvas)}`);
+  const expectedDensity=width<600?Math.min(2,Math.max(1.5,dpr)):null;
+  assert.equal(render.game.targetRenderDensity,expectedDensity,'mobile render density policy must be reported');
+  if(expectedDensity!==null){
+   assert.ok(Math.abs(render.canvas.backingPerCss.x-expectedDensity)<0.01,
+    `horizontal backing density must follow the capped DPR policy: ${JSON.stringify(render.canvas)}`);
+   assert.ok(Math.abs(render.canvas.backingPerCss.y-expectedDensity)<0.01,
+    `vertical backing density must follow the capped DPR policy: ${JSON.stringify(render.canvas)}`);
+   assert.equal(render.canvas.backing.width,Math.round(width*expectedDensity),'canvas backing width must use the selected render density');
+  }
+  assert.equal(render.device.useRetinalCanvas,false,'manual render density must not be multiplied by Laya Retina mode');
   assert.equal(render.assets.jadeAmber.width,512,'jade master texture must retain its original pixel width');
   assert.equal(render.assets.tray.width,1122,'tray texture must retain its original pixel width');
   assert.equal(render.assets.tray.height,1402,'tray texture must retain its original pixel height');
   assert.equal(render.assets.homeBackground.width,1024,'home background must retain its original pixel width');
   assert.equal(render.assets.homeBackground.height,1536,'home background must retain its original pixel height');
   assert.equal(render.assets.homeLogoPart3.width,480,'logo source width must be reported without resampling');
-  const expectedCacheMode=dpr>=2?'none':'normal';
-  assert.equal(render.cacheLayers.rods,expectedCacheMode,'rod cache policy must adapt to device DPR');
-  assert.equal(render.cacheSamples[0].body.mode,expectedCacheMode,'jade body cache policy must adapt to device DPR');
-  assert.equal(render.cacheSamples[0].focus.mode,expectedCacheMode,'ring focus cache policy must adapt to device DPR');
+  assert.equal(render.cacheLayers.rods,'none','moving clasp layer must not use a bitmap cache');
+  assert.equal(render.cacheLayers.fixedRods,'none','fixed clasp layer must not use a bitmap cache');
+  assert.equal(render.cacheSamples[0].body.mode,'none','jade body must be drawn directly');
+  assert.equal(render.cacheSamples[0].body.bitmapCacheEnabled,false,'legacy cacheAs normal must not be mistaken for an active bitmap cache');
+  assert.equal(render.cacheSamples[0].body.renderTarget,null,'jade body must not allocate a low-resolution render target');
+  assert.equal(render.cacheSamples[0].focus.mode,'none','ring focus must be drawn directly');
   for(let i=0;i<12;i++)await click('+');
   assert.ok(await page.evaluate(()=>Math.abs(jadeDebug.game.board.zoom-3.4)<1e-6));await shot('maximum-zoom');
   await click('全盘');await click('提示 ×1');await shot('hint');
