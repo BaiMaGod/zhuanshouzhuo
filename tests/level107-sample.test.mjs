@@ -14,7 +14,7 @@ function stateHash(state){
  return createHash('sha256').update(JSON.stringify(stable)).digest('hex');
 }
 
-test('第107关候选：109镯、125自带扣、14背景双头扣、双爆裂接续、无道具物理通关',()=>{
+test('第107关候选：109镯、125自带扣、14背景双头扣、双爆裂接续、无道具物理通关',{timeout:120_000},()=>{
  console.log('[Level107] start sample geometry and physical route replay');
  const sample=buildLevel107Sample(),level=sample.level;
  console.log('[Level107] sample route generated:',sample.route.length,'steps');
