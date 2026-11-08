@@ -15,6 +15,7 @@ import {DAILY_REWARDS} from './signin-inventory.js';
 import {FEATURE_ART,FEATURE_ASSETS,paintFeature} from './feature-art.js';
 import {TapPlatform} from './taptap.js';
 import {copyPlatformText,finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug,setGameCursorHidden} from './web-shell.js';
+import {getRenderDiagnostics} from './render-diagnostics.js';
 import {search,nextFrame} from './solver.js';
 interface GamePointer {pointerId:number;stageX:number;stageY:number;button?:number}
 import {JADE_ASSETS,jadeSprite} from './jade.js';
@@ -1214,7 +1215,12 @@ async function boot():Promise<void>{
  await Laya.loader.load(['assets/fonts/jade-song.woff','assets/fonts/jade-text.woff']);
  await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load().catch(e=>console.warn('Recorded audio unavailable',e));finishWebShell();void g.platform.reportReady(performance.now()-BOOT_STARTED);
  if(debugEnabled()){
-  exposeDebug({game:g,Core:C,getState:()=>g.model?C.clone(g.model.state):null});
+  exposeDebug({
+   game:g,
+   Core:C,
+   getState:()=>g.model?C.clone(g.model.state):null,
+   getRenderDiagnostics:()=>getRenderDiagnostics(g,{designWidth:W,designHeight:H,renderWidth:RENDER_W,renderScale:RENDER_SCALE})
+  });
  }
 }
 boot().catch(e=>{
