@@ -40,7 +40,7 @@ function baseRemovalSteps(baseIndex){
  return{removedAt,removalAngles,steps:solution.length};
 }
 function remapBaseRod(id,removedIndex){
- if(!id||!/^L\\d+$/.test(id))return null;
+ if(!id||!/^L\d+$/.test(id))return null;
  const old=Number(id.slice(1));
  if(old===removedIndex+1)return null;
  return'L'+(old>removedIndex+1?old-1:old);
