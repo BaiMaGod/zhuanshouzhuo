@@ -101,7 +101,7 @@ test('compiler rejects duplicate background receiver targets even when the head 
     ],
     branchPaths: [
       [{ x: 0, y: 0 }, { x: 224.0002, y: 0 }],
-      [{ x: 0, y: 0 }, { x: 224.0002, y: 1 }]
+      [{ x: 0, y: 1 }, { x: 224.0002, y: 0 }]
     ]
   }];
   assert.throws(() => compileApprovedSample(spec), /背景扣端点目标/);
