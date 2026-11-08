@@ -268,7 +268,7 @@ export class Board {
   const active=new Set(s.rings.filter(r=>r.life==='active').map(r=>r.id));
   const rods=s.rods.filter(z=>z.kind==='b');
   const hotId=this.blocked&&now<this.blockUntil?this.blocked.rod:'';
-  const key=[this.zoom,this.screen.x,this.screen.y,this.turn,hotId,
+  const key=[this.zoom,this.screen.x,this.screen.y,this.turn,this.rect.x,this.rect.y,this.rect.w,this.rect.h,hotId,
    ...rods.map(z=>z.id+':'+(s.states[z.id]||[]).join(',')+':'+z.targets.map(id=>active.has(id)?'1':'0').join(''))].join('|');
   if(this.fixedRodsDrawKey===key)return;
   const g=this.fixedRods.graphics;g.clear();let visibleCount=0;
