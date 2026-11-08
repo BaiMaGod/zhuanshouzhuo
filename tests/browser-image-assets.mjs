@@ -21,7 +21,7 @@ try{
   page.on('requestfailed',r=>errors.push(r.url()));page.on('response',r=>{if(r.status()>=400)errors.push(r.status()+' '+r.url())});
   await page.goto((process.env.JADE_URL||'http://127.0.0.1:'+server.address().port+'/')+'?debug');
   await page.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot'));
-  const shot=async name=>{await page.waitForTimeout(250);await page.mouse.move(0,0);await page.screenshot({path:`${out}/${width}-${name}.png`});if(dpr===3&&name==='formal1')await page.screenshot({path:`${out}/${width}-formal1-device.png`,scale:'device'})};
+  const shot=async name=>{await page.waitForTimeout(250);await page.mouse.move(0,0);await page.screenshot({path:`${out}/${width}-dpr${dpr}-${name}.png`});if(dpr===3&&name==='formal1')await page.screenshot({path:`${out}/${width}-dpr${dpr}-formal1-device.png`,scale:'device'})};
   await shot('tutorial');
   async function click(label){
    const p=await page.evaluate(label=>{
@@ -66,16 +66,32 @@ try{
   for(let i=0;i<12;i++)await click('+');
   assert.ok(await page.evaluate(()=>Math.abs(jadeDebug.game.board.zoom-3.4)<1e-6));await shot('maximum-zoom');
   await click('全盘');await click('提示 ×1');await shot('hint');
-  // A fixed high-density visual fixture; this does not count as a gameplay pass.
-  await page.evaluate(()=>jadeDebug.game.load(109,true));await shot('formal100');
-  const fps=await page.evaluate(()=>new Promise(resolve=>{
+  // Compare a light formal board with level 100 in the same browser process.
+  // CI forces SwiftShader; its absolute FPS is not representative of a phone GPU.
+  const measureRaf=()=>page.evaluate(()=>new Promise(resolve=>{
    let frames=0;const start=performance.now();
    const tick=(now)=>{frames++;if(now-start>=1000)resolve(Math.round(frames*1000/(now-start)));else requestAnimationFrame(tick)};
    requestAnimationFrame(tick);
   }));
-  assert.ok(fps>=45,`high-DPI level100 frame rate below 45 FPS: ${fps}`);
+  const gpu=await page.evaluate(()=>{
+   const canvas=document.querySelector('canvas'),gl=canvas?.getContext('webgl2')||canvas?.getContext('webgl');
+   const ext=gl?.getExtension('WEBGL_debug_renderer_info');
+   return {vendor:ext?gl.getParameter(ext.UNMASKED_VENDOR_WEBGL):gl?.getParameter(gl.VENDOR)||null,
+    renderer:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl?.getParameter(gl.RENDERER)||null};
+  });
+  const softwareRenderer=/swiftshader|llvmpipe|softpipe|software/i.test(gpu.renderer||'');
+  await page.evaluate(()=>jadeDebug.game.load(10,true));await page.waitForTimeout(250);
+  const baselineFps=await measureRaf();
+  await page.evaluate(()=>jadeDebug.game.load(109,true));await shot('formal100');
+  const fps=await measureRaf();
+  if(softwareRenderer){
+   assert.ok(fps>=Math.max(1,Math.round(baselineFps*0.5)),
+    `level100 RAF throughput regressed more than 50% against the same SwiftShader baseline: ${baselineFps} -> ${fps}`);
+  }else{
+   assert.ok(fps>=45,`hardware-accelerated level100 frame rate below 45 FPS: ${fps} (${gpu.renderer})`);
+  }
   const memory=await page.evaluate(()=>performance.getEntriesByType('resource').filter(r=>/assets\/.*\.(png|jpg)/.test(r.name)).reduce((n,r)=>n+r.decodedBodySize,0));
-  assert.deepEqual(errors,[]);report.push({width,height,dpr,fps,errors,downloadedImageBytes:memory,render});console.log('[high-dpi-render]',JSON.stringify({width,height,dpr,fps,device:render.device,canvas:render.canvas,stage:render.stage,game:render.game,cacheLayers:render.cacheLayers,cacheSamples:render.cacheSamples,assets:render.assets,imageScaling:render.imageScaling}));await page.close();
+  assert.deepEqual(errors,[]);report.push({width,height,dpr,fps,baselineFps,gpu,softwareRenderer,fpsGate:softwareRenderer?'relative-only':'45fps',errors,downloadedImageBytes:memory,render});console.log('[high-dpi-render]',JSON.stringify({width,height,dpr,fps,baselineFps,gpu,softwareRenderer,device:render.device,canvas:render.canvas,stage:render.stage,game:render.game,cacheLayers:render.cacheLayers,cacheSamples:render.cacheSamples,assets:render.assets,imageScaling:render.imageScaling}));await page.close();
  }
  await writeFile(out+'/report.json',JSON.stringify(report,null,2));
 }finally{await browser.close();server.close()}
