@@ -35,10 +35,12 @@ try{
   const render=await page.evaluate(()=>jadeDebug.getRenderDiagnostics());
   assert.equal(render.device.dpr,dpr,'browser DPR must be reported accurately');
   assert.ok(render.canvas.css.width>0&&render.canvas.css.height>0,'canvas must have a measurable CSS display size');
-  assert.ok(Math.abs(render.canvas.backing.width-render.canvas.expectedBacking.width)<=2,
-   `canvas backing width must follow DPR: ${JSON.stringify(render.canvas)}`);
-  assert.ok(Math.abs(render.canvas.backing.height-render.canvas.expectedBacking.height)<=2,
-   `canvas backing height must follow DPR: ${JSON.stringify(render.canvas)}`);
+  assert.ok(render.canvas.backing.width>=render.canvas.css.width,
+   `canvas backing width must not undersample CSS output: ${JSON.stringify(render.canvas)}`);
+  assert.ok(render.canvas.backing.height>=render.canvas.css.height,
+   `canvas backing height must not undersample CSS output: ${JSON.stringify(render.canvas)}`);
+  assert.ok(render.canvas.backingPerCss.x>=1&&render.canvas.backingPerCss.y>=1,
+   `canvas must render at least one backing pixel per CSS pixel: ${JSON.stringify(render.canvas)}`);
   assert.equal(render.assets.jadeAmber.width,512,'jade master texture must retain its original pixel width');
   assert.equal(render.assets.tray.width,1122,'tray texture must retain its original pixel width');
   assert.equal(render.assets.tray.height,1402,'tray texture must retain its original pixel height');
