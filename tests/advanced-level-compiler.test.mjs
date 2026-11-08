@@ -120,6 +120,27 @@ test('compiler rejects two incoming mounted rods that occupy different direction
   assert.throws(() => compileApprovedSample(spec), /同一接收镯的活动扣无法由单缺口同时对齐 R002/);
 });
 
+
+test('compiler rejects a background endpoint that conflicts with a mounted clasp on the same receiver', () => {
+  const spec = makeSpec();
+  spec.backgroundPieceCount = 1;
+  spec.backgroundEndpointCount = 2;
+  spec.backgroundPieces = [{
+    id: 'F001',
+    heads: 2,
+    anchorWorld: { x: 0, y: 100 },
+    endpoints: [
+      { id: 'F001-H1', receiverId: 'R002', pointWorld: { x: 92.0001, y: 40 }, endpointWorldAngle: 90, endpointWidth: 7 },
+      { id: 'F001-H2', receiverId: 'R003', pointWorld: { x: 224.0002, y: 0 }, endpointWorldAngle: 0, endpointWidth: 7 }
+    ],
+    branchPaths: [
+      [{ x: 0, y: 100 }, { x: 92.0001, y: 40 }],
+      [{ x: 0, y: 100 }, { x: 224.0002, y: 0 }]
+    ]
+  }];
+  assert.throws(() => compileApprovedSample(spec), /背景扣与活动扣无法由同一缺口同时对齐 R002/);
+});
+
 test('compiler rejects duplicate background receiver targets even when the head count matches', () => {
   const spec = makeSpec();
   spec.backgroundPieceCount = 1;
