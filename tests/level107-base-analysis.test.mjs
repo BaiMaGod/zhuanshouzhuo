@@ -46,7 +46,7 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
    if(premature.length)return{valid:false,reason:'premature',detail:premature};
    const extraRodId='L'+candidate.links.length,targetStep=removedAt.get(target);
    for(let i=0;i<solution.length;i++){
-    const action=solution[i],oldRod=action.rod&&/^L\\d+$/.test(action.rod)?Number(action.rod.slice(1)):null;
+    const action=solution[i],oldRod=action.rod&&/^L\d+$/.test(action.rod)?Number(action.rod.slice(1)):null;
     const rodId=!oldRod||oldRod===removedIndex+1?null:'L'+(oldRod>removedIndex+1?oldRod-1:oldRod);
     if(rodId&&Core.ring(s,action.id)?.life==='active'){
      const rod=s.rods.find(item=>item.id===rodId),endpoint=rod&&Core.endpoints(s,rod).find(item=>item.id===action.id);
