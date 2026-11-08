@@ -10,11 +10,11 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
  const level=formalLevels[99],state=Core.make(index),solution=formalSolutions[99];
  assert.equal(state.rings.length,109);
  assert.deepEqual(Core.validate(state),[]);
- const removedAt=new Map(),removals=[];
+ const removedAt=new Map(),removalAngles=new Map(),removals=[];
  for(let i=0;i<solution.length;i++){
   const action=solution[i],result=Core.request(state,action.id,action.delta);
   assert.equal(result.blocked,null,'base action '+i+' '+JSON.stringify(result.blocked));
-  for(const id of result.removed){if(!removedAt.has(id))removedAt.set(id,i);removals.push({step:i,id});}
+  for(const id of result.removed){if(!removedAt.has(id)){removedAt.set(id,i);removalAngles.set(id,Core.ring(state,id).a)}removals.push({step:i,id,angle:Core.ring(state,id).a});}
  }
  assert.ok(state.rings.every(r=>r.life==='removed'));
  const out=new Map(state.rings.map(r=>[r.id,0]));
@@ -26,7 +26,7 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
  const sinks=state.rings.filter(r=>out.get(r.id)===0);
  const sinkCandidates=sinks.map(owner=>({
   id:owner.id,degree:neighbors.get(owner.id).length,removedAt:removedAt.get(owner.id),
-  targetCandidates:neighbors.get(owner.id).filter(id=>out.get(id)===0&&removedAt.get(id)<removedAt.get(owner.id)&&!level.links.some(e=>e[0]==='m'&&((e[1]===owner.id&&e[2]===id)||(e[1]===id&&e[2]===owner.id))))
+  targetCandidates:neighbors.get(owner.id).filter(id=>removedAt.get(id)<removedAt.get(owner.id)&&!level.links.some(e=>e[0]==='m'&&((e[1]===owner.id&&e[2]===id)||(e[1]===id&&e[2]===owner.id)))).map(id=>{const requiredAngle=Core.angle(byId.get(id),byId.get(owner.id)),angleAtRemoval=removalAngles.get(id),delta=Core.diff(requiredAngle,angleAtRemoval);return{id,requiredAngle,angleAtRemoval,delta,alreadyAligned:Math.abs(delta)<=Core.tolerance}})
  }));
  const burstPairs=[];
  for(const a of sinks)for(const b of sinks)if(a.id<b.id&&adjacent(a,b)&&removedAt.get(a.id)<removedAt.get(b.id)&&neighbors.get(a.id).length<=4&&neighbors.get(b.id).length<=4)
@@ -37,6 +37,7 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
   mountedCount:level.links.filter(e=>e[0]==='m').length,backgroundCount:background.length,
   ownerDistribution:dist,sinkCount:sinks.length,background,
   burstPairCandidates:burstPairs.slice(0,30),newOwnerCandidates:sinkCandidates.filter(x=>x.targetCandidates.length>=2).sort((a,b)=>b.removedAt-a.removedAt).slice(0,40),
+  alreadyAlignedOwnerCandidates:sinkCandidates.map(x=>({...x,targetCandidates:x.targetCandidates.filter(t=>t.alreadyAligned)})).filter(x=>x.targetCandidates.length>=2).sort((a,b)=>b.removedAt-a.removedAt),
   removals
  };
  mkdirSync('tests/results',{recursive:true});
