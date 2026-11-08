@@ -87,6 +87,39 @@ test('compiler verifies burst candidate source attributes and actual neighbor di
   assert.throws(() => compileApprovedSample(spec), /爆裂邻镯不是真实相邻/);
 });
 
+
+test('compiler permits multiple incoming rods only when the single receiver gap can align them together', () => {
+  const spec = makeSpec();
+  const length = Math.hypot(52, 40);
+  const angleA = Math.atan2(40, 52) * 180 / Math.PI;
+  const angleB = Math.atan2(40, -52) * 180 / Math.PI;
+  spec.rings[1].center = { x: 92.0001, y: 0 }; // R002 receiver
+  spec.rings[2].center = { x: 10000, y: 10000 }; // keep unused R003 out of this local test
+  spec.rings[3].center = { x: 184.0002, y: 0 }; // R004 second owner
+  spec.rings[3].mountedClaspQuota = 1;
+  spec.mountedRods = [
+    { id: 'M001', ownerId: 'R001', receiverId: 'R002', anchorLocal: { x: 40, y: 0 }, angleLocal: angleA, length, endpointWidth: 7 },
+    { id: 'M002', ownerId: 'R004', receiverId: 'R002', anchorLocal: { x: -40, y: 0 }, angleLocal: angleB, length, endpointWidth: 7 }
+  ];
+  assert.equal(compileApprovedSample(spec).mountedRods.length, 2);
+});
+
+test('compiler rejects two incoming mounted rods that occupy different directions on one single-gap receiver', () => {
+  const spec = makeSpec();
+  const length = Math.hypot(52, 40);
+  const angleA = Math.atan2(40, 52) * 180 / Math.PI;
+  const angleB = Math.atan2(-40, -52) * 180 / Math.PI;
+  spec.rings[1].center = { x: 92.0001, y: 0 };
+  spec.rings[2].center = { x: 10000, y: 10000 };
+  spec.rings[3].center = { x: 184.0002, y: 0 };
+  spec.rings[3].mountedClaspQuota = 1;
+  spec.mountedRods = [
+    { id: 'M001', ownerId: 'R001', receiverId: 'R002', anchorLocal: { x: 40, y: 0 }, angleLocal: angleA, length, endpointWidth: 7 },
+    { id: 'M002', ownerId: 'R004', receiverId: 'R002', anchorLocal: { x: -40, y: 0 }, angleLocal: angleB, length, endpointWidth: 7 }
+  ];
+  assert.throws(() => compileApprovedSample(spec), /同一接收镯的活动扣无法由单缺口同时对齐 R002/);
+});
+
 test('compiler rejects duplicate background receiver targets even when the head count matches', () => {
   const spec = makeSpec();
   spec.backgroundPieceCount = 1;
