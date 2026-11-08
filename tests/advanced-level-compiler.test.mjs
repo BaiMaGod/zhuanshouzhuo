@@ -32,11 +32,15 @@ function makeSpec() {
     backgroundPieces: [],
     silkEdges: [],
     burstCandidates: [],
-    validation: { source: true, geometry: true, physics: true },
+    validation: {
+      staticIntegrity: true, connectivityComplete: true, geometryVerified: true,
+      sweepVerified: true, fullRouteVerified: true, difficultyVerified: true,
+      mobilePlaytested: true, publishReady: true
+    },
     verifiedRoute: {
       replayReport: { passed: true },
-      initialStateHash: 'unit-test-initial',
-      finalStateHash: 'unit-test-final',
+      initialStateHash: 'a'.repeat(64),
+      finalStateHash: 'b'.repeat(64),
       stepsS: 1,
       orderedSteps: [{ id: 'R001', delta: 10, rod: 'M001' }]
     }
@@ -144,4 +148,16 @@ test('compiler rejects duplicate background receiver targets even when the head 
     ]
   }];
   assert.throws(() => compileApprovedSample(spec), /背景扣端点目标/);
+});
+
+test('compiler requires every named publication gate instead of accepting arbitrary true flags', () => {
+  const spec = makeSpec();
+  delete spec.validation.mobilePlaytested;
+  assert.throws(() => compileApprovedSample(spec), /验收证据未齐备 mobilePlaytested/);
+});
+
+test('compiler requires SHA-256 state hashes from the physical replay report', () => {
+  const spec = makeSpec();
+  spec.verifiedRoute.finalStateHash = 'not-a-hash';
+  assert.throws(() => compileApprovedSample(spec), /状态SHA256格式错误/);
 });
