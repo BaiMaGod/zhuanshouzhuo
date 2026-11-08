@@ -33,7 +33,7 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
   burstPairs.push({first:a.id,second:b.id,firstRemovedAt:removedAt.get(a.id),secondRemovedAt:removedAt.get(b.id),firstNeighbors:neighbors.get(a.id),secondNeighbors:neighbors.get(b.id)});
  const background=level.links.filter(e=>e[0]==='b').map((e,i)=>({id:'L'+(level.links.findIndex(x=>x===e)+1),a:e[1],b:e[2]}));
  const report={
-  levelName:level.name,removedBy:Object.fromEntries(removedBy),,ringCount:state.rings.length,routeSteps:solution.length,
+  levelName:level.name,removedBy:Object.fromEntries(removedBy),ringCount:state.rings.length,routeSteps:solution.length,
   mountedCount:level.links.filter(e=>e[0]==='m').length,backgroundCount:background.length,
   ownerDistribution:dist,sinkCount:sinks.length,outDegree:Object.fromEntries(out),background,
   burstPairCandidates:burstPairs.slice(0,30),newOwnerCandidates:sinkCandidates.filter(x=>x.targetCandidates.length>=2).sort((a,b)=>b.removedAt-a.removedAt).slice(0,40),
