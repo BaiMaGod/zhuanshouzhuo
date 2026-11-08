@@ -32,7 +32,9 @@ test('manual retry starts one new native call and ignores timed-out native succe
   await p.login(true);await p.login(true);assert.equal(f.calls,2);assert.equal(f.reads,1);
   f.auth[0].success({code:'old-sensitive-credential'});assert.equal(p.states.login,'busy');
   f.auth[1].success({code:'new-sensitive-credential'});await settle();assert.equal(p.states.login,'ready');
-  const output=p.exportDiagnostics('test');assert.ok(!output.includes('sensitive-credential'));
+  const render={canvas:{backing:{width:1170,height:2532}}};
+  const output=p.exportDiagnostics('test',render);assert.ok(!output.includes('sensitive-credential'));
+  assert.deepEqual(JSON.parse(output).render,render,'TapTap diagnostic export includes render metrics without login credentials');
   assert.ok(p.trace.events.some(e=>e.phase==='late-success'));
  }finally{p.dispose()}
 });
