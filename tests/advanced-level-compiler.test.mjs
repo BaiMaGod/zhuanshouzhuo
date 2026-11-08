@@ -96,7 +96,7 @@ test('compiler rejects duplicate background receiver targets even when the head 
     heads: 2,
     anchorWorld: { x: 0, y: 0 },
     endpoints: [
-      { id: 'F001-H1', receiverId: 'R003', pointWorld: { x: 184.0002, y: 0 }, endpointWorldAngle: 0, endpointWidth: 7 },
+      { id: 'F001-H1', receiverId: 'R003', pointWorld: { x: 224.0002, y: 0 }, endpointWorldAngle: 0, endpointWidth: 7 },
       { id: 'F001-H2', receiverId: 'R003', pointWorld: { x: 184.0002, y: 0 }, endpointWorldAngle: 0, endpointWidth: 7 }
     ],
     branchPaths: [
