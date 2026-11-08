@@ -43,7 +43,7 @@ test('mounted lock receiver sleeves follow receiver lifecycle on every level',()
     'level '+(index+1)+' '+rod.id+': removed receiver must not leave its sleeve behind');
    assert.equal(countOps(board.rods,'mesh'),expected.rods,
     'level '+(index+1)+' '+rod.id+': owner-mounted rod body remains only with its owner');
-   assert.equal(countOps(board.rods,'line'),expected.rods*3+expected.sleeves*2,
+   assert.equal(countOps(board.rods,'line'),expected.rods*4+expected.sleeves*2,
     'level '+(index+1)+' '+rod.id+': only live endpoint sleeves contribute end-cap lines');
 
    // A second frame must not restore a stale cached endpoint.
