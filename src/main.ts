@@ -1209,7 +1209,7 @@ async function boot():Promise<void>{
  // Landscape keeps the former minimum play height until it has dedicated HUD layout.
  const fullHeight=viewportHeight/Math.max(1,viewportWidth)*W;
  H=Math.round(viewportHeight>=viewportWidth?fullHeight:Math.max(1180,fullHeight));
- RENDER_DENSITY=viewportWidth<600?Math.min(2,Math.max(1.5,window.devicePixelRatio||1)):null;
+ RENDER_DENSITY=viewportWidth<600?Math.min(2,Math.max(1.5,typeof window!=='undefined'?(window.devicePixelRatio||1):1)):null;
  RENDER_W=RENDER_DENSITY===null?W:Math.round(viewportWidth*RENDER_DENSITY);RENDER_SCALE=RENDER_W/W;
  Laya.stage.size(RENDER_W,Math.round(H*RENDER_SCALE));Laya.stage.scaleMode=Laya.Stage.SCALE_SHOWALL;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
  Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor=THEME.paper;
