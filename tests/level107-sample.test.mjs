@@ -30,6 +30,8 @@ test('第107关候选：109镯、125自带扣、14背景双头扣、双爆裂接
  assert.equal(level.links.length,139);
  assert.equal(level.special.rings.length,2);
  assert.ok(sample.route.length>0);
+ assert.ok(sample.metrics.baseActionStats.withRod>0,'base route clasp IDs must all map');
+ assert.ok(sample.metrics.baseActionStats.rotated>0,'base route must execute physical rotations');
 
  const index=Core.levels.push(level)-1;
  try{
