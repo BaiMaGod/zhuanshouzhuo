@@ -15,8 +15,6 @@ const RELEASE_GLOW:Record<JadeName,string> = {
  ice:'166,231,219', ivory:'255,244,207'
 };
 const HALF_GAP = Math.asin(C.GAP/(2*(C.R-C.BAND/2)))/C.D;
-// High-DPI devices render textured geometry directly instead of enlarging low-resolution bitmap caches.
-const DIRECT_HIGH_DPI=typeof window!=='undefined'&&(window.devicePixelRatio||1)>=2;
 
 export class Board {
  viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();fixedRods=new Laya.Sprite();effects=new Laya.Sprite();
@@ -26,8 +24,8 @@ export class Board {
  center:Point={x:0,y:0}; screen:Point;zoom=1;fitZoom=1;bounds={w:1,h:1};turn=0;selected:string|null=null;
  lastState:State|null=null;
  showLabels=true;
- // A single immutable graphics batch costs one cached quad per frame.
- // Invalidate only when the camera, ring poses or collision highlight changes.
+ // Keep moving clasps in one Graphics batch to avoid a separate display object per clasp.
+ // Rebuild only when the camera, ring poses or collision highlight changes.
  private rodsDrawKey=''; private highlightedRing:string|null=null;
  private fixedRodViews=new Map<string,Laya.Sprite>();
  private fixedRodKeys=new Map<string,string>();
@@ -42,10 +40,10 @@ export class Board {
   this.screen={x:rect.x+rect.w/2,y:rect.y+rect.h/2};
   this.viewport.pos(rect.x,rect.y);this.viewport.size(rect.w,rect.h);this.viewport.scrollRect=new Laya.Rectangle(0,0,rect.w,rect.h);this.viewport.mouseEnabled=false;
   parent.addChild(this.viewport);this.viewport.addChild(this.root);this.root.addChild(this.space);
-  this.rods.name='board-rods';this.rods.cacheAs=DIRECT_HIGH_DPI?'none':'normal';
+  this.rods.name='board-rods';this.rods.cacheAs='none';
   // Background fixed clasps change visibility when either endpoint ring is
-  // removed. Keep them outside the cached moving-rod batch so GPU bitmap caches
-  // cannot preserve the final clasp after its Sprite has been hidden.
+  // removed. Keep them outside the moving-clasp Graphics batch because their
+  // lifetime depends on both endpoint rings, not on a shared batch.
   this.fixedRods.name='board-fixed-rods';this.fixedRods.cacheAs='none';
   this.effects.name='board-effects';
   this.space.addChild(this.rods);this.space.addChild(this.fixedRods);this.space.addChild(this.effects);
@@ -56,12 +54,12 @@ export class Board {
   this.lastState=null;this.rodsDrawKey='';this.highlightedRing=null;this.focusId=null;
   // A prior completed level hides the owner-mounted clasp layer entirely.
   // Restore it when loading a fresh board, including replaying the same level.
-  this.rods.visible=true;this.rods.cacheAs='normal';this.rods.graphics.clear();
+  this.rods.visible=true;this.rods.cacheAs='none';this.rods.graphics.clear();
   for(let i=this.rods.numChildren-1;i>=0;i--)this.rods.getChildAt(i).destroy(true);
   for(let i=this.fixedRods.numChildren-1;i>=0;i--)this.fixedRods.getChildAt(i).destroy(true);
   this.fixedRodViews.clear();this.fixedRodKeys.clear();
-  // Cache only the immutable jade/ring bodies and the clasp batch; never
-  // cache the moving whole scene, input targets or zoomable camera.
+  // The bundled LayaAir 3.4 runtime accepts only 'bitmap' and 'none' for cacheAs.
+  // Keep this scene live-rendered; the legacy 'normal' value does not enable caching.
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
   this.ghosts=[];this.sparks=[];this.flashes=[];this.clearAt=-Infinity;this.releaseAt=-Infinity;this.streak=0;
   this.quiet=reducedMotion();this.hint=null;this.blocked=null;this.blockedRing=null;this.blockUntil=0;
@@ -93,9 +91,8 @@ export class Board {
    const material=JADE_NAMES[i%JADE_NAMES.length];
    const body=new Laya.Sprite();drawJade(body.graphics,material);
    // A body never changes its local mesh; only its sprite rotation changes.
-   // Low-DPI devices retain the inexpensive cache. High-DPI devices draw the
-   // original jade texture directly so a small offscreen bitmap is not enlarged.
-   body.cacheAs=DIRECT_HIGH_DPI?'none':'normal';root.addChild(body);
+   // Use no bitmap cache: LayaAir 3.4 does not support the legacy 'normal' mode.
+   body.cacheAs='none';root.addChild(body);
    const focus=new Laya.Sprite();focus.name='ring-focus:'+r.id;focus.visible=false;focus.mouseEnabled=false;
    // Two small polished tips identify the actual held ring, without outlining
    // the ring or drawing across the authoritative gap.
@@ -105,7 +102,7 @@ export class Board {
     focus.graphics.drawCircle(p.x,p.y,4,'rgba(42,104,79,0.34)');
     glint(focus.graphics,p.x,p.y,2.8,'#fff8d8');
    }
-   focus.cacheAs=DIRECT_HIGH_DPI?'none':'normal';root.addChild(focus);
+   focus.cacheAs='none';root.addChild(focus);
    const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index>=TEACHING_COUNT||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
    this.rings.set(r.id,{material,root,body,halo,focus,label,shadow});
   });
@@ -340,7 +337,7 @@ export class Board {
       v.halo.graphics.drawPath(0,0,path,undefined,{strokeStyle:'rgba(234,79,88,0.22)',lineWidth:6});
       v.halo.graphics.drawPath(0,0,path,undefined,{strokeStyle:'#ed6670',lineWidth:1.8});
      }
-     v.halo.cacheAs='normal';
+     v.halo.cacheAs='none';
     }
     v.halo.visible=true;v.halo.rotation=r.a;
     const fade=Math.min(1,(this.blockUntil-now)/180);
@@ -352,16 +349,16 @@ export class Board {
   this.highlightedRing=now<this.blockUntil?this.blockedRing:null;
   this.syncBackgroundRods(s,now);
   // The final action may remove one, two, or several bracelets in a single
-  // settle pass. Never let a cached clasp bitmap outlive its owner when the
-  // board reaches zero active rings. Departing clasp ghosts on the effects
-  // layer still fade normally and are destroyed before victory.
+  // settle pass. Clear the moving-clasp batch when the board reaches zero
+  // active rings. Departing clasp ghosts on the effects layer still fade
+  // normally and are destroyed before victory.
   if(s.rings.every(r=>r.life!=='active')){
    this.rods.visible=false;
    this.rods.cacheAs='none';
    this.rods.graphics.clear();
    this.rodsDrawKey='';
   }else{
-   if(!this.rods.visible){this.rods.visible=true;this.rods.cacheAs='normal';this.rodsDrawKey=''}
+   if(!this.rods.visible){this.rods.visible=true;this.rods.cacheAs='none';this.rodsDrawKey=''}
    // Avoid rebuilding drawing commands on unchanged frames while rings remain.
    const hot=now<this.blockUntil?this.blocked?.rod||'':'';
    const key=[this.zoom,this.screen.x,this.screen.y,this.turn,hot,
