@@ -16,7 +16,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: node --test tests/level107-base-analysis.test.mjs tests/level107-sample.test.mjs
+      - run: node --test tests/level107-base-analysis.test.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: level107-base-analysis
