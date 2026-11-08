@@ -20,7 +20,6 @@ import {search,nextFrame} from './solver.js';
 interface GamePointer {pointerId:number;stageX:number;stageY:number;button?:number}
 import {JADE_ASSETS,jadeSprite} from './jade.js';
 import solutions from './solutions.js';
-import {buildLevel107Sample} from './level107-sample.js';
 import {TEACHING_COUNT,FORMAL_INDEX} from './levels.js';
 import type {Action,Point,State,Result} from './types.js';
 
@@ -44,7 +43,6 @@ const GAME_VERSION='__GAME_VERSION__';
 const ASSETS=[HINT_HAND_ASSET,PETAL_ASSET,...JADE_ASSETS,...FEATURE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,...HOME_LOGO_PARTS,'assets/art-v3/clasp.png'];
 class Game {
  readonly debugMode=debugHintEnabled();
- sampleLevelIndex:number|null=null;
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
  cursorHand:GestureHand;activeHandPointer:number|null=null;
  garden:Laya.Sprite|null=null;wallpaper:Laya.Sprite|null=null;
@@ -509,7 +507,7 @@ class Game {
   return TEACHING_COUNT-1; // All tutorial levels cleared: replay the final one.
  }
  private officialLevelCount():number{
-  return C.levels.length-(this.sampleLevelIndex===C.levels.length-1?1:0);
+  return C.levels.length;
  }
  formalCurrent():number{
   let index=TEACHING_COUNT;
@@ -645,7 +643,7 @@ class Game {
    this.wallpaper=wallpaper;
    const home=new Button('',28,26,76,64,()=>this.confirmExit(),false,'home');home.name='button:home';this.scene.addChild(home);
    const restart=new Button('',116,26,76,64,()=>this.confirmRestart(),false,'restart');restart.name='button:restart';this.scene.addChild(restart);
-   const levelTitle=i===this.sampleLevelIndex?'第107关 · 样板':'第'+(i-TEACHING_COUNT+1)+'关';
+   const levelTitle='第'+(i-TEACHING_COUNT+1)+'关';
    const title=text(this.scene,levelTitle,216,26,288,64,43,COLORS.ink,'center',true);
    const sound=new Button('',528,26,76,64,()=>this.settings(true),false,this.audio.enabled?'sound':'mute');sound.name='button:sound';this.scene.addChild(sound);
    const help=new Button('',616,26,76,64,()=>this.help(),false,'help');help.name='button:help';this.scene.addChild(help);
@@ -1082,21 +1080,18 @@ class Game {
  win():void{
   if(this.progressRestoreBlocked()||!this.model||!this.board||!this.model.cleared||this.board.hasVisibleClaspLayer||this.board.animating||this.busy)return;
   if(this.challengeClock&&!this.challengeClock.clearAt(performance.now())){this.challengeFailed();return}
-  const i=this.model.index,steps=this.model.state.steps,sample=i===this.sampleLevelIndex;
-  if(!sample)this.save.clearRun(i);
+  const i=this.model.index,steps=this.model.state.steps;
+  this.save.clearRun(i);
   if(this.formal){
    const baseline=solutions[i].length;
-   const stars=sample?(steps<=baseline+2?3:steps<=baseline+6?2:1):this.save.win(i,steps,baseline,!debugEnabled());
-   const last=!sample&&i===this.officialLevelCount()-1;
-   const level=sample?'第107关样板':'第'+(i-TEACHING_COUNT+1)+'关';
-   if(!sample){void this.platform.sync();void this.platform.submitScores().catch(()=>{})}
+   const stars=this.save.win(i,steps,baseline,!debugEnabled());
+   const last=i===this.officialLevelCount()-1;
+   const level='第'+(i-TEACHING_COUNT+1)+'关';
+   void this.platform.sync();void this.platform.submitScores().catch(()=>{});
    this.audio.play('win');
-   this.showVictory({title:level+' · 全部解开',subtitle:sample?'样板关完整通关，物理路线已走通':stars===3?'三星达成，解得漂亮':'又解开一盘玉镯',count:C.levels[i].points.length,steps,stars,
-    note:sample?'开发验收样板，不计入正式关卡进度':last?'全部关卡已完成，随时回来再挑战':'下一关已开启',
-    actions:sample?[
-     {label:'再挑战样板',action:()=>this.load(i,true),primary:true},
-     {label:'回到首页',action:()=>this.home(),primary:false}
-    ]:[
+   this.showVictory({title:level+' · 全部解开',subtitle:stars===3?'三星达成，解得漂亮':'又解开一盘玉镯',count:C.levels[i].points.length,steps,stars,
+    note:last?'全部关卡已完成，随时回来再挑战':'下一关已开启',
+    actions:[
      {label:last?'关卡图谱':'下一关',action:()=>last?this.levels():this.load(i+1),primary:true},
      {label:'回到首页',action:()=>this.home(),primary:false},
      {label:'再挑战一次',action:()=>this.load(i,true),primary:false}
@@ -1268,11 +1263,6 @@ async function boot():Promise<void>{
  Laya.stage.alignH='center';Laya.stage.alignV='middle';Laya.stage.bgColor=THEME.paper;
  await Laya.loader.load(['assets/fonts/jade-song.woff','assets/fonts/jade-text.woff']);
  await Laya.loader.load(ASSETS);const g=new Game();await g.audio.load().catch(e=>console.warn('Recorded audio unavailable',e));
- const params=typeof location!=='undefined'?new URLSearchParams(location.search):null;
- if(debugHintEnabled()&&params?.get('sample107')==='1'&&!g.platform.requiresCloud){
-  const sample=buildLevel107Sample(),index=C.levels.push(sample.level)-1;
-  solutions.push(sample.route);g.sampleLevelIndex=index;g.load(index,true);
- }
  finishWebShell();void g.platform.reportReady(performance.now()-BOOT_STARTED);
  if(debugEnabled()){
   exposeDebug({game:g,Core:C,getState:()=>g.model?C.clone(g.model.state):null});
