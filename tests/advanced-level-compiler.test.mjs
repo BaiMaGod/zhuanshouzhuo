@@ -88,7 +88,7 @@ test('compiler verifies burst candidate source attributes and actual neighbor di
 });
 
 
-test('compiler accepts multiple incoming rods at different receiver angles for sequential release', () => {
+test('compiler defers different-angle mounted receiver solvability to full physical route replay', () => {
   const spec = makeSpec();
   const length = Math.hypot(52, 40);
   const angleA = Math.atan2(40, 52) * 180 / Math.PI;
@@ -104,30 +104,7 @@ test('compiler accepts multiple incoming rods at different receiver angles for s
   assert.equal(compileApprovedSample(spec).mountedRods.length, 2);
 });
 
-test('compiler accepts two incoming mounted rods that the receiver must release at different angles', () => {
-  const spec = makeSpec();
-  const length = Math.hypot(52, 40);
-  const angleA = Math.atan2(40, 52) * 180 / Math.PI;
-  const angleB = Math.atan2(-40, -52) * 180 / Math.PI;
-  spec.rings[1].center = { x: 92.0001, y: 0 };
-  spec.rings[2].center = { x: 10000, y: 10000 };
-  spec.rings[3].center = { x: 184.0002, y: 0 };
-  spec.rings[3].mountedClaspQuota = 1;
-  spec.mountedRods = [
-    { id: 'M001', ownerId: 'R001', receiverId: 'R002', anchorLocal: { x: 40, y: 0 }, angleLocal: angleA, length, endpointWidth: 7 },
-    { id: 'M002', ownerId: 'R004', receiverId: 'R002', anchorLocal: { x: -40, y: 0 }, angleLocal: angleB, length, endpointWidth: 7 }
-  ];
-  const level = compileApprovedSample(spec);
-  assert.equal(level.mountedRods.length, 2);
-  assert.notEqual(
-    Math.round(Math.atan2(40, 52) * 180 / Math.PI),
-    Math.round(Math.atan2(-40, -52) * 180 / Math.PI),
-    'the two receiver directions are intentionally different'
-  );
-});
-
-
-test('compiler allows a background endpoint and mounted clasp to release at different receiver angles', () => {
+test('compiler defers background/mounted angle conflicts to full physical route replay', () => {
   const spec = makeSpec();
   spec.backgroundPieceCount = 1;
   spec.backgroundEndpointCount = 2;
