@@ -40,18 +40,14 @@ function assertMountedComplete(board,state,where){
  }
 }
 function assertBackgroundComplete(board,state,z,where){
- const view=board.fixedRodViews.get(z.id);
- assert.ok(view,where+': background lock render view exists');
- const shouldExist=Core.exists(state,z);
- assert.equal(view.visible,shouldExist,where+': entire background clasp follows one lifecycle');
- if(shouldExist){
-  assert.equal(countOps(view,'mesh'),1,where+': background clasp retains its central anchor');
-  assert.equal(countOps(view,'poly'),6,where+': both end sleeves retain all six polygons');
-  assert.equal(countOps(view,'line'),10,where+': shaft, two end sleeves and anchor detailing all remain');
-  assert.equal(Core.rodSegments(state,z).length,9,where+': collision includes both complete end fittings');
- }else{
-  assert.equal(view.graphics.ops.length,0,where+': background clasp is fully cleared after both rings disappear');
- }
+ const surviving=state.rods.filter(rod=>rod.kind==='b'&&Core.exists(state,rod));
+ const n=surviving.length;
+ assert.equal(board.fixedRods.visible,n>0,where+': batched background layer follows all surviving clasp lifecycles');
+ assert.equal(board.fixedRods.numChildren,0,where+': background clasps share one render node, not one Sprite per rod');
+ assert.equal(countOps(board.fixedRods,'mesh'),n,where+': one central anchor is drawn for every surviving background clasp');
+ assert.equal(countOps(board.fixedRods,'poly'),6*n,where+': both end sleeves of every surviving background clasp remain complete');
+ assert.equal(countOps(board.fixedRods,'line'),10*n,where+': each surviving background clasp keeps its shaft and anchor detailing');
+ if(Core.exists(state,z))assert.equal(Core.rodSegments(state,z).length,9,where+': collision includes both complete end fittings');
 }
 
 test('across ALL levels removing a receiver never cuts another living bracelet clasp in half',()=>{
