@@ -98,6 +98,7 @@ export function getRenderDiagnostics(
   },
   stage:{width:stage.width,height:stage.height,scaleX:stage.scaleX,scaleY:stage.scaleY},
   game:{designWidth:config.designWidth,designHeight:config.designHeight,virtualRenderWidth:config.renderWidth,rootScaleX:game.root.scaleX,rootScaleY:game.root.scaleY,renderScale:config.renderScale},
+  cacheLayers:{rods:game.board?.rods.cacheAs||'none',fixedRods:game.board?.fixedRods.cacheAs||'none'},
   cacheSamples:rings.map(([ringId,view])=>({
    ringId,
    body:cacheInfo(view.body),
