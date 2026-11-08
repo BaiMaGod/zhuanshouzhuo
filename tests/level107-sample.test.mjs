@@ -23,6 +23,8 @@ test('第107关候选：109镯、125自带扣、14背景双头扣、双爆裂接
  assert.equal(sample.metrics.backgroundCount,14);
  assert.deepEqual(sample.metrics.ownerDistribution,{0:61,1:7,2:11,3:24,4:6,5:0,6:0});
  assert.deepEqual(sample.metrics.burstRings,['R90','R98']);
+ assert.equal(sample.metrics.receiverReleaseAngles.length,8);
+ assert.ok(sample.metrics.receiverReleaseAngles.every(item=>Math.abs(item.delta)<=65));
  assert.deepEqual(sample.metrics.burstNeighbors.R90,['R50','R62','R78','R98']);
  assert.deepEqual(sample.metrics.burstNeighbors.R98,['R62','R74','R90']);
  assert.equal(level.links.length,139);
@@ -45,13 +47,17 @@ test('第107关候选：109镯、125自带扣、14背景双头扣、双爆裂接
   }
   assert.ok(state.rings.every(r=>r.life==='removed'),'all rings removed');
   assert.ok(state.rods.every(rod=>!Core.exists(state,rod)),'no clasp remains after victory');
+  const burstEvents=state.events.filter(event=>event.kind==='burst');
+  assert.deepEqual(burstEvents.map(event=>event.source).sort(),['R90','R98']);
+  assert.ok(burstEvents.every(event=>event.brokenRodIds.length>0),'both burst rings must physically break neighboring clasp rods');
   const finalStateHash=stateHash(state);
   const proof={
    status:'candidate_physics_verified_not_publishable',
    level:107,ringCount:109,mountedCount:125,backgroundCount:14,
    ownerDistribution:sample.metrics.ownerDistribution,
    burstRings:sample.metrics.burstRings,burstNeighbors:sample.metrics.burstNeighbors,
-   addedOwnerTargets:sample.metrics.addedOwnerTargets,removedBackgroundRod:sample.metrics.removedBackgroundRod,
+   addedOwnerTargets:sample.metrics.addedOwnerTargets,receiverReleaseAngles:sample.metrics.receiverReleaseAngles,
+   burstEvents,removedBackgroundRod:sample.metrics.removedBackgroundRod,
    baseRouteSteps:sample.metrics.baseRouteSteps,verifiedRouteSteps:sample.route.length,
    toolsUsed:0,blockedRotations:0,remainingRings:state.rings.filter(r=>r.life==='active').length,
    remainingClaspObjects:state.rods.filter(rod=>Core.exists(state,rod)).length,
