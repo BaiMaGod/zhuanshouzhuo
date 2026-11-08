@@ -15,8 +15,8 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']});
 const report=[];
 try{
- for(const [width,height] of [[390,844],[1280,720]]){
-  const page=await browser.newPage({viewport:{width,height},deviceScaleFactor:1});const errors=[];
+ for(const [width,height,dpr] of [[390,844,1],[390,844,2],[390,844,3],[1280,720,1]]){
+  const page=await browser.newPage({viewport:{width,height},deviceScaleFactor:dpr});const errors=[];
   page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
   page.on('requestfailed',r=>errors.push(r.url()));page.on('response',r=>{if(r.status()>=400)errors.push(r.status()+' '+r.url())});
   await page.goto((process.env.JADE_URL||'http://127.0.0.1:'+server.address().port+'/')+'?debug');
@@ -32,13 +32,23 @@ try{
    },label);await page.mouse.click(p.x,p.y);await page.waitForTimeout(100);
   }
   await click('button:home');await shot('home');await click('第1关');await shot('formal1');
+  const render=await page.evaluate(()=>jadeDebug.getRenderDiagnostics());
+  assert.equal(render.device.dpr,dpr,'browser DPR must be reported accurately');
+  assert.ok(render.canvas.css.width>0&&render.canvas.css.height>0,'canvas must have a measurable CSS display size');
+  assert.ok(Math.abs(render.canvas.backing.width-render.canvas.expectedBacking.width)<=2,
+   `canvas backing width must follow DPR: ${JSON.stringify(render.canvas)}`);
+  assert.ok(Math.abs(render.canvas.backing.height-render.canvas.expectedBacking.height)<=2,
+   `canvas backing height must follow DPR: ${JSON.stringify(render.canvas)}`);
+  assert.equal(render.assets.jadeAmber.width,512,'jade master texture must retain its original pixel width');
+  assert.equal(render.assets.tray.width,1122,'tray texture must retain its original pixel width');
+  assert.equal(render.assets.tray.height,1402,'tray texture must retain its original pixel height');
   for(let i=0;i<12;i++)await click('+');
   assert.ok(await page.evaluate(()=>Math.abs(jadeDebug.game.board.zoom-3.4)<1e-6));await shot('maximum-zoom');
   await click('全盘');await click('提示 ×1');await shot('hint');
   // A fixed high-density visual fixture; this does not count as a gameplay pass.
   await page.evaluate(()=>jadeDebug.game.load(109,true));await shot('formal100');
   const memory=await page.evaluate(()=>performance.getEntriesByType('resource').filter(r=>/assets\/.*\.(png|jpg)/.test(r.name)).reduce((n,r)=>n+r.decodedBodySize,0));
-  assert.deepEqual(errors,[]);report.push({width,height,errors,downloadedImageBytes:memory});await page.close();
+  assert.deepEqual(errors,[]);report.push({width,height,dpr,errors,downloadedImageBytes:memory,render});console.log('[high-dpi-render]',JSON.stringify({width,height,dpr,canvas:render.canvas,stage:render.stage,game:render.game,cacheSamples:render.cacheSamples,assets:render.assets}));await page.close();
  }
  await writeFile(out+'/report.json',JSON.stringify(report,null,2));
 }finally{await browser.close();server.close()}
