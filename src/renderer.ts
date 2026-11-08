@@ -27,8 +27,9 @@ export class Board {
  // Keep moving clasps in one Graphics batch to avoid a separate display object per clasp.
  // Rebuild only when the camera, ring poses or collision highlight changes.
  private rodsDrawKey=''; private highlightedRing:string|null=null;
- private fixedRodViews=new Map<string,Laya.Sprite>();
- private fixedRodKeys=new Map<string,string>();
+ // Background double-ended clasps share one Graphics batch; rebuild only when
+ // clasp state or the camera changes, instead of maintaining one Sprite per rod.
+ private fixedRodsDrawKey='';
  private focusId:string|null=null;
  private traySize:{w:number;h:number}|undefined;
  hint:Point|null=null;blocked:Block|null=null;blockUntil=0;blockedRing:string|null=null;
@@ -41,9 +42,8 @@ export class Board {
   this.viewport.pos(rect.x,rect.y);this.viewport.size(rect.w,rect.h);this.viewport.scrollRect=new Laya.Rectangle(0,0,rect.w,rect.h);this.viewport.mouseEnabled=false;
   parent.addChild(this.viewport);this.viewport.addChild(this.root);this.root.addChild(this.space);
   this.rods.name='board-rods';this.rods.cacheAs='none';
-  // Background fixed clasps change visibility when either endpoint ring is
-  // removed. Keep them outside the moving-clasp Graphics batch because their
-  // lifetime depends on both endpoint rings, not on a shared batch.
+  // Background fixed clasps use one independent Graphics batch. Their shared
+  // batch is rebuilt only when endpoint lifecycle, clasp state or camera changes.
   this.fixedRods.name='board-fixed-rods';this.fixedRods.cacheAs='none';
   this.effects.name='board-effects';
   this.space.addChild(this.rods);this.space.addChild(this.fixedRods);this.space.addChild(this.effects);
@@ -56,8 +56,7 @@ export class Board {
   // Restore it when loading a fresh board, including replaying the same level.
   this.rods.visible=true;this.rods.cacheAs='none';this.rods.graphics.clear();
   for(let i=this.rods.numChildren-1;i>=0;i--)this.rods.getChildAt(i).destroy(true);
-  for(let i=this.fixedRods.numChildren-1;i>=0;i--)this.fixedRods.getChildAt(i).destroy(true);
-  this.fixedRodViews.clear();this.fixedRodKeys.clear();
+  this.fixedRods.visible=false;this.fixedRods.graphics.clear();this.fixedRodsDrawKey='';
   // The bundled LayaAir 3.4 runtime accepts only 'bitmap' and 'none' for cacheAs.
   // Keep this scene live-rendered; the legacy 'normal' value does not enable caching.
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
@@ -106,12 +105,6 @@ export class Board {
    const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index>=TEACHING_COUNT||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
    this.rings.set(r.id,{material,root,body,halo,focus,label,shadow});
   });
-  // Background double-ended rods have their own render node. Their lifetime is
-  // controlled by the two endpoint rings, not by the moving-clasp batch.
-  for(const z of s.rods)if(z.kind==='b'){
-   const view=new Laya.Sprite();view.name='background-fixed-rod:'+z.id;view.mouseEnabled=false;
-   this.fixedRods.addChild(view);this.fixedRodViews.set(z.id,view);
-  }
  }
  focus(id:string|null):void{
   if(id===this.focusId)return;
@@ -225,7 +218,7 @@ export class Board {
    if(e.id===id&&after.states[z.id][j]==='aligned'&&before.states[z.id]?.[j]!=='aligned')this.flash(e.p,now);
   });
  }
- get hasVisibleFixedRods():boolean{return [...this.fixedRodViews.values()].some(view=>view.visible)}
+ get hasVisibleFixedRods():boolean{return this.fixedRods.visible}
  get hasVisibleClaspLayer():boolean{return this.rods.visible||this.hasVisibleFixedRods}
  get animating():boolean {return this.ghosts.length>0||performance.now()-this.clearAt<(this.quiet?180:FEEDBACK.clear)}
  get hasFeedback():boolean{return this.animating||this.petals.count>0||this.sparks.length>0||this.flashes.length>0}
@@ -269,22 +262,25 @@ export class Board {
   this.line(g,{x:mid.x+1.1,y:mid.y-1.1},{x:mid.x-1.1,y:mid.y+1.1},'#fffef2',.7);
  }
  private syncBackgroundRods(s:State,now:number):void{
-  // Resolve background clasp lifetime once per frame. Render all fittings or
-  // none: drawing must match Core.exists and Core.rodShapes collision geometry.
+  // A single Graphics batch avoids one render node per background clasp.
+  // Keep the complete physical clasp while either endpoint ring survives,
+  // and cull rods outside the board viewport without changing their lifecycle.
   const active=new Set(s.rings.filter(r=>r.life==='active').map(r=>r.id));
-  for(const z of s.rods){
-   if(z.kind!=='b')continue;
-   const view=this.fixedRodViews.get(z.id);if(!view)continue;
-   const visible=z.targets.some(id=>active.has(id));
-   view.visible=visible;
-   const hot=this.blocked?.rod===z.id&&now<this.blockUntil;
-   const key=(s.states[z.id]||[]).join(',')+':'+(hot?'1':'0')+':'+(visible?'1':'0');
-   if(this.fixedRodKeys.get(z.id)!==key){
-    view.graphics.clear();
-    if(visible)this.drawBackgroundRod(s,z,view.graphics);
-    this.fixedRodKeys.set(z.id,key);
-   }
+  const rods=s.rods.filter(z=>z.kind==='b');
+  const hotId=this.blocked&&now<this.blockUntil?this.blocked.rod:'';
+  const key=[this.zoom,this.screen.x,this.screen.y,this.turn,hotId,
+   ...rods.map(z=>z.id+':'+(s.states[z.id]||[]).join(',')+':'+z.targets.map(id=>active.has(id)?'1':'0').join(''))].join('|');
+  if(this.fixedRodsDrawKey===key)return;
+  const g=this.fixedRods.graphics;g.clear();let visibleCount=0;
+  for(const z of rods){
+   if(!z.targets.some(id=>active.has(id)))continue;
+   const p=C.pose(s,z),sp=this.toScreen(p.p),sq=this.toScreen(p.q),margin=30*this.zoom;
+   if(Math.max(sp.x,sq.x)+margin<this.rect.x||Math.min(sp.x,sq.x)-margin>this.rect.x+this.rect.w||
+      Math.max(sp.y,sq.y)+margin<this.rect.y||Math.min(sp.y,sq.y)-margin>this.rect.y+this.rect.h)continue;
+   this.drawBackgroundRod(s,z,g);visibleCount++;
   }
+  this.fixedRods.visible=visibleCount>0;
+  this.fixedRodsDrawKey=key;
  }
  private drawRods(s:State,g:Laya.Graphics,ownerFilter?:string):void{
   const jewels:{p:Point;a:number}[]=[];
@@ -407,7 +403,7 @@ export class Board {
    else g.drawPoly(p.x,p.y,[0,-r*1.5,r*.8,0,0,r*1.5,-r*.8,0],'rgba(213,151,170,'+(alpha*.6)+')');
   }
  }
- destroy():void{this.fixedRodViews.clear();this.fixedRodKeys.clear();this.petals.destroy();this.backdrop?.destroy(true);this.backdrop=null;this.viewport.destroy(true)}
+ destroy():void{this.petals.destroy();this.backdrop?.destroy(true);this.backdrop=null;this.viewport.destroy(true)}
 }
 
 
