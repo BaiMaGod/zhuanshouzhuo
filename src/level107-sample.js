@@ -15,7 +15,7 @@ const EXTRA_MOUNTS=[
  ['R69','R82'],['R69','R103'],
  ['R68','R80'],['R68','R101'],
  ['R98','R74'],['R98','R90'],
- ['R67','R59'],['R67','R95']
+ ['R19','R11'],['R19','R13']
 ];
 const clone=value=>structuredClone(value);
 const isActive=(state,id)=>Core.ring(state,id)?.life==='active';
