@@ -6,6 +6,11 @@ const point=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
 const finite=n=>typeof n==='number'&&Number.isFinite(n);
 function requireField(ok,reason){if(!ok)throw Error('样板未准备就绪: '+reason)}
 const norm=a=>((a%360)+360)%360;
+const angle=(a,b)=>norm(Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI);
+const delta=(a,b)=>((a-b+540)%360)-180;
+const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const rotate=(p,a)=>({x:p.x*Math.cos(a*Math.PI/180)-p.y*Math.sin(a*Math.PI/180),y:p.x*Math.sin(a*Math.PI/180)+p.y*Math.cos(a*Math.PI/180)});
+const closePoint=(a,b)=>distance(a,b)<0.01;
 export function compileApprovedSample(spec){
  requireField(Number.isInteger(spec.level)&&spec.level>=101&&spec.level<=200,'关卡编号');
  const n=spec.level,expected=n<=109?109:n;
@@ -28,9 +33,12 @@ export function compileApprovedSample(spec){
   ownerQuota.set(m.ownerId,ownerQuota.get(m.ownerId)+1);
   requireField(point(m.anchorLocal)&&finite(m.angleLocal)&&finite(m.length)&&m.length>0&&m.endpointWidth===7,'活动杆几何 '+m.id);
   seen.add(m.id);
-  const d=m.angleLocal*Math.PI/180;
-  mountedRods.push({id:m.id,owner:m.ownerId,targets:[m.receiverId],local:m.anchorLocal,
-   end:{x:m.anchorLocal.x+m.length*Math.cos(d),y:m.anchorLocal.y+m.length*Math.sin(d)}});
+  const d=m.angleLocal*Math.PI/180,endLocal={x:m.anchorLocal.x+m.length*Math.cos(d),y:m.anchorLocal.y+m.length*Math.sin(d)};
+  const owner=rings.get(m.ownerId),receiver=rings.get(m.receiverId),worldEndOffset=rotate(endLocal,owner.initialRotation);
+  const worldEnd={x:owner.center.x+worldEndOffset.x,y:owner.center.y+worldEndOffset.y};
+  requireField(Math.abs(Math.hypot(m.anchorLocal.x,m.anchorLocal.y)-owner.radius)<0.001,'活动杆Owner端不贴合镯边 '+m.id);
+  requireField(Math.abs(distance(worldEnd,receiver.center)-receiver.radius)<0.001,'活动杆Receiver端不贴合镯边 '+m.id);
+  mountedRods.push({id:m.id,owner:m.ownerId,targets:[m.receiverId],local:m.anchorLocal,end:endLocal});
  }
  for(const r of spec.rings)requireField(ownerQuota.get(r.id)===r.mountedClaspQuota,'Owner自带扣数量不匹配 '+r.id+' expected='+r.mountedClaspQuota+' actual='+ownerQuota.get(r.id));
  const receiverIds=new Set,backgroundPieces=[];
@@ -41,10 +49,17 @@ export function compileApprovedSample(spec){
   const endpoints=b.endpoints.map(e=>{
    requireField(rings.has(e.receiverId)&&!targetSet.has(e.receiverId)&&!receiverIds.has(e.receiverId),'背景扣端点目标 '+e.id);
    requireField(point(e.pointWorld)&&finite(e.endpointWorldAngle)&&e.endpointWidth===7,'背景扣端点世界几何 '+e.id);
+   const receiver=rings.get(e.receiverId),actualAngle=angle(receiver.center,e.pointWorld);
+   requireField(Math.abs(distance(receiver.center,e.pointWorld)-receiver.radius)<0.001,'背景扣端点不贴合镯边 '+e.id);
+   requireField(Math.abs(delta(actualAngle,e.endpointWorldAngle))<0.05,'背景扣端点朝向不匹配 '+e.id);
    receiverIds.add(e.receiverId);targetSet.add(e.receiverId);
    return{id:e.id,receiverId:e.receiverId,pointWorld:e.pointWorld};
   });
-  for(const path of b.branchPaths)requireField(Array.isArray(path)&&path.length>=2&&path.every(point),'背景扣支杆路径 '+b.id);
+  for(let i=0;i<b.branchPaths.length;i++){
+   const path=b.branchPaths[i],endpoint=endpoints[i];
+   requireField(Array.isArray(path)&&path.length>=2&&path.every(point),'背景扣支杆路径 '+b.id);
+   requireField((closePoint(path[0],b.anchorWorld)&&closePoint(path[path.length-1],endpoint.pointWorld))||(closePoint(path[path.length-1],b.anchorWorld)&&closePoint(path[0],endpoint.pointWorld)),'背景扣支杆未连接锚点与端点 '+b.id+'/'+endpoint.id);
+  }
   seen.add(b.id);backgroundPieces.push({id:b.id,anchorWorld:b.anchorWorld,endpoints,branchPaths:b.branchPaths});
  }
  if(Number.isInteger(spec.backgroundPieceCount))requireField(backgroundPieces.length===spec.backgroundPieceCount,'背景扣件数');
