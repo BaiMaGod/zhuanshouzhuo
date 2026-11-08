@@ -15,6 +15,8 @@ const RELEASE_GLOW:Record<JadeName,string> = {
  ice:'166,231,219', ivory:'255,244,207'
 };
 const HALF_GAP = Math.asin(C.GAP/(2*(C.R-C.BAND/2)))/C.D;
+// High-DPI devices render textured geometry directly instead of enlarging low-resolution bitmap caches.
+const DIRECT_HIGH_DPI=typeof window!=='undefined'&&(window.devicePixelRatio||1)>=2;
 
 export class Board {
  viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();fixedRods=new Laya.Sprite();effects=new Laya.Sprite();
@@ -40,7 +42,7 @@ export class Board {
   this.screen={x:rect.x+rect.w/2,y:rect.y+rect.h/2};
   this.viewport.pos(rect.x,rect.y);this.viewport.size(rect.w,rect.h);this.viewport.scrollRect=new Laya.Rectangle(0,0,rect.w,rect.h);this.viewport.mouseEnabled=false;
   parent.addChild(this.viewport);this.viewport.addChild(this.root);this.root.addChild(this.space);
-  this.rods.name='board-rods';this.rods.cacheAs='normal';
+  this.rods.name='board-rods';this.rods.cacheAs=DIRECT_HIGH_DPI?'none':'normal';
   // Background fixed clasps change visibility when either endpoint ring is
   // removed. Keep them outside the cached moving-rod batch so GPU bitmap caches
   // cannot preserve the final clasp after its Sprite has been hidden.
@@ -91,8 +93,9 @@ export class Board {
    const material=JADE_NAMES[i%JADE_NAMES.length];
    const body=new Laya.Sprite();drawJade(body.graphics,material);
    // A body never changes its local mesh; only its sprite rotation changes.
-   // Rasterize once into a small offscreen surface, even on a 54-ring board.
-   body.cacheAs='normal';root.addChild(body);
+   // Low-DPI devices retain the inexpensive cache. High-DPI devices draw the
+   // original jade texture directly so a small offscreen bitmap is not enlarged.
+   body.cacheAs=DIRECT_HIGH_DPI?'none':'normal';root.addChild(body);
    const focus=new Laya.Sprite();focus.name='ring-focus:'+r.id;focus.visible=false;focus.mouseEnabled=false;
    // Two small polished tips identify the actual held ring, without outlining
    // the ring or drawing across the authoritative gap.
@@ -102,7 +105,7 @@ export class Board {
     focus.graphics.drawCircle(p.x,p.y,4,'rgba(42,104,79,0.34)');
     glint(focus.graphics,p.x,p.y,2.8,'#fff8d8');
    }
-   focus.cacheAs='normal';root.addChild(focus);
+   focus.cacheAs=DIRECT_HIGH_DPI?'none':'normal';root.addChild(focus);
    const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index>=TEACHING_COUNT||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
    this.rings.set(r.id,{material,root,body,halo,focus,label,shadow});
   });
