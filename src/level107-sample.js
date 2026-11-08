@@ -9,13 +9,13 @@ const BASE_FORMAL_NUMBER=100;
 const REMOVED_BACKGROUND_ROD='L122';
 const BURST_RINGS=['R90','R98'];
 const EXTRA_MOUNTS=[
- // Receiver angles at their base-route release steps stay close to the
- // authored clasp bearing, minimizing added rotations and preserving the
- // 100-level route's original release order.
- ['R29','R53'],['R29','R21'],
- ['R36','R57'],['R36','R20'],
- ['R28','R38'],['R28','R14'],
- ['R68','R80'],['R68','R56']
+ // Every receiver is an original zero-outgoing-mount ring. This avoids
+ // attempting to rotate a receiver while it still owns a captive rod.
+ // Pair choices minimize the additional release-angle travel.
+ ['R49','R77'],['R49','R25'],
+ ['R67','R59'],['R67','R95'],
+ ['R30','R46'],['R30','R16'],
+ ['R68','R80'],['R68','R101']
 ];
 const clone=value=>structuredClone(value);
 const isActive=(state,id)=>Core.ring(state,id)?.life==='active';
