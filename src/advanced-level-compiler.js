@@ -6,7 +6,6 @@ const point=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
 const finite=n=>typeof n==='number'&&Number.isFinite(n);
 function requireField(ok,reason){if(!ok)throw Error('样板未准备就绪: '+reason)}
 const norm=a=>((a%360)+360)%360;
-const ALIGN_TOLERANCE=Math.asin((9-7)/(2*40))*180/Math.PI;
 const angle=(a,b)=>norm(Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI);
 const delta=(a,b)=>((a-b+540)%360)-180;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
