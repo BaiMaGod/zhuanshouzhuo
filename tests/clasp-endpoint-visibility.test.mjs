@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {installHarness} from './scene-harness.mjs';
 
-const h=installHarness();
+installHarness();
 await import('../dist/js/main.js');
 await new Promise(resolve=>setImmediate(resolve));
 const game=window.jadeDebug.game,Core=window.jadeDebug.Core;
@@ -17,110 +17,110 @@ const removeRings=(source,ids)=>{
  Core.update(state);
  return state;
 };
-const expectedMounted=(state)=>{
- const rods=state.rods.filter(z=>z.kind==='m'&&active(state,z.owner));
- const sleeves=rods.filter(z=>active(state,z.targets[0]));
- return{rods:rods.length,sleeves:sleeves.length};
-};
 const includeWholeBoard=(board)=>{
- // Keep renderer culling out of this lifecycle test: every configured clasp
- // endpoint must be counted even when a device viewport would clip the board.
+ // Remove camera culling from the lifecycle contract: check EVERY configured
+ // clasp even if the real game viewport would clip this particular section.
  board.rect={x:-1e6,y:-1e6,w:2e6,h:2e6};
 };
+function assertMountedComplete(board,state,where){
+ const surviving=state.rods.filter(z=>z.kind==='m'&&Core.exists(state,z));
+ const n=surviving.length;
+ assert.equal(board.rods.visible,state.rings.some(r=>r.life==='active'),
+  where+': mounted layer visibility follows surviving ring state');
+ assert.equal(countOps(board.rods,'mesh'),n,
+  where+': precisely one ornamental mounting for every surviving rod');
+ assert.equal(countOps(board.rods,'poly'),3*n,
+  where+': EVERY surviving rod keeps its entire receiver-end sleeve (three polygons)');
+ assert.equal(countOps(board.rods,'line'),6*n,
+  where+': each surviving rod keeps its shaft and BOTH sleeve edge lines');
+ for(const z of surviving){
+  // Collision geometry still includes the sleeve even if its receiver ring has gone.
+  // The rendering must not silently remove that fitting.
+  assert.equal(Core.rodSegments(state,z).length,5,where+': physical mounted clasp includes fitting segments');
+ }
+}
+function assertBackgroundComplete(board,state,z,where){
+ const view=board.fixedRodViews.get(z.id);
+ assert.ok(view,where+': background lock render view exists');
+ const shouldExist=Core.exists(state,z);
+ assert.equal(view.visible,shouldExist,where+': entire background clasp follows one lifecycle');
+ if(shouldExist){
+  assert.equal(countOps(view,'mesh'),1,where+': background clasp retains its central anchor');
+  assert.equal(countOps(view,'poly'),6,where+': both end sleeves retain all six polygons');
+  assert.equal(countOps(view,'line'),10,where+': shaft, two end sleeves and anchor detailing all remain');
+  assert.equal(Core.rodSegments(state,z).length,9,where+': collision includes both complete end fittings');
+ }else{
+  assert.equal(view.graphics.ops.length,0,where+': background clasp is fully cleared after both rings disappear');
+ }
+}
 
-test('mounted lock receiver sleeves follow receiver lifecycle on every level',()=>{
+test('across ALL levels removing a receiver never cuts another living bracelet clasp in half',()=>{
  let checked=0;
  for(let index=0;index<Core.levels.length;index++){
   game.load(index,true);
   const board=game.board,initial=Core.clone(game.model.state);
   includeWholeBoard(board);
-  const mounted=initial.rods.filter(z=>z.kind==='m');
-  for(const rod of mounted){
+  board.draw(initial);
+  assertMountedComplete(board,initial,'level '+(index+1)+' initial');
+  for(const rod of initial.rods.filter(z=>z.kind==='m')){
    const receiverRemoved=removeRings(initial,[rod.targets[0]]);
    board.draw(receiverRemoved);
-   const expected=expectedMounted(receiverRemoved);
-   assert.equal(countOps(board.rods,'poly'),expected.sleeves*3,
-    'level '+(index+1)+' '+rod.id+': removed receiver must not leave its sleeve behind');
-   assert.equal(countOps(board.rods,'mesh'),expected.rods,
-    'level '+(index+1)+' '+rod.id+': owner-mounted rod body remains only with its owner');
-   assert.equal(countOps(board.rods,'line'),expected.rods*4+expected.sleeves*2,
-    'level '+(index+1)+' '+rod.id+': only live endpoint sleeves contribute end-cap lines');
-
-   // A second frame must not restore a stale cached endpoint.
+   assertMountedComplete(board,receiverRemoved,'level '+(index+1)+' '+rod.id+' receiver gone');
+   // A cached or second frame must NOT make the surviving clasp half disappear.
    board.draw(receiverRemoved);
-   assert.equal(countOps(board.rods,'poly'),expected.sleeves*3,
-    'level '+(index+1)+' '+rod.id+': cached frame must keep removed sleeve hidden');
+   assertMountedComplete(board,receiverRemoved,'level '+(index+1)+' '+rod.id+' receiver gone redraw');
 
    const ownerRemoved=removeRings(initial,[rod.owner]);
    board.draw(ownerRemoved);
-   const afterOwner=expectedMounted(ownerRemoved);
-   assert.equal(countOps(board.rods,'poly'),afterOwner.sleeves*3,
-    'level '+(index+1)+' '+rod.id+': removing the owner removes all of its mounted lock parts');
-   assert.equal(countOps(board.rods,'mesh'),afterOwner.rods);
+   assertMountedComplete(board,ownerRemoved,'level '+(index+1)+' '+rod.id+' owner gone');
+
+   const bothRemoved=removeRings(initial,[rod.owner,...rod.targets]);
+   board.draw(bothRemoved);
+   assertMountedComplete(board,bothRemoved,'level '+(index+1)+' '+rod.id+' owner and receiver gone');
    checked++;
   }
  }
- assert.ok(checked>0,'all-level campaign must contain owner-mounted locks');
+ assert.ok(checked>0,'all-level campaign contains owner-mounted locks');
  game.home();
 });
 
-test('background double-ended lock keeps its shaft but removes each dead endpoint on every level',()=>{
+test('across ALL levels background double-ended clasp is always complete until both endpoint rings disappear',()=>{
  let checked=0;
  for(let index=0;index<Core.levels.length;index++){
   game.load(index,true);
   const board=game.board,initial=Core.clone(game.model.state);
   includeWholeBoard(board);
-  const background=initial.rods.filter(z=>z.kind==='b');
-  for(const rod of background){
-   const view=board.fixedRodViews.get(rod.id);
-   assert.ok(view,'level '+(index+1)+' '+rod.id+': background lock must have its own render node');
-
+  for(const rod of initial.rods.filter(z=>z.kind==='b')){
    board.draw(initial);
-   assert.equal(view.visible,true);
-   assert.equal(countOps(view,'poly'),6,'both live endpoint sleeves are visible initially');
-   assert.equal(countOps(view,'mesh'),1,'background shaft has one central jewel');
-
+   assertBackgroundComplete(board,initial,rod,'level '+(index+1)+' '+rod.id+' initial');
    for(const endpointId of rod.targets){
     const oneRemoved=removeRings(initial,[endpointId]);
     board.draw(oneRemoved);
-    assert.equal(view.visible,true,
-     'level '+(index+1)+' '+rod.id+': shaft remains while its other endpoint ring exists');
-    assert.equal(countOps(view,'poly'),3,
-     'level '+(index+1)+' '+rod.id+': only the surviving endpoint sleeve remains');
-    assert.equal(countOps(view,'mesh'),1,'background shaft remains until both endpoints are gone');
-    assert.equal(countOps(view,'line'),8,'shaft and one live sleeve are rendered without a dangling second sleeve');
-
+    assertBackgroundComplete(board,oneRemoved,rod,'level '+(index+1)+' '+rod.id+' only '+endpointId+' removed');
     board.draw(oneRemoved);
-    assert.equal(countOps(view,'poly'),3,
-     'level '+(index+1)+' '+rod.id+': cached redraw cannot restore a removed endpoint');
+    assertBackgroundComplete(board,oneRemoved,rod,'level '+(index+1)+' '+rod.id+' cached redraw');
    }
-
    const bothRemoved=removeRings(initial,rod.targets);
    board.draw(bothRemoved);
-   assert.equal(view.visible,false,
-    'level '+(index+1)+' '+rod.id+': background lock disappears when both endpoint rings are gone');
-   assert.equal(view.graphics.ops.length,0,'hidden background lock cache is cleared');
+   assertBackgroundComplete(board,bothRemoved,rod,'level '+(index+1)+' '+rod.id+' both removed');
    checked++;
   }
  }
- assert.ok(checked>0,'all-level campaign must contain background double-ended locks');
+ assert.ok(checked>0,'all-level campaign contains background double-ended locks');
  game.home();
 });
 
-test('simultaneous final removal clears both mounted and background clasp layers on every level',()=>{
+test('removing EVERY bracelet in the same settle pass clears ALL lock layers and ghosts across all levels',()=>{
  for(let index=0;index<Core.levels.length;index++){
   game.load(index,true);
   const board=game.board,initial=Core.clone(game.model.state);
   includeWholeBoard(board);
   const cleared=removeRings(initial,initial.rings.map(r=>r.id));
   board.draw(cleared);
-  assert.equal(board.rods.visible,false,'level '+(index+1)+': mounted clasp layer must be hidden');
-  assert.equal(board.rods.graphics.ops.length,0,'level '+(index+1)+': mounted clasp graphics must be cleared');
-  for(const rod of cleared.rods.filter(z=>z.kind==='b')){
-   const view=board.fixedRodViews.get(rod.id);
-   assert.equal(view.visible,false,'level '+(index+1)+' '+rod.id+': background clasp must be hidden');
-   assert.equal(view.graphics.ops.length,0,'level '+(index+1)+' '+rod.id+': background clasp graphics must be cleared');
-  }
+  assert.equal(board.rods.visible,false,'level '+(index+1)+': mounted clasp layer must hide');
+  assert.equal(board.rods.graphics.ops.length,0,'level '+(index+1)+': mounted clasp graphics must clear');
+  for(const rod of cleared.rods.filter(z=>z.kind==='b'))
+   assertBackgroundComplete(board,cleared,rod,'level '+(index+1)+' '+rod.id+' all rings removed');
  }
  game.home();
 });
