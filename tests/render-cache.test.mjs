@@ -43,14 +43,14 @@ test('the final bracelet removal clears every fixed clasp before victory on ever
   for(const ring of state.rings)if(ring.id!==last.id)ring.life='removed';
   last.life='active';C.update(state);board.draw(state);
   assert.equal(model.cleared,false,'renderer sample must not clear while its final bracelet remains');
-  assert.equal(board.fixedRods.parent,board.space,'fixed clasps live outside the cached moving-rod batch');
+  assert.equal(board.fixedRods.parent,board.space,'fixed clasps live outside the moving-clasp batch');
   assert.equal(board.fixedRods.cacheAs,'none','fixed clasp layer must not be bitmap-cached');
-  assert.equal(board.rods.cacheAs,'normal','moving-rod batch may retain its cache');
+  assert.equal(board.rods.cacheAs,'none','moving-rod batch is rendered directly by LayaAir 3.4');
   assert.equal(board.rods.numChildren,0,'dynamic clasps must not be nested under the cached batch');
   for(const rod of state.rods.filter(z=>z.kind==='b')){
    const view=board.fixedRodViews.get(rod.id);
    assert.ok(view,'renderer must create a view for '+rod.id);
-   assert.equal(view.parent,board.fixedRods,' '+rod.id+' must be outside the cached batch');
+   assert.equal(view.parent,board.fixedRods,' '+rod.id+' must be outside the moving-clasp batch');
    assert.equal(view.visible,rod.targets.includes(last.id),' '+rod.id+' remains only while its final endpoint survives');
   }
   const beforeFinal=C.clone(state);
@@ -95,8 +95,8 @@ test('the last action clears mounted clasps whether it removes one, two or three
   board.release(before,state,lastIds);
   board.draw(state);
   assert.equal(model.cleared,true,'the final '+lastCount+' bracelet removal clears the model');
-  assert.equal(board.rods.visible,false,'cached mounted clasp batch must disappear immediately');
-  assert.equal(board.rods.cacheAs,'none','a cached last frame must never survive victory');
+  assert.equal(board.rods.visible,false,'mounted clasp batch must disappear immediately');
+  assert.equal(board.rods.cacheAs,'none','no bitmap cache may survive victory');
   assert.equal(board.rods.graphics.ops.length,0,'no mounted clasp drawing commands survive');
   assert.equal(board.hasVisibleClaspLayer,false,'no clasp layer is still visible');
   assert.equal(board.ghosts.length,lastCount,'each departing bracelet keeps its fading ghost');
@@ -110,12 +110,12 @@ test('the last action clears mounted clasps whether it removes one, two or three
   game.home();
  }
 });
-test('54-ring board keeps its jade and clasp batches cached across unchanged frames',()=>{
+test('54-ring board keeps its jade and clasp draw commands stable across unchanged frames',()=>{
  game.load(LEGACY_FORMAL_INDEX,true);
  const b=game.board,s=game.model.state;
  assert.equal(s.rings.length,54);
- assert.equal(b.rods.cacheAs,'normal','static clasp batch uses an isolated cache');
- assert.ok([...b.rings.values()].every(x=>x.body.cacheAs==='normal'));
+ assert.equal(b.rods.cacheAs,'none','static clasp batch is drawn directly');
+ assert.ok([...b.rings.values()].every(x=>x.body.cacheAs==='none'));
  const rods=b.rods.graphics.ops,fx=b.effects;
  for(let i=0;i<5;i++)b.draw(s);
  assert.equal(b.rods.graphics.ops,rods,'unchanged physics and camera must not rebuild rods');
