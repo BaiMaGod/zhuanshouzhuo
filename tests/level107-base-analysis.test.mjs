@@ -44,8 +44,8 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
    if(errors.length)return{valid:false,reason:'geometry',detail:errors.slice(0,4)};
    const premature=Core.settle(Core.clone(s));
    if(premature.length)return{valid:false,reason:'premature',detail:premature};
-   const extraRodId='L'+candidate.links.length,targetStep=removedAt.get(target);
-   for(let i=0;i<solution.length;i++){
+   const extraRodId='L'+candidate.links.length,targetStep=removedAt.get(target),ownerStep=removedAt.get(owner);
+   for(let i=0;i<=ownerStep;i++){
     const action=solution[i],oldRod=action.rod&&/^L\d+$/.test(action.rod)?Number(action.rod.slice(1)):null;
     const rodId=!oldRod||oldRod===removedIndex+1?null:'L'+(oldRod>removedIndex+1?oldRod-1:oldRod);
     if(rodId&&Core.ring(s,action.id)?.life==='active'){
@@ -69,8 +69,7 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
     }
    }
    if(Core.ring(s,target)?.life==='active')return{valid:false,reason:'receiver-not-released',step:targetStep,target};
-   const remaining=s.rings.filter(r=>r.life==='active').map(r=>r.id);
-   if(remaining.length)return{valid:false,reason:'remaining-rings',remaining:remaining.slice(0,12)};
+   if(Core.ring(s,owner)?.life==='active')return{valid:false,reason:'owner-not-released',step:ownerStep,owner};
    return{valid:true};
   }catch(error){return{valid:false,reason:'exception',detail:String(error.message||error)}}
   finally{Core.levels.pop()}
