@@ -69,10 +69,10 @@ test('七关逐镯源记录与背景端点目标编号都存在于原始工作�
       assert.deepEqual(endpoints.items, [], 'unembedded rows are still present in the workbook: ' + level.level);
     }
   }
-  assert.deepEqual(source.levels.filter(l => l.backgroundEndpointAssignments.itemsEmbedded).map(l => l.level), [107, 131]);
+  assert.deepEqual(source.levels.filter(l => l.backgroundEndpointAssignments.itemsEmbedded).map(l => l.level), expectedLevels);
 });
 
-test('七关M0–M6属性交叉行均存在；191和200的行尚未复制进JSON快照', () => {
+test('七关M0–M6属性交叉行均已复制并与工作簿汇总一致', () => {
   for (const level of source.levels) {
     const cross = level.attributeCrossBreakdown;
     if (cross.rowsEmbedded) {
@@ -88,7 +88,7 @@ test('七关M0–M6属性交叉行均存在；191和200的行尚未复制进JSON
       assert.deepEqual(cross.rows, []);
     }
   }
-  assert.deepEqual(source.levels.filter(l => l.attributeCrossBreakdown.rowsEmbedded).map(l => l.level), [107, 131, 151, 161, 171]);
+  assert.deepEqual(source.levels.filter(l => l.attributeCrossBreakdown.rowsEmbedded).map(l => l.level), expectedLevels);
 });
 
 test('第107关逐镯与背景扣快照逐行哈希匹配原始工作簿', () => {
