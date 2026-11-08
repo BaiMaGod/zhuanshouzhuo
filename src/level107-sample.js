@@ -14,7 +14,7 @@ const EXTRA_MOUNTS=[
  // Pair choices minimize the additional release-angle travel.
  ['R49','R77'],['R49','R25'],
  ['R67','R59'],['R67','R95'],
- ['R30','R46'],['R30','R16'],
+ ['R98','R74'],['R98','R90'],
  ['R68','R80'],['R68','R101']
 ];
 const clone=value=>structuredClone(value);
