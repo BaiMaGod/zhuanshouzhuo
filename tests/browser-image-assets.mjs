@@ -47,13 +47,23 @@ try{
   assert.equal(render.assets.homeBackground.width,1024,'home background must retain its original pixel width');
   assert.equal(render.assets.homeBackground.height,1536,'home background must retain its original pixel height');
   assert.equal(render.assets.homeLogoPart3.width,480,'logo source width must be reported without resampling');
+  const expectedCacheMode=dpr>=2?'none':'normal';
+  assert.equal(render.cacheLayers.rods,expectedCacheMode,'rod cache policy must adapt to device DPR');
+  assert.equal(render.cacheSamples[0].body.mode,expectedCacheMode,'jade body cache policy must adapt to device DPR');
+  assert.equal(render.cacheSamples[0].focus.mode,expectedCacheMode,'ring focus cache policy must adapt to device DPR');
   for(let i=0;i<12;i++)await click('+');
   assert.ok(await page.evaluate(()=>Math.abs(jadeDebug.game.board.zoom-3.4)<1e-6));await shot('maximum-zoom');
   await click('全盘');await click('提示 ×1');await shot('hint');
   // A fixed high-density visual fixture; this does not count as a gameplay pass.
   await page.evaluate(()=>jadeDebug.game.load(109,true));await shot('formal100');
+  const fps=await page.evaluate(()=>new Promise(resolve=>{
+   let frames=0;const start=performance.now();
+   const tick=(now)=>{frames++;if(now-start>=1000)resolve(Math.round(frames*1000/(now-start)));else requestAnimationFrame(tick)};
+   requestAnimationFrame(tick);
+  }));
+  assert.ok(fps>=45,`high-DPI level100 frame rate below 45 FPS: ${fps}`);
   const memory=await page.evaluate(()=>performance.getEntriesByType('resource').filter(r=>/assets\/.*\.(png|jpg)/.test(r.name)).reduce((n,r)=>n+r.decodedBodySize,0));
-  assert.deepEqual(errors,[]);report.push({width,height,dpr,errors,downloadedImageBytes:memory,render});console.log('[high-dpi-render]',JSON.stringify({width,height,dpr,canvas:render.canvas,stage:render.stage,game:render.game,cacheSamples:render.cacheSamples,assets:render.assets,imageScaling:render.imageScaling}));await page.close();
+  assert.deepEqual(errors,[]);report.push({width,height,dpr,fps,errors,downloadedImageBytes:memory,render});console.log('[high-dpi-render]',JSON.stringify({width,height,dpr,fps,device:render.device,canvas:render.canvas,stage:render.stage,game:render.game,cacheLayers:render.cacheLayers,cacheSamples:render.cacheSamples,assets:render.assets,imageScaling:render.imageScaling}));await page.close();
  }
  await writeFile(out+'/report.json',JSON.stringify(report,null,2));
 }finally{await browser.close();server.close()}
