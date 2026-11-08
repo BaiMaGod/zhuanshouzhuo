@@ -251,7 +251,7 @@ export class Board {
   }));
   g.drawTriangles(Laya.loader.getRes('assets/art-v3/clasp.png'),0,0,vertices,new Float32Array([0,0,1,0,1,1,0,1]),new Uint16Array([0,1,2,0,2,3]));
  }
-  private drawBackgroundRod(s:State,z:State['rods'][number],g:Laya.Graphics):void{
+  private drawBackgroundRod(s:State,z:State['rods'][number],g:Laya.Graphics,active:ReadonlySet<string>):void{
   const p=C.pose(s,z),a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
   const shadow=C.rot({x:1.1,y:1.8},-this.turn);
   this.line(g,{x:p.p.x+shadow.x,y:p.p.y+shadow.y},{x:p.q.x+shadow.x,y:p.q.y+shadow.y},'rgba(46,63,51,0.25)',5.3);
@@ -259,32 +259,36 @@ export class Board {
   this.line(g,p.p,p.q,hot?'#e4aa7b':'#d5e9e3',2.9);
   const v=C.rot({x:0,y:-.8},a);
   this.line(g,{x:p.p.x+v.x,y:p.p.y+v.y},{x:p.q.x+v.x,y:p.q.y+v.y},'#fff9e5',.65);
-  // A lock is one physical object: never erase one sleeve while keeping its shaft.
-  // Core.exists owns the full background-lock lifecycle until both rings are gone.
-  C.endpoints(s,z).forEach((e,i)=>this.sleeve(g,e.p,a,s.states[z.id][i]));
+  // The background rod survives while either endpoint ring is active, but
+  // each end sleeve belongs to its own ring and must disappear independently.
+  C.endpoints(s,z).forEach((e,i)=>{if(active.has(e.id))this.sleeve(g,e.p,a,s.states[z.id][i])});
   const mid={x:(p.p.x+p.q.x)/2,y:(p.p.y+p.q.y)/2};
   this.jewel(g,mid,a);
   this.line(g,{x:mid.x-1.1,y:mid.y-1.1},{x:mid.x+1.1,y:mid.y+1.1},'#fffef2',.7);
   this.line(g,{x:mid.x+1.1,y:mid.y-1.1},{x:mid.x-1.1,y:mid.y+1.1},'#fffef2',.7);
  }
  private syncBackgroundRods(s:State,now:number):void{
-  // A background clasp is drawn as a whole or not at all.
+  // Resolve endpoint lifecycle once per frame. The shaft remains while either
+  // background endpoint ring exists; each sleeve follows its own ring.
+  const active=new Set(s.rings.filter(r=>r.life==='active').map(r=>r.id));
   for(const z of s.rods){
    if(z.kind!=='b')continue;
    const view=this.fixedRodViews.get(z.id);if(!view)continue;
-   const visible=C.exists(s,z);
+   const visible=z.targets.some(id=>active.has(id));
    view.visible=visible;
    const hot=this.blocked?.rod===z.id&&now<this.blockUntil;
-   const key=(s.states[z.id]||[]).join(',')+':'+(hot?'1':'0')+':'+(visible?'1':'0');
+   const endpointKey=z.targets.map(id=>active.has(id)?'1':'0').join('');
+   const key=(s.states[z.id]||[]).join(',')+':'+endpointKey+':'+(hot?'1':'0')+':'+(visible?'1':'0');
    if(this.fixedRodKeys.get(z.id)!==key){
     view.graphics.clear();
-    if(visible)this.drawBackgroundRod(s,z,view.graphics);
+    if(visible)this.drawBackgroundRod(s,z,view.graphics,active);
     this.fixedRodKeys.set(z.id,key);
    }
   }
  }
  private drawRods(s:State,g:Laya.Graphics,ownerFilter?:string):void{
   const jewels:{p:Point;a:number}[]=[];
+  const active=new Set(s.rings.filter(r=>r.life==='active').map(r=>r.id));
   for(const z of s.rods){
    // Fixed background rods are independent child sprites with explicit
    // endpoint-driven visibility; this batch contains only owner-mounted rods.
@@ -298,9 +302,9 @@ export class Board {
    this.line(g,p.p,p.q,hot?'#e4aa7b':'#d5e9e3',2.9);
    const v=C.rot({x:0,y:-.8},a);
    this.line(g,{x:p.p.x+v.x,y:p.p.y+v.y},{x:p.q.x+v.x,y:p.q.y+v.y},'#fff9e5',.65);
-   // A mounted lock stays whole while its owner exists (even if the receiver
-   // ring is gone). When the owner is removed, Core.exists hides every part.
-   C.endpoints(s,z).forEach((e,i)=>this.sleeve(g,e.p,a,s.states[z.id][i]));
+   // A mounted rod remains attached to its owner, but its receiver sleeve
+   // is rendered only while that receiver ring still exists.
+   C.endpoints(s,z).forEach((e,i)=>{if(active.has(e.id))this.sleeve(g,e.p,a,s.states[z.id][i])});
    jewels.push({p:p.p,a});
   }
   for(const j of jewels)this.jewel(g,j.p,j.a);
