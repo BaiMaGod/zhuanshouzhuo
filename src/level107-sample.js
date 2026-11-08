@@ -12,10 +12,10 @@ const EXTRA_MOUNTS=[
  // Every receiver is an original zero-outgoing-mount ring. This avoids
  // attempting to rotate a receiver while it still owns a captive rod.
  // Pair choices minimize the additional release-angle travel.
- ['R49','R77'],['R49','R25'],
- ['R67','R59'],['R67','R95'],
+ ['R69','R82'],['R69','R103'],
+ ['R68','R80'],['R68','R101'],
  ['R98','R74'],['R98','R90'],
- ['R68','R80'],['R68','R101']
+ ['R67','R59'],['R67','R95']
 ];
 const clone=value=>structuredClone(value);
 const isActive=(state,id)=>Core.ring(state,id)?.life==='active';
