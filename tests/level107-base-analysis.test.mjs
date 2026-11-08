@@ -10,11 +10,11 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
  const level=formalLevels[99],state=Core.make(index),solution=formalSolutions[99];
  assert.equal(state.rings.length,109);
  assert.deepEqual(Core.validate(state),[]);
- const removedAt=new Map(),removalAngles=new Map(),removals=[];
+ const removedAt=new Map(),removalAngles=new Map(),removedBy=new Map(),removals=[];
  for(let i=0;i<solution.length;i++){
   const action=solution[i],result=Core.request(state,action.id,action.delta);
   assert.equal(result.blocked,null,'base action '+i+' '+JSON.stringify(result.blocked));
-  for(const id of result.removed){if(!removedAt.has(id)){removedAt.set(id,i);removalAngles.set(id,Core.ring(state,id).a)}removals.push({step:i,id,angle:Core.ring(state,id).a});}
+  for(const id of result.removed){if(!removedAt.has(id)){removedAt.set(id,i);removalAngles.set(id,Core.ring(state,id).a);removedBy.set(id,{step:i,actionRing:action.id,actionRod:action.rod,actionDelta:action.delta})}removals.push({step:i,id,angle:Core.ring(state,id).a,actionRing:action.id,actionRod:action.rod});}
  }
  assert.ok(state.rings.every(r=>r.life==='removed'));
  const out=new Map(state.rings.map(r=>[r.id,0]));
@@ -33,12 +33,13 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
   burstPairs.push({first:a.id,second:b.id,firstRemovedAt:removedAt.get(a.id),secondRemovedAt:removedAt.get(b.id),firstNeighbors:neighbors.get(a.id),secondNeighbors:neighbors.get(b.id)});
  const background=level.links.filter(e=>e[0]==='b').map((e,i)=>({id:'L'+(level.links.findIndex(x=>x===e)+1),a:e[1],b:e[2]}));
  const report={
-  levelName:level.name,ringCount:state.rings.length,routeSteps:solution.length,
+  levelName:level.name,removedBy:Object.fromEntries(removedBy),,ringCount:state.rings.length,routeSteps:solution.length,
   mountedCount:level.links.filter(e=>e[0]==='m').length,backgroundCount:background.length,
   ownerDistribution:dist,sinkCount:sinks.length,outDegree:Object.fromEntries(out),background,
   burstPairCandidates:burstPairs.slice(0,30),newOwnerCandidates:sinkCandidates.filter(x=>x.targetCandidates.length>=2).sort((a,b)=>b.removedAt-a.removedAt).slice(0,40),
   alreadyAlignedOwnerCandidates:sinkCandidates.map(x=>({...x,targetCandidates:x.targetCandidates.filter(t=>t.alreadyAligned)})).filter(x=>x.targetCandidates.length>=2).sort((a,b)=>b.removedAt-a.removedAt),
   bestSinkPairs:sinkCandidates.filter(x=>x.targetCandidates.length>=2).map(x=>({...x,targetCandidates:[...x.targetCandidates].sort((a,b)=>Math.abs(a.delta)-Math.abs(b.delta)).slice(0,2),totalRotation:x.targetCandidates.sort((a,b)=>Math.abs(a.delta)-Math.abs(b.delta)).slice(0,2).reduce((sum,t)=>sum+Math.abs(t.delta),0)})).sort((a,b)=>a.totalRotation-b.totalRotation),
+  selectedMountCandidates:[['R70','R44'],['R70','R104'],['R69','R82'],['R69','R103'],['R68','R80'],['R68','R101'],['R98','R74'],['R98','R90']].map(([owner,target])=>({owner,target,ownerRelease:removedBy.get(owner),targetRelease:removedBy.get(target)})),
   removals
  };
  mkdirSync('tests/results',{recursive:true});
