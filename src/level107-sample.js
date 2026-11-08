@@ -58,7 +58,7 @@ function alignToRod(state,ringId,rodId,route,label){
  route.push({id:ringId,delta:result.done,rod:rodId});
  return true;
 }
-function finishWithLegalCandidates(state,route){
+function finishWithLegalCandidates(state,route,baseActionStats,baseRouteHead){
  const remaining=state.rings.filter(r=>r.life==='active').map(r=>r.id);
  if(remaining.length)throw Error('第107关基底路线未能覆盖新增锁扣，剩余'+remaining.length+'只；基础动作统计='+JSON.stringify(baseActionStats)+'；前8步='+JSON.stringify(baseRouteHead)+'；已执行路线步数='+route.length+'；剩余='+remaining.slice(0,30).join(','));
  if(state.rods.some(rod=>Core.exists(state,rod)))throw Error('第107关基底路线完成后仍有活动锁扣');
@@ -138,7 +138,7 @@ export function buildLevel107Sample(){
     if(isActive(state,extra.target))alignToRod(state,extra.target,extra.rodId,route,'新增锁扣');
    }
   }
-  finishWithLegalCandidates(state,route);
+  finishWithLegalCandidates(state,route,baseActionStats,baseRouteHead);
   if(state.rods.some(rod=>Core.exists(state,rod)))throw Error('第107关胜利后仍有锁扣残留');
   level.hintGraph=buildHintGraph(level,route);
   return{
