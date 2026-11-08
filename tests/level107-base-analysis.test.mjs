@@ -43,7 +43,7 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
   burstPairCandidates:burstPairs.slice(0,30),newOwnerCandidates:sinkCandidates.filter(x=>x.targetCandidates.length>=2).sort((a,b)=>b.removedAt-a.removedAt).slice(0,40),
   alreadyAlignedOwnerCandidates:sinkCandidates.map(x=>({...x,targetCandidates:x.targetCandidates.filter(t=>t.alreadyAligned)})).filter(x=>x.targetCandidates.length>=2).sort((a,b)=>b.removedAt-a.removedAt),
   bestSinkPairs:sinkCandidates.filter(x=>x.targetCandidates.length>=2).map(x=>({...x,targetCandidates:x.targetCandidates.slice(0,8)})).sort((a,b)=>b.targetCandidates.length-a.targetCandidates.length),
-  selectedMountCandidates:[['R70','R44'],['R70','R104'],['R69','R82'],['R69','R103'],['R68','R80'],['R68','R101'],['R98','R74'],['R98','R90']].map(([owner,target])=>({owner,target,ownerRelease:removedBy.get(owner),targetRelease:removedBy.get(target),dynamic: sinkCandidates.find(x=>x.id===owner)?.targetCandidates.find(x=>x.id===target)})),
+  selectedMountCandidates:[['R38','R13'],['R38','R32'],['R101','R20'],['R101','R85'],['R63','R6'],['R63','R25'],['R89','R8'],['R89','R66']].map(([owner,target])=>({owner,target,ownerRelease:removedBy.get(owner),targetRelease:removedBy.get(target),dynamic: sinkCandidates.find(x=>x.id===owner)?.targetCandidates.find(x=>x.id===target)})),
   ownersWithTwoAlignedTargets:sinkCandidates.filter(x=>x.targetCandidates.length>=2).sort((a,b)=>b.targetCandidates.length-a.targetCandidates.length),
   ownersWithOneAlignedTarget:sinkCandidates.filter(x=>x.targetCandidates.length>=1).sort((a,b)=>b.targetCandidates.length-a.targetCandidates.length),
   removals
