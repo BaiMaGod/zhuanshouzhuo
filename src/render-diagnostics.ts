@@ -15,6 +15,8 @@ interface RuntimeCanvas extends HTMLCanvasElement {}
 interface DiagnosticGame {
  root:Laya.Sprite;
  board:Board|null;
+ mode:'home'|'levels'|'game';
+ formal:boolean;
 }
 
 function dimensions(value:{width?:number;height?:number}|null|undefined):{width:number|null;height:number|null}|null{
@@ -58,6 +60,25 @@ export function getRenderDiagnostics(
  const stage=Laya.stage;
  const cssWidth=rect?.width??0,cssHeight=rect?.height??0;
  const backingWidth=canvas?.width??0,backingHeight=canvas?.height??0;
+ const assets={
+  jadeAmber:textureInfo('assets/jade-v2/amber.png'),
+  jadeCeladon:textureInfo('assets/jade-v2/celadon.png'),
+  tray:textureInfo('assets/art-rose/tray.png'),
+  petals:textureInfo('assets/art-rose/jade-petals-v2.png'),
+  clasp:textureInfo('assets/art-v3/clasp.png'),
+  homeBackground:textureInfo('assets/art-rose/home-bg.jpg'),
+  homeLogoPart3:textureInfo('assets/art-rose/home-logo-part-3.webp')
+ };
+ const stretch=(source:{width:number|null;height:number|null}|null,target:{width:number;height:number})=>{
+  if(!source?.width||!source.height)return null;
+  const scaleX=target.width/source.width,scaleY=target.height/source.height;
+  return {source,target,scaleX,scaleY,anisotropy:scaleY/scaleX};
+ };
+ const titleY=config.designHeight<1350?132:160;
+ const homeTrayHeight=Math.min(670,config.designHeight-438-(titleY+192));
+ const trayTarget=game.mode==='home'?{width:636,height:homeTrayHeight}:
+  game.mode==='game'&&game.formal?{width:config.designWidth+32,height:(config.designHeight-244)*(config.designWidth+32)/710}:
+  game.mode==='game'?{width:710,height:config.designHeight-370}:null;
  return {
   device:{
    dpr,
@@ -80,12 +101,11 @@ export function getRenderDiagnostics(
    focus:cacheInfo(view.focus),
    halo:cacheInfo(view.halo)
   })),
-  assets:{
-   jadeAmber:textureInfo('assets/jade-v2/amber.png'),
-   jadeCeladon:textureInfo('assets/jade-v2/celadon.png'),
-   tray:textureInfo('assets/art-rose/tray.png'),
-   petals:textureInfo('assets/art-rose/jade-petals-v2.png'),
-   clasp:textureInfo('assets/art-v3/clasp.png')
+  assets,
+  imageScaling:{
+   homeBackground:stretch(assets.homeBackground,{width:config.designWidth,height:config.designHeight}),
+   tray:trayTarget?stretch(assets.tray,trayTarget):null,
+   homeLogoPart3:stretch(assets.homeLogoPart3,{width:560,height:187/8})
   }
  };
 }
