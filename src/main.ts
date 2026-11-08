@@ -1082,11 +1082,12 @@ class Game {
  win():void{
   if(this.progressRestoreBlocked()||!this.model||!this.board||!this.model.cleared||this.board.hasVisibleClaspLayer||this.board.animating||this.busy)return;
   if(this.challengeClock&&!this.challengeClock.clearAt(performance.now())){this.challengeFailed();return}
-  const i=this.model.index,steps=this.model.state.steps;
-  this.save.clearRun(i);
+  const i=this.model.index,steps=this.model.state.steps,sample=i===this.sampleLevelIndex;
+  if(!sample)this.save.clearRun(i);
   if(this.formal){
-   const sample=i===this.sampleLevelIndex;
-   const stars=this.save.win(i,steps,solutions[i].length,!debugEnabled()),last=!sample&&i===this.officialLevelCount()-1;
+   const baseline=solutions[i].length;
+   const stars=sample?(steps<=baseline+2?3:steps<=baseline+6?2:1):this.save.win(i,steps,baseline,!debugEnabled());
+   const last=!sample&&i===this.officialLevelCount()-1;
    const level=sample?'第107关样板':'第'+(i-TEACHING_COUNT+1)+'关';
    if(!sample){void this.platform.sync();void this.platform.submitScores().catch(()=>{})}
    this.audio.play('win');
