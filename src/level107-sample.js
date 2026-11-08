@@ -9,10 +9,13 @@ const BASE_FORMAL_NUMBER=100;
 const REMOVED_BACKGROUND_ROD='L122';
 const BURST_RINGS=['R90','R98'];
 const EXTRA_MOUNTS=[
- ['R30','R16'],['R30','R40'],
- ['R19','R11'],['R19','R13'],
- ['R53','R65'],['R53','R71'],
- ['R67','R55'],['R67','R95']
+ // Receiver angles at their base-route release steps stay close to the
+ // authored clasp bearing, minimizing added rotations and preserving the
+ // 100-level route's original release order.
+ ['R29','R53'],['R29','R21'],
+ ['R36','R57'],['R36','R20'],
+ ['R28','R38'],['R28','R14'],
+ ['R68','R80'],['R68','R56']
 ];
 const clone=value=>structuredClone(value);
 const isActive=(state,id)=>Core.ring(state,id)?.life==='active';
