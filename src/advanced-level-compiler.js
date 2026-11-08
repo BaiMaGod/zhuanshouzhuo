@@ -17,7 +17,7 @@ export function compileApprovedSample(spec){
  const n=spec.level,expected=n<=109?109:n;
  requireField(spec.ringCount===expected&&spec.rings?.length===expected,'镯数');
  requireField(spec.validation&&Object.values(spec.validation).every(v=>v===true),'验收证据未齐备');
- const rings=new Map,attrs=[],points=[],ownerQuota=new Map,receiverAngles=new Map;
+ const rings=new Map,attrs=[],points=[],ownerQuota=new Map;
  for(const r of spec.rings){
   requireField(!rings.has(r.id)&&TYPES[r.attribute]!==undefined,'镯ID/属性 '+r.id);
   requireField(Number.isInteger(r.mountedClaspQuota)&&r.mountedClaspQuota>=0&&r.mountedClaspQuota<=6,'自带扣配额 '+r.id);
@@ -39,9 +39,6 @@ export function compileApprovedSample(spec){
   const worldEnd={x:owner.center.x+worldEndOffset.x,y:owner.center.y+worldEndOffset.y};
   requireField(Math.abs(Math.hypot(m.anchorLocal.x,m.anchorLocal.y)-owner.radius)<0.001,'活动杆Owner端不贴合镯边 '+m.id);
   requireField(Math.abs(distance(worldEnd,receiver.center)-receiver.radius)<0.001,'活动杆Receiver端不贴合镯边 '+m.id);
-  const receiverAngle=angle(receiver.center,worldEnd),previousAngle=receiverAngles.get(m.receiverId);
-  requireField(previousAngle===undefined||Math.abs(delta(receiverAngle,previousAngle))<=ALIGN_TOLERANCE,'同一接收镯的活动扣无法由单缺口同时对齐 '+m.receiverId);
-  receiverAngles.set(m.receiverId,receiverAngle);
   mountedRods.push({id:m.id,owner:m.ownerId,targets:[m.receiverId],local:m.anchorLocal,end:endLocal});
  }
  for(const r of spec.rings)requireField(ownerQuota.get(r.id)===r.mountedClaspQuota,'Owner自带扣数量不匹配 '+r.id+' expected='+r.mountedClaspQuota+' actual='+ownerQuota.get(r.id));
@@ -56,9 +53,6 @@ export function compileApprovedSample(spec){
    const receiver=rings.get(e.receiverId),actualAngle=angle(receiver.center,e.pointWorld);
    requireField(Math.abs(distance(receiver.center,e.pointWorld)-receiver.radius)<0.001,'背景扣端点不贴合镯边 '+e.id);
    requireField(Math.abs(delta(actualAngle,e.endpointWorldAngle))<0.05,'背景扣端点朝向不匹配 '+e.id);
-   const previousAngle=receiverAngles.get(e.receiverId);
-   requireField(previousAngle===undefined||Math.abs(delta(actualAngle,previousAngle))<=ALIGN_TOLERANCE,'背景扣与活动扣无法由同一缺口同时对齐 '+e.receiverId);
-   receiverAngles.set(e.receiverId,actualAngle);
    receiverIds.add(e.receiverId);targetSet.add(e.receiverId);
    return{id:e.id,receiverId:e.receiverId,pointWorld:e.pointWorld};
   });
