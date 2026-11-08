@@ -60,6 +60,7 @@ export function compileApprovedSample(spec){
  for(const r of spec.rings)requireField((silkTargetCounts.get(r.id)||0)===r.silkLayers,'缠丝来源数量不匹配 '+r.id);
  for(const candidate of spec.burstCandidates||[]){
   requireField(candidate.validatedAdjacent===true&&rings.has(candidate.sourceId),'爆裂真实邻接证明 '+candidate.sourceId);
+  requireField(['仅爆裂','爆裂缠丝'].includes(rings.get(candidate.sourceId).attribute),'爆裂来源属性 '+candidate.sourceId);
   const neighborId=candidate.neighborId||candidate.targetId;
   if(neighborId){
    requireField(rings.has(neighborId)&&neighborId!==candidate.sourceId,'爆裂邻镯ID '+neighborId);
