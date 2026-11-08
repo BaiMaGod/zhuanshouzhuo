@@ -4110,7 +4110,7 @@
         "expectedEndpointCount": 65
       },
       "attributeCrossBreakdown": {
-        "status": "present_in_workbook_not_embedded",
+        "status": "present_in_workbook",
         "rows": [
           {
             "ownedClaspCount": 0,
@@ -4804,7 +4804,7 @@
         "expectedEndpointCount": 64
       },
       "attributeCrossBreakdown": {
-        "status": "present_in_workbook_not_embedded",
+        "status": "present_in_workbook",
         "rows": [
           {
             "ownedClaspCount": 0,
