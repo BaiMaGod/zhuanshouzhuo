@@ -5,6 +5,7 @@ interface RenderTargetInfo {
 }
 interface RuntimeSprite extends Laya.Sprite {
  _drawOriRT?:RenderTargetInfo|null;
+ _cacheAsBmp?:boolean;
  _subStructRender?:{_rtRect?:{width?:number;height?:number}|null}|null;
 }
 interface RuntimeTexture extends Laya.Texture {
@@ -28,6 +29,7 @@ function cacheInfo(sprite:Laya.Sprite):Record<string,unknown>{
  const runtime=sprite as RuntimeSprite,renderTarget=runtime._drawOriRT;
  return {
   mode:sprite.cacheAs||'none',
+  bitmapCacheEnabled:runtime._cacheAsBmp===true,
   renderTarget:dimensions(renderTarget?{
    width:renderTarget.width??renderTarget._width,
    height:renderTarget.height??renderTarget._height
@@ -49,7 +51,7 @@ function textureInfo(url:string):{width:number|null;height:number|null}|null{
  */
 export function getRenderDiagnostics(
  game:DiagnosticGame,
- config:{designWidth:number;designHeight:number;renderWidth:number;renderScale:number}
+ config:{designWidth:number;designHeight:number;renderWidth:number;renderScale:number;renderDensity:number|null}
 ):Record<string,unknown>{
  const canvas=(Laya.Browser.mainCanvas?.source as unknown as RuntimeCanvas|undefined)
   ??(typeof document!=='undefined'?document.querySelector('canvas')??undefined:undefined);
@@ -97,7 +99,7 @@ export function getRenderDiagnostics(
    expectedBacking:{width:Math.round(cssWidth*dpr),height:Math.round(cssHeight*dpr)}
   },
   stage:{width:stage.width,height:stage.height,scaleX:stage.scaleX,scaleY:stage.scaleY},
-  game:{designWidth:config.designWidth,designHeight:config.designHeight,virtualRenderWidth:config.renderWidth,rootScaleX:game.root.scaleX,rootScaleY:game.root.scaleY,renderScale:config.renderScale},
+  game:{designWidth:config.designWidth,designHeight:config.designHeight,virtualRenderWidth:config.renderWidth,rootScaleX:game.root.scaleX,rootScaleY:game.root.scaleY,renderScale:config.renderScale,targetRenderDensity:config.renderDensity},
   cacheLayers:{rods:game.board?.rods.cacheAs||'none',fixedRods:game.board?.fixedRods.cacheAs||'none'},
   cacheSamples:rings.map(([ringId,view])=>({
    ringId,
