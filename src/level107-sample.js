@@ -9,13 +9,13 @@ const BASE_FORMAL_NUMBER=100;
 const REMOVED_BACKGROUND_ROD='L122';
 const BURST_RINGS=['R90','R98'];
 const EXTRA_MOUNTS=[
- // Every receiver is an original zero-outgoing-mount ring. This avoids
- // attempting to rotate a receiver while it still owns a captive rod.
- // Pair choices minimize the additional release-angle travel.
- ['R70','R44'],['R70','R104'],
- ['R69','R82'],['R69','R103'],
- ['R68','R80'],['R68','R101'],
- ['R98','R74'],['R98','R90']
+ // Receivers are released by the verified base route before their owners
+ // move or disappear. Each new mounted clasp is already aligned at release.
+ // The dependency chain is intentional: R89→R66→R11.
+ ['R89','R8'],['R89','R66'],
+ ['R92','R13'],['R92','R73'],
+ ['R11','R6'],['R11','R95'],
+ ['R66','R9'],['R66','R11']
 ];
 const clone=value=>structuredClone(value);
 const isActive=(state,id)=>Core.ring(state,id)?.life==='active';
