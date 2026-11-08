@@ -49,5 +49,10 @@ test('inspect verified 109-ring base for level107 geometry reuse',()=>{
  };
  mkdirSync('tests/results',{recursive:true});
  writeFileSync('tests/results/level107-base-analysis.json',JSON.stringify(report,null,2)+'\n');
- console.log('LEVEL107_BASE_ANALYSIS='+JSON.stringify(report));
+ console.log('LEVEL107_BASE_ANALYSIS='+JSON.stringify({
+  selectedMountCandidates:report.selectedMountCandidates,
+  ownersWithTwoAlignedTargets:report.ownersWithTwoAlignedTargets.map(({id,removedAt,firstMoveAt,targetCandidates})=>({id,removedAt,firstMoveAt,targetCandidates:targetCandidates.slice(0,6)})),
+  ownersWithOneAlignedTarget:report.ownersWithOneAlignedTarget.slice(0,24).map(({id,removedAt,firstMoveAt,targetCandidates})=>({id,removedAt,firstMoveAt,targetCandidates:targetCandidates.slice(0,4)})),
+  bestSinkPairs:report.bestSinkPairs.slice(0,16)
+ }));
 });
