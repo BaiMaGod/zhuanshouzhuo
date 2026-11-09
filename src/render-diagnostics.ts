@@ -96,7 +96,8 @@ export function getRenderDiagnostics(
    css:{width:cssWidth,height:cssHeight,left:rect?.left??null,top:rect?.top??null},
    backing:{width:backingWidth,height:backingHeight},
    backingPerCss:{x:cssWidth>0?backingWidth/cssWidth:null,y:cssHeight>0?backingHeight/cssHeight:null},
-   expectedBacking:{width:Math.round(cssWidth*dpr),height:Math.round(cssHeight*dpr)}
+   nativeBacking:{width:Math.round(cssWidth*dpr),height:Math.round(cssHeight*dpr)},
+   expectedBacking:{width:config.renderWidth,height:Math.round(config.designHeight*config.renderScale)}
   },
   stage:{width:stage.width,height:stage.height,scaleX:stage.scaleX,scaleY:stage.scaleY},
   game:{designWidth:config.designWidth,designHeight:config.designHeight,virtualRenderWidth:config.renderWidth,rootScaleX:game.root.scaleX,rootScaleY:game.root.scaleY,renderScale:config.renderScale,targetRenderDensity:config.renderDensity},

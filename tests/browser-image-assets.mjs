@@ -15,7 +15,7 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']});
 const report=[];
 try{
- for(const [width,height,dpr] of [[390,844,1],[390,844,2],[390,844,3],[1280,720,1]]){
+ for(const [width,height,dpr] of [[390,844,1],[390,844,2],[390,844,3],[599,1100,1.875],[1280,720,1]]){
   const page=await browser.newPage({viewport:{width,height},deviceScaleFactor:dpr});const errors=[];
   page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
   page.on('requestfailed',r=>errors.push(r.url()));page.on('response',r=>{if(r.status()>=400)errors.push(r.status()+' '+r.url())});
@@ -43,6 +43,10 @@ try{
    `canvas must render at least one backing pixel per CSS pixel: ${JSON.stringify(render.canvas)}`);
   const expectedDensity=width<600?Math.min(2,Math.max(1.5,dpr)):null;
   assert.equal(render.game.targetRenderDensity,expectedDensity,'mobile render density policy must be reported');
+  assert.deepEqual(render.canvas.expectedBacking,render.canvas.backing,'configured backing size must match the canvas');
+  assert.deepEqual(render.canvas.nativeBacking,{
+   width:Math.round(render.canvas.css.width*dpr),height:Math.round(render.canvas.css.height*dpr)
+  },'device-native pixels are reported separately from the configured size');
   if(expectedDensity!==null){
    assert.ok(Math.abs(render.canvas.backingPerCss.x-expectedDensity)<0.01,
     `horizontal backing density must follow the capped DPR policy: ${JSON.stringify(render.canvas)}`);
@@ -76,7 +80,7 @@ try{
   const gpu=await page.evaluate(()=>{
    const canvas=document.querySelector('canvas'),gl=canvas?.getContext('webgl2')||canvas?.getContext('webgl');
    const ext=gl?.getExtension('WEBGL_debug_renderer_info');
-   return {vendor:ext?gl.getParameter(ext.UNMASKED_VENDOR_WEBGL):gl?.getParameter(gl.VENDOR)||null,
+   return {samples:gl?.getParameter(gl.SAMPLES)??null,vendor:ext?gl.getParameter(ext.UNMASKED_VENDOR_WEBGL):gl?.getParameter(gl.VENDOR)||null,
     renderer:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl?.getParameter(gl.RENDERER)||null};
   });
   const softwareRenderer=/swiftshader|llvmpipe|softpipe|software/i.test(gpu.renderer||'');
@@ -91,7 +95,34 @@ try{
    assert.ok(fps>=45,`hardware-accelerated level100 frame rate below 45 FPS: ${fps} (${gpu.renderer})`);
   }
   const memory=await page.evaluate(()=>performance.getEntriesByType('resource').filter(r=>/assets\/.*\.(png|jpg)/.test(r.name)).reduce((n,r)=>n+r.decodedBodySize,0));
-  assert.deepEqual(errors,[]);report.push({width,height,dpr,fps,baselineFps,gpu,softwareRenderer,fpsGate:softwareRenderer?'relative-only':'45fps',errors,downloadedImageBytes:memory,render});console.log('[high-dpi-render]',JSON.stringify({width,height,dpr,fps,baselineFps,gpu,softwareRenderer,device:render.device,canvas:render.canvas,stage:render.stage,game:render.game,cacheLayers:render.cacheLayers,cacheSamples:render.cacheSamples,assets:render.assets,imageScaling:render.imageScaling}));await page.close();
+  let fractionalDprBoard;
+  if(dpr===1.875){
+   await page.evaluate(()=>jadeDebug.game.load(54,true)); // Formal level 45, the 54-ring stress case.
+   for(let i=0;i<12;i++)await click('+');
+   const board=await page.evaluate(()=>({rings:jadeDebug.getState().rings.length,zoom:jadeDebug.game.board.zoom}));
+   assert.equal(board.rings,54);
+   assert.equal(board.zoom,3.4);
+   await shot('formal45-maximum-zoom');
+   // Collect comparable software-rendering evidence without using it as a phone GPU gate.
+   const timings=await page.evaluate(()=>new Promise(resolve=>{
+    let warmup=30,last=0;
+    const durations=[];
+    const tick=now=>{
+     if(warmup>0)warmup--;
+     else durations.push(now-last);
+     last=now;
+     if(durations.length<120)requestAnimationFrame(tick);
+     else {
+      durations.sort((a,b)=>a-b);
+      resolve({samples:durations.length,p95Ms:durations[114],maxMs:durations.at(-1)});
+     }
+    };
+    requestAnimationFrame(tick);
+   }));
+   fractionalDprBoard={...board,...timings,backing:render.canvas.backing,msaaSamples:gpu.samples};
+   console.log('[fractional-dpr-54-ring]',JSON.stringify(fractionalDprBoard));
+  }
+  assert.deepEqual(errors,[]);report.push({width,height,dpr,fps,baselineFps,gpu,softwareRenderer,fpsGate:softwareRenderer?'relative-only':'45fps',errors,downloadedImageBytes:memory,render,fractionalDprBoard});console.log('[high-dpi-render]',JSON.stringify({width,height,dpr,fps,baselineFps,gpu,softwareRenderer,device:render.device,canvas:render.canvas,stage:render.stage,game:render.game,cacheLayers:render.cacheLayers,cacheSamples:render.cacheSamples,assets:render.assets,imageScaling:render.imageScaling}));await page.close();
  }
  await writeFile(out+'/report.json',JSON.stringify(report,null,2));
 }finally{await browser.close();server.close()}
