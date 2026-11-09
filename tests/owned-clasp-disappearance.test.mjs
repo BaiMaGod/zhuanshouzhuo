@@ -30,7 +30,7 @@ test('formal level 4: all five R2 mounted clasps vanish in the removal frame, no
  assert.equal(state.rings.filter(r=>r.life==='active').length,4,'the screenshot has exactly four surviving bracelets');
  assert.ok(owned.every(rod=>!Core.exists(state,rod)),'every R2 clasp is inactive with its owner');
  assert.equal(board.rods.graphics.ops.length,0,'no R2 mounted clasp drawing survives the removal');
- assert.equal(board.effects.numChildren,board.ghosts.filter(g=>g.glow).length,
+ assert.equal(board.effects.numChildren,board.petals.count+board.ghosts.filter(g=>g.glow).length,
   'the effect layer contains only release glows, NEVER a copy of removed clasps');
  assert.equal(board.ghosts.length,1,'jade disappearance animation remains active');
  assert.equal(board.fixedRods.visible,true,'unrelated background clasp geometry remains intact');
@@ -52,7 +52,7 @@ test('owner clasp ghosts stay absent on both tutorial and late-game boards',()=>
   Core.update(state);
   board.release(before,state,[owner]);
   board.draw(state);
-  assert.equal(board.effects.numChildren,board.ghosts.filter(g=>g.glow).length,
+  assert.equal(board.effects.numChildren,board.petals.count+board.ghosts.filter(g=>g.glow).length,
    'level '+index+': no removed-owner clasp is duplicated onto the effect layer');
  }
  game.home();
