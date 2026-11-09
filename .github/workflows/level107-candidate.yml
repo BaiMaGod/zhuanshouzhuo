@@ -17,10 +17,13 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: node --test tests/level107-geometry-candidate.test.mjs
+      - run: node --test tests/level107-geometry-probe.test.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: level107-candidate-geometry
-          path: tests/results/level107-geometry-candidate.json
+          path: |
+            tests/results/level107-geometry-candidate.json
+            tests/results/level107-geometry-probe.json
           if-no-files-found: warn
           retention-days: 7
