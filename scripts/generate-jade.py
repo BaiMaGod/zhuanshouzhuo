@@ -42,9 +42,11 @@ for name,(base,trans) in palette.items():
  rgba=np.dstack([np.clip(col,0,255).astype('uint8'),alpha])
  im=Image.fromarray(rgba)
  im.save(OUT/(name+'.png'),optimize=True)
- # A separate, unrotated support shadow is placed under each jade sprite.
+# Bake the support and close contact shadows into one gap-shaped texture.
 sh=Image.fromarray((aa*mask*90).astype('uint8'),'L').filter(ImageFilter.GaussianBlur(10))
 shadow=Image.new('RGBA',(N,N),(49,61,39,0));shadow.putalpha(sh)
+contact=shadow.transform(shadow.size,Image.Transform.AFFINE,(1,0,-N/110,0,1,N/110),Image.Resampling.BILINEAR)
+shadow=Image.alpha_composite(shadow,contact)
 shadow.save(OUT/'shadow.png',optimize=True)
 
 W,H=1000,1500
