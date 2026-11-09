@@ -15,6 +15,22 @@ const RELEASE_GLOW:Record<JadeName,string> = {
  ice:'166,231,219', ivory:'255,244,207'
 };
 const HALF_GAP = Math.asin(C.GAP/(2*(C.R-C.BAND/2)))/C.D;
+const SHADOW_SIZE=110;
+// The shadow texture has a transparent center and corners. Keep enough padding
+// for linear sampling and draw only the annulus containing the soft shadow.
+const shadowMesh=(()=>{
+ const segments=24,vertices:number[]=[],uvs:number[]=[],indices:number[]=[];
+ for(let i=0;i<segments;i++){
+  for(const radius of [28,52]){
+   const p=C.point({x:0,y:0},i*360/segments,radius);
+   vertices.push(p.x,p.y);
+   uvs.push(.5+p.x/SHADOW_SIZE,.5+p.y/SHADOW_SIZE);
+  }
+  const inner=i*2,next=(inner+2)%(segments*2);
+  indices.push(inner,inner+1,next+1,inner,next+1,next);
+ }
+ return {vertices:new Float32Array(vertices),uvs:new Float32Array(uvs),indices:new Uint16Array(indices)};
+})();
 
 export class Board {
  viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();fixedRods=new Laya.Sprite();effects=new Laya.Sprite();
@@ -80,11 +96,10 @@ export class Board {
   s.rings.forEach((r,i)=>{
    const root=new Laya.Sprite();root.pos(r.x,r.y);this.space.addChild(root);
    const shadow=new Laya.Sprite();
-   // Reuse the preblurred silhouette; its soft tips follow the gap without another mesh draw.
-   shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-55,-55,110,110);
-   // A close contact shadow separates pale jade from the pale tray. Reuse the
-   // original gap-shaped texture, preserving its transparent opening.
-   shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-54,-56,110,110);
+   const shadowTexture=Laya.loader.getRes('assets/shadow.png');
+   const {vertices,uvs,indices}=shadowMesh;
+   // The texture includes the contact shadow. Draw its visible annulus once.
+   shadow.graphics.drawTriangles(shadowTexture,0,0,vertices,uvs,indices);
    const offset=C.rot({x:1.7,y:3.6},-this.turn);shadow.pos(offset.x,offset.y);root.addChild(shadow);
    const halo=new Laya.Sprite();halo.visible=false;root.addChild(halo);
    const material=JADE_NAMES[i%JADE_NAMES.length];
@@ -315,7 +330,8 @@ export class Board {
   const ghosts=new Map(this.ghosts.map(g=>[g.r.id,g]));
   for(const r of s.rings){
    const v=this.rings.get(r.id)!;const ghost=ghosts.get(r.id);
-   const screen=this.toScreen(r),margin=72*this.zoom;
+   // Covers the outer shadow, its offset and the held-ring scale.
+   const screen=this.toScreen(r),margin=60*this.zoom;
    v.root.visible=(r.life==='active'||!!ghost)&&screen.x+margin>=this.rect.x&&screen.x-margin<=this.rect.x+this.rect.w&&screen.y+margin>=this.rect.y&&screen.y-margin<=this.rect.y+this.rect.h;
    const t=ghost?Math.min(1,(now-ghost.start)/releaseMs):0;
    // Cross-fade in place so the petal arc follows the original jade silhouette.
