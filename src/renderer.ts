@@ -8,7 +8,7 @@ import {TEACHING_COUNT} from './levels.js';
 import {THEME} from './ui.js';
 import {FEEDBACK,reducedMotion,easeOut,glint} from './feedback.js';
 const C=C0 as unknown as CoreAPI;
-export interface Ghost {r:Ring;start:number;rods:Laya.Sprite;glow:Laya.Sprite|null}
+export interface Ghost {r:Ring;start:number;glow:Laya.Sprite|null}
 interface RingView {material:JadeName;root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite}
 const RELEASE_GLOW:Record<JadeName,string> = {
  amber:'252,210,72', peach:'253,179,158', celadon:'174,221,164',
@@ -188,13 +188,13 @@ export class Board {
   const petalCount=this.quiet||!departing.length?0:this.petals.countFor(departing.length);
   for(const id of departing){
    const r=C.ring(after,id)!;
-   // Batch each departing clasp once; don't clone state/create nodes per frame.
-   const rods=new Laya.Sprite();rods.mouseEnabled=false;
-   const state=C.clone(before);C.ring(state,id)!.a=r.a;
-   this.drawRods(state,rods.graphics,id);this.effects.addChild(rods);
+   // An owner's mounted clasps cease to exist in the SAME frame as its ring.
+   // Never redraw them as independent effect ghosts: those detached clasps
+   // can outlive the disappearing jade ring and look like permanent leftovers.
+   // Only the jade body, petal particles and light bloom animate after removal.
    const material=this.rings.get(id)!.material;
    const glow=this.quiet?null:this.releaseGlow(r,material);
-   this.ghosts.push({r:{...r},start:now,rods,glow});
+   this.ghosts.push({r:{...r},start:now,glow});
    for(const z of before.rods)for(const e of C.endpoints(before,z))if(e.id===id)this.flash(e.p,now);
    if(petalCount)this.petals.emit(r,r.a,HALF_GAP,C.R,material,now,petalCount);
    if(!this.quiet)for(let k=0;k<2+this.streak;k++){
@@ -221,7 +221,6 @@ export class Board {
   return glow;
  }
  private disposeGhost(ghost:Ghost):void{
-  ghost.rods.destroy(true);
   ghost.glow?.destroy(true);
  }
  private flash(p:Point,now:number):void{
@@ -388,7 +387,6 @@ export class Board {
   this.effects.graphics.clear();
   for(const ghost of this.ghosts){
    const age=now-ghost.start;
-   ghost.rods.alpha=1-age/releaseMs;
    if(ghost.glow)ghost.glow.alpha=Math.sin(Math.PI*Math.min(1,(age+20)/210));
   }
   for(const p of this.sparks){
