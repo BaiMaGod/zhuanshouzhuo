@@ -1198,6 +1198,13 @@ class Game {
   if(this.model&&this.board)this.sync();
  }
 }
+Laya.addBeforeInitCallback?.(()=>{
+ // High-DPI phones already render the full scene at 2 backing pixels per CSS
+ // pixel. Skip the additional WebGL multisample buffer for this mobile tier.
+ if(typeof window!=='undefined'&&Laya.Browser.clientWidth<600&&window.devicePixelRatio>=2){
+  Laya.Config.isAntialias=false;
+ }
+});
 async function boot():Promise<void>{
  // Load the compact Chinese fonts before Laya measures or caches any UI text.
  // The 2D game needs no WebGL2 features. WebGL1 keeps scene caches single-sampled
