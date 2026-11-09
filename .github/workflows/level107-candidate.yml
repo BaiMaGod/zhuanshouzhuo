@@ -8,7 +8,7 @@ permissions:
 jobs:
   geometry:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,6 +19,14 @@ jobs:
       - run: node --test tests/level107-geometry-candidate.test.mjs
       - run: node --test tests/level107-geometry-probe.test.mjs
       - run: node --test tests/level107-opening-route.test.mjs
+      - run: npm run build
+      - run: npm install --no-save --no-audit --no-fund playwright pngjs
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-jade-ci-playwright-1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/browser-level107-geometry.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -27,5 +35,6 @@ jobs:
             tests/results/level107-geometry-candidate.json
             tests/results/level107-geometry-probe.json
             tests/results/level107-opening-physical-route.json
+            tests/results/level107-browser/
           if-no-files-found: warn
           retention-days: 7
