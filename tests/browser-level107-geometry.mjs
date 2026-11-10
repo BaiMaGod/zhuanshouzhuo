@@ -106,17 +106,18 @@ try{
     return{active:s.rings.filter(r=>r.life==='active').length,
       removed:s.rings.filter(r=>r.life==='removed').length,
       visibleBackground:s.rods.filter(z=>z.kind==='b'&&C.exists(s,z)).map(z=>z.id),
-      steps:s.steps};
+      steps:s.steps,bursts:s.events.filter(e=>e.kind==='burst').map(e=>e.source)};
    });
    assert.equal(extended.active,progressive.activeRemaining,'browser must agree with physical replay after 42 actions');
    assert.equal(extended.removed,progressive.removedCount);
-   assert.deepEqual(extended.visibleBackground,['F001','F002']);
-   await page.screenshot({path:resolve(out,width+'x'+height+'-after-42-real-drags.png')});
+   assert.deepEqual(extended.visibleBackground,[],'all 14 independent background pieces must be gone');
+   assert.deepEqual(extended.bursts,['R001','R002'],'true mobile drags must trigger ordered burst cascade');
+   await page.screenshot({path:resolve(out,width+'x'+height+'-after-44-real-drags.png')});
   }
   results.push({width,height,...initial,after:final,extended});
   await page.close();
  }
- const report={stage:'development_preview_42_real_drags',fullRouteVerified:false,moves,progressiveVerifiedActions:progressive.actions.length,results};
+ const report={stage:'development_preview_44_real_drags',fullRouteVerified:false,moves,progressiveVerifiedActions:progressive.actions.length,results};
  await writeFile(resolve(out,'report.json'),JSON.stringify(report,null,2)+'\n');
  console.log('LEVEL107_BROWSER_CANDIDATE='+JSON.stringify({viewports:results.length,drags:moves.length,complete:false}));
 }finally{await browser.close();await new Promise(r=>server.close(r))}
