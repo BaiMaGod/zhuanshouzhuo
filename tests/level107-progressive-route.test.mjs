@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import Core from '../src/core.js';
+import {planPhysicalProgress} from '../src/advanced-physical-planner.js';
 import {buildLevel107GeometryCandidate} from '../src/level107-geometry-candidate.js';
 
 const source=JSON.parse(readFileSync(new URL('../docs/levels-101-200-level107-source.json',import.meta.url),'utf8')).levels[0];
@@ -9,28 +10,6 @@ const source=JSON.parse(readFileSync(new URL('../docs/levels-101-200-level107-so
 // A bounded constructive physics probe. It never advances state unless an
 // actual Core.request removes one or more rings through continuous rotation.
 // Returning a NEW state is essential: Core has a state-keyed WeakMap ring cache.
-function singleRelease(state){
- const live=state.rods.filter(z=>Core.exists(state,z)),options=[];
- for(const r of state.rings){
-  if(r.life!=='active')continue;
-  if(live.some(z=>z.owner===r.id&&Core.endpoints(state,z).some((e,i)=>state.states[z.id][i]==='latched')))continue;
-  const incoming=live.flatMap(z=>Core.endpoints(state,z).flatMap((e,i)=>
-   e.id===r.id&&state.states[z.id][i]==='latched'?[{rod:z.id,angle:Core.angle(r,e.p)}]:[]));
-  if(!incoming.length)continue;
-  if(incoming.some(h=>Math.abs(Core.diff(h.angle,incoming[0].angle))>2*Core.tolerance-0.01))continue;
-  const delta=Core.diff(incoming[0].angle,r.a);
-  if(Math.abs(delta)>.01)options.push({id:r.id,delta,rod:incoming[0].rod,heads:incoming.length});
- }
- options.sort((a,b)=>a.heads-b.heads||Math.abs(a.delta)-Math.abs(b.delta));
- for(const o of options)for(const delta of [o.delta,o.delta>0?o.delta-360:o.delta+360]){
-  const copy=Core.clone(state),result=Core.request(copy,o.id,delta);
-  if(!result.blocked&&result.removed.length){
-   return{state:copy,action:{ringId:o.id,delta:result.done,removed:result.removed,rod:o.rod}};
-  }
- }
- return null;
-}
-
 function ownerCycles(state){
  const graph=new Map(state.rings.filter(r=>r.life==='active').map(r=>[r.id,[]]));
  for(const z of state.rods)if(z.kind==='m'&&Core.exists(state,z)&&graph.has(z.owner)&&graph.has(z.targets[0]))graph.get(z.owner).push(z.targets[0]);
@@ -80,11 +59,12 @@ test('107: 42 real no-tool rotations remove 44; replay and report remaining bloc
    }
   }
   assert.equal(state.rings.filter(r=>r.life==='removed').length,35);
-  for(let pass=0;pass<109;pass++){
-   const next=singleRelease(state);
-   if(!next)break;
-   state=next.state;actions.push(next.action);
-  }
+  // Extend one-ring releases with strictly legal, non-clearing setup turns:
+  // prepare targets for an owner, then release that owner in actual physics.
+  const planner=planPhysicalProgress(Core,state);
+  state=planner.state;
+  actions.push(...planner.actions.map(a=>({ringId:a.id,delta:a.delta,removed:a.removed,rod:a.rod})));
+  assert.ok(planner.removed>=44,'multi-step physical planner must extend early route');
   const active=state.rings.filter(r=>r.life==='active');
   const incompatible=active.flatMap(r=>{
    const heads=state.rods.filter(z=>Core.exists(state,z)).flatMap(z=>
@@ -98,7 +78,7 @@ test('107: 42 real no-tool rotations remove 44; replay and report remaining bloc
    activeIds:active.map(r=>r.id),actualBurstEvents:state.events.filter(e=>e.kind==='burst'),
    cyclicOwnerChains:ownerCycles(state),incompatibleReceiverRings:incompatible,actions};
   // This test proves replayability, not optimality or global unsolvability.
-  assert.ok(report.removedCount>=55,'two burst cascades or previously verified removals regressed');
+  assert.ok(report.removedCount>=79,'two burst cascades or previously verified removals regressed');
   assert.deepEqual(report.actualBurstEvents.map(e=>e.source),['R001','R002']);
   assert.ok(report.actualBurstEvents.every(e=>e.brokenRodIds.length>0));
   assert.ok(actions.every(a=>Math.abs(a.delta)>0));
@@ -113,6 +93,6 @@ test('107: 42 real no-tool rotations remove 44; replay and report remaining bloc
   assert.deepEqual(replay.events.filter(e=>e.kind==='burst'),report.actualBurstEvents);
   mkdirSync('tests/results',{recursive:true});
   writeFileSync('tests/results/level107-progressive-physical-route.json',JSON.stringify(report,null,2)+'\n');
-  console.log('LEVEL107_PROGRESSIVE='+JSON.stringify({steps:report.verifiedSteps,removed:report.removedCount,remaining:report.activeRemaining,bursts:report.actualBurstEvents.length,cycles:report.cyclicOwnerChains}));
+  console.log('LEVEL107_PROGRESSIVE='+JSON.stringify({steps:report.verifiedSteps,removed:report.removedCount,remaining:report.activeRemaining,bursts:report.actualBurstEvents.length,macros:planner.statistics.macroPlans,cycles:report.cyclicOwnerChains}));
  }finally{Core.levels.pop()}
 });
