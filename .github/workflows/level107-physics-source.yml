@@ -1,0 +1,25 @@
+name: Level 107 physics source snapshot
+on:
+  push:
+    branches: [feature/levels-101-200-engine]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  physics-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: level107-physics-source
+          path: |
+            src/**/*.js
+            src/**/*.ts
+            tests/level107-*.mjs
+            docs/levels-101-200-level107-source.json
+            package.json
+            tsconfig.json
+          if-no-files-found: error
+          retention-days: 3
