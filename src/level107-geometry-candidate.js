@@ -50,6 +50,17 @@ export function buildLevel107GeometryCandidate(source){
  // M002 before M004, guaranteeing R001 bursts before R002.
  // No ring starts free, and both bursts still require real player rotations.
  rotations.set('R001',angle(centers.get('R001'),centers.get('R002')));
+ // A captive owner cannot freely rotate while any of its mounted receiver
+ // rings remain active. Prefer an incoming clasp already aligned so that
+ // preparing its outgoing receivers may free that owner without a fake move.
+ // These four owners remain offset because aligning them at load caused
+ // initial automatic eliminations (forbidden by the level validation gate).
+ const initiallyCaptive=new Set(['R001','R074','R082','R084','R086']);
+ for(const ring of source.rings){
+  if(!ring.ownedClaspQuota||initiallyCaptive.has(ring.id))continue;
+  const incoming=pairs.find(([,target])=>id(target)===ring.id);
+  if(incoming)rotations.set(ring.id,angle(centers.get(ring.id),centers.get(id(incoming[0]))));
+ }
  rotations.set('R004',norm(angle(centers.get('R004'),centers.get('R001'))+20));
  const points=source.rings.map(r=>{const c=centers.get(r.id);return[r.id,c.x,c.y,rotations.get(r.id)??147]});
  const mountedRods=pairs.map(([a,b],i)=>{
