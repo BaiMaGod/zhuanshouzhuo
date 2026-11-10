@@ -44,6 +44,13 @@ export function buildLevel107GeometryCandidate(source){
  for(const piece of backgrounds)for(const e of piece.endpoints)rotations.set(e.receiverId,norm(e.endpointWorldAngle+29));
  for(const [a,b] of pairs)if(!rotations.has(id(b)))
   rotations.set(id(b),norm(angle(centers.get(id(b)),centers.get(id(a)))+29));
+ // The first burst is initially aligned to the incoming sleeve M003, but
+ // remains held by its OWN two outgoing rods until their receiver gaps turn.
+ // R004 begins 20 degrees away from M002: its short reverse move reaches
+ // M002 before M004, guaranteeing R001 bursts before R002.
+ // No ring starts free, and both bursts still require real player rotations.
+ rotations.set('R001',angle(centers.get('R001'),centers.get('R002')));
+ rotations.set('R004',norm(angle(centers.get('R004'),centers.get('R001'))+20));
  const points=source.rings.map(r=>{const c=centers.get(r.id);return[r.id,c.x,c.y,rotations.get(r.id)??147]});
  const mountedRods=pairs.map(([a,b],i)=>{
   const owner=centers.get(id(a)),receiver=centers.get(id(b));
