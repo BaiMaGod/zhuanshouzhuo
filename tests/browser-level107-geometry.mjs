@@ -89,29 +89,35 @@ try{
   await page.screenshot({path:resolve(out,width+'x'+height+'-after-two-real-drags.png')});
   let extended=null;
   if(width===390){
-   // Replay the complete 42-action no-tool engine route through true canvas
+   const seenBursts=[];
+   // Replay the verified 44-action no-tool engine route through true canvas
    // pointer events, rather than changing model angles directly in the browser.
    for(const [step,action] of progressive.actions.slice(2).entries()){
     await drag(page,{id:action.ringId,delta:action.delta});
     const current=await page.evaluate(()=>{
      const g=window.jadeDebug.game;
      return{remaining:g.model.state.rings.filter(r=>r.life==='active').length,
-      removed:g.model.state.rings.filter(r=>r.life==='removed').map(r=>r.id)};
+      removed:g.model.state.rings.filter(r=>r.life==='removed').map(r=>r.id),
+      currentBursts:g.model.state.events.filter(e=>e.kind==='burst').map(e=>e.source)};
     });
     const removedExpected=new Set(progressive.actions.slice(0,step+3).flatMap(action=>action.removed)).size;
     assert.equal(current.remaining,109-removedExpected,'browser action '+(step+3)+' disagrees with verified engine replay');
+    for(const source of current.currentBursts)if(!seenBursts.includes(source))seenBursts.push(source);
    }
    extended=await page.evaluate(()=>{
     const {game:g,Core:C}=window.jadeDebug,s=g.model.state;
     return{active:s.rings.filter(r=>r.life==='active').length,
       removed:s.rings.filter(r=>r.life==='removed').length,
       visibleBackground:s.rods.filter(z=>z.kind==='b'&&C.exists(s,z)).map(z=>z.id),
-      steps:s.steps,bursts:s.events.filter(e=>e.kind==='burst').map(e=>e.source)};
+      steps:s.steps};
    });
-   assert.equal(extended.active,progressive.activeRemaining,'browser must agree with physical replay after 42 actions');
+   assert.equal(extended.active,progressive.activeRemaining,'browser must agree with physical replay after 44 actions');
    assert.equal(extended.removed,progressive.removedCount);
    assert.deepEqual(extended.visibleBackground,[],'all 14 independent background pieces must be gone');
-   assert.deepEqual(extended.bursts,['R001','R002'],'true mobile drags must trigger ordered burst cascade');
+   // GameModel intentionally trims the event buffer to the latest 24
+   // entries; capture the cascade when it occurs, not 40 drags later.
+   assert.deepEqual(seenBursts,['R001','R002'],'real mobile drags must trigger ordered bursts');
+   extended.bursts=seenBursts;
    await page.screenshot({path:resolve(out,width+'x'+height+'-after-44-real-drags.png')});
   }
   results.push({width,height,...initial,after:final,extended});
