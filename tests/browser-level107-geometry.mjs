@@ -11,6 +11,10 @@ import {buildLevel107GeometryCandidate} from '../src/level107-geometry-candidate
 const source=JSON.parse(await readFile(new URL('../docs/levels-101-200-level107-source.json',import.meta.url),'utf8')).levels[0];
 const candidate=buildLevel107GeometryCandidate(source);
 const sample=Core.levels.push(candidate.level)-1,state=Core.make(sample),moves=[];
+const progressive=JSON.parse(await readFile(new URL('./results/level107-progressive-physical-route.json',import.meta.url),'utf8'));
+assert.equal(progressive.fullRouteVerified,false,'candidate is not a published level');
+assert.ok(progressive.removedCount>=44&&progressive.actions.length>=42);
+
 for(const id of ['R005','R006']){
  const piece=state.rods.find(z=>z.id==='F003'),end=Core.endpoints(state,piece).find(e=>e.id===id);
  const r=Core.ring(state,id),delta=Core.diff(Core.angle(r,end.p),r.a),result=Core.request(state,id,delta);
@@ -83,10 +87,35 @@ try{
   assert.equal(final.active,107);
   assert.equal(errors.length,0,errors.join(' | '));
   await page.screenshot({path:resolve(out,width+'x'+height+'-after-two-real-drags.png')});
-  results.push({width,height,...initial,after:final});
+  let extended=null;
+  if(width===390){
+   // Replay the complete 42-action no-tool engine route through true canvas
+   // pointer events, rather than changing model angles directly in the browser.
+   for(const [step,action] of progressive.actions.slice(2).entries()){
+    await drag(page,{id:action.ringId,delta:action.delta});
+    const current=await page.evaluate(()=>{
+     const g=window.jadeDebug.game;
+     return{remaining:g.model.state.rings.filter(r=>r.life==='active').length,
+      removed:g.model.state.rings.filter(r=>r.life==='removed').map(r=>r.id)};
+    });
+    if(current.remaining>progressive.activeRemaining+40)throw Error('Sample drag failed to remove any rings at step '+(step+2));
+   }
+   extended=await page.evaluate(()=>{
+    const {game:g,Core:C}=window.jadeDebug,s=g.model.state;
+    return{active:s.rings.filter(r=>r.life==='active').length,
+      removed:s.rings.filter(r=>r.life==='removed').length,
+      visibleBackground:s.rods.filter(z=>z.kind==='b'&&C.exists(s,z)).map(z=>z.id),
+      steps:s.steps};
+   });
+   assert.equal(extended.active,progressive.activeRemaining,'browser must agree with physical replay after 42 actions');
+   assert.equal(extended.removed,progressive.removedCount);
+   assert.deepEqual(extended.visibleBackground,['F001','F002']);
+   await page.screenshot({path:resolve(out,width+'x'+height+'-after-42-real-drags.png')});
+  }
+  results.push({width,height,...initial,after:final,extended});
   await page.close();
  }
- const report={stage:'development_preview_only',fullRouteVerified:false,moves,results};
+ const report={stage:'development_preview_42_real_drags',fullRouteVerified:false,moves,progressiveVerifiedActions:progressive.actions.length,results};
  await writeFile(resolve(out,'report.json'),JSON.stringify(report,null,2)+'\n');
  console.log('LEVEL107_BROWSER_CANDIDATE='+JSON.stringify({viewports:results.length,drags:moves.length,complete:false}));
 }finally{await browser.close();await new Promise(r=>server.close(r))}
