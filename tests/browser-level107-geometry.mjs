@@ -98,7 +98,8 @@ try{
      return{remaining:g.model.state.rings.filter(r=>r.life==='active').length,
       removed:g.model.state.rings.filter(r=>r.life==='removed').map(r=>r.id)};
     });
-    if(current.remaining>progressive.activeRemaining+40)throw Error('Sample drag failed to remove any rings at step '+(step+2));
+    const removedExpected=new Set(progressive.actions.slice(0,step+3).flatMap(action=>action.removed)).size;
+    assert.equal(current.remaining,109-removedExpected,'browser action '+(step+3)+' disagrees with verified engine replay');
    }
    extended=await page.evaluate(()=>{
     const {game:g,Core:C}=window.jadeDebug,s=g.model.state;
