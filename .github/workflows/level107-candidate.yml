@@ -19,6 +19,7 @@ jobs:
       - run: node --test tests/level107-geometry-candidate.test.mjs
       - run: node --test tests/level107-geometry-probe.test.mjs
       - run: node --test tests/level107-opening-route.test.mjs
+      - run: node --test tests/level107-progressive-route.test.mjs
       - run: npm run build
       - run: npm install --no-save --no-audit --no-fund playwright pngjs
       - uses: actions/cache@v4
