@@ -60,8 +60,26 @@ test('107: 42 real no-tool rotations remove 44; replay and report remaining bloc
     assert.ok(out.removed.includes(ring.id));
     actions.push({ringId:ring.id,delta:out.done,removed:out.removed,rod:piece.id});
    }
+   if(number===3){
+    // These are deliberately preparatory rotations: the first may remove
+    // no rings, but it positions the receiver to release the first burst.
+    // The second rotates R004 toward M002 before M004, so the engine must
+    // emit R001 first and then R002. No state or rod is manually removed.
+    for(const [id,rodId] of [['R003','M001'],['R004','M002']]){
+     const r=Core.ring(state,id),rod=state.rods.find(z=>z.id===rodId);
+     const end=Core.endpoints(state,rod).find(e=>e.id===id);
+     assert.ok(end,'burst route endpoint missing');
+     const delta=Core.diff(Core.angle(r,end.p),r.a);
+     const out=Core.request(state,id,delta);
+     assert.equal(out.blocked,null,'burst setup collision '+id);
+     assert.ok(Math.abs(out.done)>0.01,'burst setup must rotate '+id);
+     actions.push({ringId:id,delta:out.done,removed:out.removed,rod:rodId});
+    }
+    assert.deepEqual(state.events.filter(e=>e.kind==='burst').map(e=>e.source),['R001','R002'],
+     'R001 must explode first and then R002');
+   }
   }
-  assert.equal(state.rings.filter(r=>r.life==='removed').length,24);
+  assert.equal(state.rings.filter(r=>r.life==='removed').length,35);
   for(let pass=0;pass<109;pass++){
    const next=singleRelease(state);
    if(!next)break;
@@ -80,8 +98,11 @@ test('107: 42 real no-tool rotations remove 44; replay and report remaining bloc
    activeIds:active.map(r=>r.id),actualBurstEvents:state.events.filter(e=>e.kind==='burst'),
    cyclicOwnerChains:ownerCycles(state),incompatibleReceiverRings:incompatible,actions};
   // This test proves replayability, not optimality or global unsolvability.
-  assert.ok(report.removedCount>=44,'previously verified removals regressed');
-  assert.ok(actions.every(a=>a.removed.length&&Math.abs(a.delta)>0));
+  assert.ok(report.removedCount>=55,'two burst cascades or previously verified removals regressed');
+  assert.deepEqual(report.actualBurstEvents.map(e=>e.source),['R001','R002']);
+  assert.ok(report.actualBurstEvents.every(e=>e.brokenRodIds.length>0));
+  assert.ok(actions.every(a=>Math.abs(a.delta)>0));
+  assert.ok(actions.some(a=>a.removed.length===0),'must exercise true non-clearing preparatory turn');
   const replay=Core.make(index);
   for(const [i,a] of actions.entries()){
    const result=Core.request(replay,a.ringId,a.delta);
