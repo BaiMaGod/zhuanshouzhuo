@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import solutions from '../src/solutions.js';
 import {installHarness} from './scene-harness.mjs';
 
 const harness=installHarness();
@@ -9,35 +10,42 @@ const game=window.jadeDebug.game,Core=window.jadeDebug.Core;
 game.audio.enabled=false;
 game.save.data.unlocked=Core.levels.length-1;
 
-test('formal level 4: all five R2 mounted clasps vanish in the removal frame, not as floating ghosts',()=>{
- const index=13; // 10 tutorial levels + formal level 4 (1-based)
+test('formal level 4: the last five mounted clasps vanish while five other bracelets remain',()=>{
+ const index=13;
  game.load(index,true);
- const board=game.board,state=game.model.state;
- const survivorIds=new Set(['R1','R3','R6','R8','R2']);
- for(const r of state.rings)r.life=survivorIds.has(r.id)?'active':'removed';
- Core.update(state);
- const owned=state.rods.filter(rod=>rod.kind==='m'&&rod.owner==='R2');
- assert.equal(owned.length,5,'R2 owns five distinct mounted clasps');
- board.draw(state);
- assert.ok(board.rods.graphics.ops.length>0,'all five clasps appear while their owner is present');
+ const {board,model}=game;
+ const standard=solutions[index];
+ // Release R7 and the R3–R8 pair early. R4 then leaves on rotation 17.
+ const route=[...standard.slice(0,9),...standard.slice(15,18),...standard.slice(9,14)];
+ for(const [i,a] of route.entries()){
+  model.begin();
+  const result=game.perform(a.id,a.delta);
+  assert.equal(result.blocked,null);
+  if(i===8){
+   assert.deepEqual(result.removed,['R2']);
+   assert.equal(board.rods.visible,true,'R4 mounted clasps remain after R2 leaves');
+   assert.equal(board.rods.graphics.ops.filter(op=>op[0]==='mesh').length,5);
+  }
+  if(i===15)assert.equal(board.rods.graphics.ops.filter(op=>op[0]==='mesh').length,5);
+  if(i===16)assert.deepEqual(result.removed,['R4']);
+  else while(board.animating)harness.tick();
+ }
 
- const before=Core.clone(state);
- Core.ring(state,'R2').life='removed';
- Core.update(state);
- board.release(before,state,['R2']);
- board.draw(state);
-
- assert.equal(state.rings.filter(r=>r.life==='active').length,4,'the screenshot has exactly four surviving bracelets');
- assert.ok(owned.every(rod=>!Core.exists(state,rod)),'every R2 clasp is inactive with its owner');
- assert.equal(board.rods.graphics.ops.length,0,'no R2 mounted clasp drawing survives the removal');
- assert.equal(board.effects.numChildren,board.petals.count+board.ghosts.filter(g=>g.glow).length,
-  'the effect layer contains only release glows, NEVER a copy of removed clasps');
+ const {state}=model;
+ assert.equal(state.steps,17);
+ assert.deepEqual(state.rings.filter(r=>r.life==='active').map(r=>r.id),['R1','R5','R6','R9','R12']);
+ assert.deepEqual(state.rods.filter(z=>Core.exists(state,z)).map(z=>z.id),['L15','L17','L18']);
+ assert.equal(board.rods.graphics.ops.length,0);
+ assert.equal(board.rods.visible,false,'hide the empty mounted layer in the removal frame');
+ assert.equal(board.fixedRods.visible,true,'the three independent background clasps still render');
+ assert.equal(board.fixedRods.graphics.ops.filter(op=>op[0]==='mesh').length,3);
  assert.equal(board.ghosts.length,1,'jade disappearance animation remains active');
- assert.equal(board.fixedRods.visible,true,'unrelated background clasp geometry remains intact');
+ assert.equal(board.effects.numChildren,board.petals.count+board.ghosts.filter(g=>g.glow).length);
 
  for(let frame=0;frame<80;frame++)harness.tick();
- assert.equal(board.ghosts.length,0,'all remaining jade release ghosts finish');
- assert.equal(board.effects.numChildren,0,'no release nodes survive');
+ assert.equal(board.rods.visible,false,'subsequent redraws keep the empty layer hidden');
+ assert.equal(board.ghosts.length,0);
+ assert.equal(board.effects.numChildren,0);
  game.home();
 });
 

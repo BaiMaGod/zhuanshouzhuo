@@ -25,8 +25,8 @@ const includeWholeBoard=(board)=>{
 function assertMountedComplete(board,state,where){
  const surviving=state.rods.filter(z=>z.kind==='m'&&Core.exists(state,z));
  const n=surviving.length;
- assert.equal(board.rods.visible,state.rings.some(r=>r.life==='active'),
-  where+': mounted layer visibility follows surviving ring state');
+ assert.equal(board.rods.visible,n>0,
+  where+': mounted layer is visible only when it contains a surviving clasp');
  assert.equal(countOps(board.rods,'mesh'),n,
   where+': precisely one ornamental mounting for every surviving rod');
  assert.equal(countOps(board.rods,'poly'),3*n,

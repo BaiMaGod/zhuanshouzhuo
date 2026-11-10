@@ -68,9 +68,7 @@ export class Board {
  load(s:State,traySize?:{w:number;h:number}):void{
   if(traySize)this.traySize=traySize;
   this.lastState=null;this.rodsDrawKey='';this.highlightedRing=null;this.focusId=null;
-  // A prior completed level hides the owner-mounted clasp layer entirely.
-  // Restore it when loading a fresh board, including replaying the same level.
-  this.rods.visible=true;this.rods.cacheAs='none';this.rods.graphics.clear();
+  this.rods.visible=false;this.rods.graphics.clear();
   for(let i=this.rods.numChildren-1;i>=0;i--)this.rods.getChildAt(i).destroy(true);
   this.fixedRods.visible=false;this.fixedRods.graphics.clear();this.fixedRodsDrawKey='';
   // The bundled LayaAir 3.4 runtime accepts only 'bitmap' and 'none' for cacheAs.
@@ -296,13 +294,13 @@ export class Board {
   this.fixedRods.visible=visibleCount>0;
   this.fixedRodsDrawKey=key;
  }
- private drawRods(s:State,g:Laya.Graphics,ownerFilter?:string):void{
+ private drawRods(s:State,g:Laya.Graphics):boolean{
   const jewels:{p:Point;a:number}[]=[];
   for(const z of s.rods){
    // Background fixed rods are drawn by syncBackgroundRods in their own
    // shared batch; this batch contains only owner-mounted rods.
-   if(z.kind==='b'||!C.exists(s,z)||(ownerFilter!==undefined&&z.owner!==ownerFilter))continue;
-   const p=C.pose(s,z),sp=this.toScreen(p.p),sq=this.toScreen(p.q),margin=(ownerFilter===undefined?12:30)*this.zoom;
+   if(z.kind==='b'||!C.exists(s,z))continue;
+   const p=C.pose(s,z),sp=this.toScreen(p.p),sq=this.toScreen(p.q),margin=12*this.zoom;
    if(Math.max(sp.x,sq.x)+margin<this.rect.x||Math.min(sp.x,sq.x)-margin>this.rect.x+this.rect.w||Math.max(sp.y,sq.y)+margin<this.rect.y||Math.min(sp.y,sq.y)-margin>this.rect.y+this.rect.h)continue;
    const a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
    const shadow=C.rot({x:1.1,y:1.8},-this.turn);
@@ -318,6 +316,7 @@ export class Board {
    jewels.push({p:p.p,a});
   }
   for(const j of jewels)this.jewel(g,j.p,j.a);
+  return jewels.length>0;
  }
  draw(s:State,now=performance.now()):void{
   this.lastState=s;
@@ -363,27 +362,16 @@ export class Board {
   }
   this.highlightedRing=now<this.blockUntil?this.blockedRing:null;
   this.syncBackgroundRods(s,now);
-  // The final action may remove one, two, or several bracelets in a single
-  // settle pass. Clear the moving-clasp batch when the board reaches zero
-  // active rings. Departing clasp ghosts on the effects layer still fade
-  // normally and are destroyed before victory.
-  if(s.rings.every(r=>r.life!=='active')){
-   this.rods.visible=false;
-   this.rods.cacheAs='none';
+  const hot=now<this.blockUntil?this.blocked?.rod||'':'';
+  const key=[this.zoom,this.screen.x,this.screen.y,this.turn,hot,
+   ...s.rings.map(r=>r.id+':'+r.a+':'+r.life)].join('|');
+  if(this.rodsDrawKey!==key){
    this.rods.graphics.clear();
-   this.rodsDrawKey='';
-  }else{
-   if(!this.rods.visible){this.rods.visible=true;this.rods.cacheAs='none';this.rodsDrawKey=''}
-   // Avoid rebuilding drawing commands on unchanged frames while rings remain.
-   const hot=now<this.blockUntil?this.blocked?.rod||'':'';
-   const key=[this.zoom,this.screen.x,this.screen.y,this.turn,hot,
-    ...s.rings.map(r=>r.id+':'+r.a+':'+r.life)].join('|');
-   if(this.rodsDrawKey!==key){
-    this.rods.graphics.clear();this.drawRods(s,this.rods.graphics);
-    this.rodsDrawKey=key;
-   }
+   // Laya can retain the previous mesh after a visible Graphics batch is
+   // emptied. Hide the batch as soon as it has no clasps to render.
+   this.rods.visible=this.drawRods(s,this.rods.graphics);
+   this.rodsDrawKey=key;
   }
-  // Reuse the effects layer and departing clasp nodes through their lifetime.
   this.effects.graphics.clear();
   for(const ghost of this.ghosts){
    const age=now-ghost.start;
