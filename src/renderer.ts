@@ -8,13 +8,29 @@ import {TEACHING_COUNT} from './levels.js';
 import {THEME} from './ui.js';
 import {FEEDBACK,reducedMotion,easeOut,glint} from './feedback.js';
 const C=C0 as unknown as CoreAPI;
-export interface Ghost {r:Ring;start:number;rods:Laya.Sprite;glow:Laya.Sprite|null}
+export interface Ghost {r:Ring;start:number;glow:Laya.Sprite|null}
 interface RingView {material:JadeName;root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite;special:Laya.Text|null}
 const RELEASE_GLOW:Record<JadeName,string> = {
  amber:'252,210,72', peach:'253,179,158', celadon:'174,221,164',
  ice:'166,231,219', ivory:'255,244,207'
 };
 const HALF_GAP = Math.asin(C.GAP/(2*(C.R-C.BAND/2)))/C.D;
+const SHADOW_SIZE=110;
+// The shadow texture has a transparent center and corners. Keep enough padding
+// for linear sampling and draw only the annulus containing the soft shadow.
+const shadowMesh=(()=>{
+ const segments=24,vertices:number[]=[],uvs:number[]=[],indices:number[]=[];
+ for(let i=0;i<segments;i++){
+  for(const radius of [28,52]){
+   const p=C.point({x:0,y:0},i*360/segments,radius);
+   vertices.push(p.x,p.y);
+   uvs.push(.5+p.x/SHADOW_SIZE,.5+p.y/SHADOW_SIZE);
+  }
+  const inner=i*2,next=(inner+2)%(segments*2);
+  indices.push(inner,inner+1,next+1,inner,next+1,next);
+ }
+ return {vertices:new Float32Array(vertices),uvs:new Float32Array(uvs),indices:new Uint16Array(indices)};
+})();
 
 export class Board {
  viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();fixedRods=new Laya.Sprite();effects=new Laya.Sprite();
@@ -24,11 +40,12 @@ export class Board {
  center:Point={x:0,y:0}; screen:Point;zoom=1;fitZoom=1;bounds={w:1,h:1};turn=0;selected:string|null=null;
  lastState:State|null=null;
  showLabels=true;
- // A single immutable graphics batch costs one cached quad per frame.
- // Invalidate only when the camera, ring poses or collision highlight changes.
+ // Keep moving clasps in one Graphics batch to avoid a separate display object per clasp.
+ // Rebuild only when the camera, ring poses or collision highlight changes.
  private rodsDrawKey=''; private highlightedRing:string|null=null;
- private fixedRodViews=new Map<string,Laya.Sprite>();
- private fixedRodKeys=new Map<string,string>();
+ // Background double-ended clasps share one Graphics batch; rebuild only when
+ // clasp state or the camera changes, instead of maintaining one Sprite per rod.
+ private fixedRodsDrawKey='';
  private focusId:string|null=null;
  private traySize:{w:number;h:number}|undefined;
  hint:Point|null=null;blocked:Block|null=null;blockUntil=0;blockedRing:string|null=null;
@@ -40,10 +57,9 @@ export class Board {
   this.screen={x:rect.x+rect.w/2,y:rect.y+rect.h/2};
   this.viewport.pos(rect.x,rect.y);this.viewport.size(rect.w,rect.h);this.viewport.scrollRect=new Laya.Rectangle(0,0,rect.w,rect.h);this.viewport.mouseEnabled=false;
   parent.addChild(this.viewport);this.viewport.addChild(this.root);this.root.addChild(this.space);
-  this.rods.name='board-rods';this.rods.cacheAs='normal';
-  // Background fixed clasps change visibility when either endpoint ring is
-  // removed. Keep them outside the cached moving-rod batch so GPU bitmap caches
-  // cannot preserve the final clasp after its Sprite has been hidden.
+  this.rods.name='board-rods';this.rods.cacheAs='none';
+  // Background fixed clasps use one independent Graphics batch. Their shared
+  // batch is rebuilt only when endpoint lifecycle, clasp state or camera changes.
   this.fixedRods.name='board-fixed-rods';this.fixedRods.cacheAs='none';
   this.effects.name='board-effects';
   this.space.addChild(this.rods);this.space.addChild(this.fixedRods);this.space.addChild(this.effects);
@@ -52,14 +68,11 @@ export class Board {
  load(s:State,traySize?:{w:number;h:number}):void{
   if(traySize)this.traySize=traySize;
   this.lastState=null;this.rodsDrawKey='';this.highlightedRing=null;this.focusId=null;
-  // A prior completed level hides the owner-mounted clasp layer entirely.
-  // Restore it when loading a fresh board, including replaying the same level.
-  this.rods.visible=true;this.rods.cacheAs='normal';this.rods.graphics.clear();
+  this.rods.visible=false;this.rods.graphics.clear();
   for(let i=this.rods.numChildren-1;i>=0;i--)this.rods.getChildAt(i).destroy(true);
-  for(let i=this.fixedRods.numChildren-1;i>=0;i--)this.fixedRods.getChildAt(i).destroy(true);
-  this.fixedRodViews.clear();this.fixedRodKeys.clear();
-  // Cache only the immutable jade/ring bodies and the clasp batch; never
-  // cache the moving whole scene, input targets or zoomable camera.
+  this.fixedRods.visible=false;this.fixedRods.graphics.clear();this.fixedRodsDrawKey='';
+  // The bundled LayaAir 3.4 runtime accepts only 'bitmap' and 'none' for cacheAs.
+  // Keep this scene live-rendered; the legacy 'normal' value does not enable caching.
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
   this.ghosts=[];this.sparks=[];this.flashes=[];this.clearAt=-Infinity;this.releaseAt=-Infinity;this.streak=0;
   this.quiet=reducedMotion();this.hint=null;this.blocked=null;this.blockedRing=null;this.blockUntil=0;
@@ -81,18 +94,17 @@ export class Board {
   s.rings.forEach((r,i)=>{
    const root=new Laya.Sprite();root.pos(r.x,r.y);this.space.addChild(root);
    const shadow=new Laya.Sprite();
-   // Reuse the preblurred silhouette; its soft tips follow the gap without another mesh draw.
-   shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-55,-55,110,110);
-   // A close contact shadow separates pale jade from the pale tray. Reuse the
-   // original gap-shaped texture, preserving its transparent opening.
-   shadow.graphics.drawImage(Laya.loader.getRes('assets/shadow.png'),-54,-56,110,110);
+   const shadowTexture=Laya.loader.getRes('assets/shadow.png');
+   const {vertices,uvs,indices}=shadowMesh;
+   // The texture includes the contact shadow. Draw its visible annulus once.
+   shadow.graphics.drawTriangles(shadowTexture,0,0,vertices,uvs,indices);
    const offset=C.rot({x:1.7,y:3.6},-this.turn);shadow.pos(offset.x,offset.y);root.addChild(shadow);
    const halo=new Laya.Sprite();halo.visible=false;root.addChild(halo);
    const material=JADE_NAMES[i%JADE_NAMES.length];
    const body=new Laya.Sprite();drawJade(body.graphics,material);
    // A body never changes its local mesh; only its sprite rotation changes.
-   // Rasterize once into a small offscreen surface, even on a 54-ring board.
-   body.cacheAs='normal';root.addChild(body);
+   // Use no bitmap cache: LayaAir 3.4 does not support the legacy 'normal' mode.
+   body.cacheAs='none';root.addChild(body);
    const focus=new Laya.Sprite();focus.name='ring-focus:'+r.id;focus.visible=false;focus.mouseEnabled=false;
    // Two small polished tips identify the actual held ring, without outlining
    // the ring or drawing across the authoritative gap.
@@ -102,7 +114,7 @@ export class Board {
     focus.graphics.drawCircle(p.x,p.y,4,'rgba(42,104,79,0.34)');
     glint(focus.graphics,p.x,p.y,2.8,'#fff8d8');
    }
-   focus.cacheAs='normal';root.addChild(focus);
+   focus.cacheAs='none';root.addChild(focus);
    const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index>=TEACHING_COUNT||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
    // Temporary readable mechanism marker; special art can replace it later.
    const special=r.burst||r.silkRemaining?new Laya.Text():null;
@@ -114,12 +126,6 @@ export class Board {
    }
    this.rings.set(r.id,{material,root,body,halo,focus,label,shadow,special});
   });
-  // Background double-ended rods have their own render node. Their lifetime is
-  // controlled by the two endpoint rings, not by the moving-clasp batch cache.
-  for(const z of s.rods)if(z.kind==='b'){
-   const view=new Laya.Sprite();view.name='background-fixed-rod:'+z.id;view.mouseEnabled=false;
-   this.fixedRods.addChild(view);this.fixedRodViews.set(z.id,view);
-  }
  }
  focus(id:string|null):void{
   if(id===this.focusId)return;
@@ -188,13 +194,13 @@ export class Board {
   const petalCount=this.quiet||!departing.length?0:this.petals.countFor(departing.length);
   for(const id of departing){
    const r=C.ring(after,id)!;
-   // Batch each departing clasp once; don't clone state/create nodes per frame.
-   const rods=new Laya.Sprite();rods.mouseEnabled=false;
-   const state=C.clone(before);C.ring(state,id)!.a=r.a;
-   this.drawRods(state,rods.graphics,id);this.effects.addChild(rods);
+   // An owner's mounted clasps cease to exist in the SAME frame as its ring.
+   // Never redraw them as independent effect ghosts: those detached clasps
+   // can outlive the disappearing jade ring and look like permanent leftovers.
+   // Only the jade body, petal particles and light bloom animate after removal.
    const material=this.rings.get(id)!.material;
    const glow=this.quiet?null:this.releaseGlow(r,material);
-   this.ghosts.push({r:{...r},start:now,rods,glow});
+   this.ghosts.push({r:{...r},start:now,glow});
    for(const z of before.rods)for(const e of C.endpoints(before,z))if(e.id===id)this.flash(e.p,now);
    if(petalCount)this.petals.emit(r,r.a,HALF_GAP,C.R,material,now,petalCount);
    if(!this.quiet)for(let k=0;k<2+this.streak;k++){
@@ -221,7 +227,6 @@ export class Board {
   return glow;
  }
  private disposeGhost(ghost:Ghost):void{
-  ghost.rods.destroy(true);
   ghost.glow?.destroy(true);
  }
  private flash(p:Point,now:number):void{
@@ -233,7 +238,7 @@ export class Board {
    if(e.id===id&&after.states[z.id][j]==='aligned'&&before.states[z.id]?.[j]!=='aligned')this.flash(e.p,now);
   });
  }
- get hasVisibleFixedRods():boolean{return [...this.fixedRodViews.values()].some(view=>view.visible)}
+ get hasVisibleFixedRods():boolean{return this.fixedRods.visible}
  get hasVisibleClaspLayer():boolean{return this.rods.visible||this.hasVisibleFixedRods}
  get animating():boolean {return this.ghosts.length>0||performance.now()-this.clearAt<(this.quiet?180:FEEDBACK.clear)}
  get hasFeedback():boolean{return this.animating||this.petals.count>0||this.sparks.length>0||this.flashes.length>0}
@@ -280,8 +285,9 @@ export class Board {
   this.line(g,p.p,p.q,hot?'#e4aa7b':'#d5e9e3',2.9);
   const v=C.rot({x:0,y:-.8},a);
   this.line(g,{x:p.p.x+v.x,y:p.p.y+v.y},{x:p.q.x+v.x,y:p.q.y+v.y},'#fff9e5',.65);
-  // A lock is one physical object: never erase one sleeve while keeping its shaft.
-  // Core.exists owns the full background-lock lifecycle until all target rings are gone.
+  // All fittings and the shaft are one physical background clasp. The clasp
+  // survives until BOTH linked rings disappear. Never hide one end independently;
+  // collision detection also keeps the entire clasp while it exists.
   C.endpoints(s,z).forEach((e,i)=>this.sleeve(g,e.p,a,s.states[z.id][i]));
   const mid={x:(p.p.x+p.q.x)/2,y:(p.p.y+p.q.y)/2};
   this.jewel(g,mid,a);
@@ -289,28 +295,33 @@ export class Board {
   this.line(g,{x:mid.x+1.1,y:mid.y-1.1},{x:mid.x-1.1,y:mid.y+1.1},'#fffef2',.7);
  }
  private syncBackgroundRods(s:State,now:number):void{
-  // A background clasp is drawn as a whole or not at all.
-  for(const z of s.rods){
-   if(z.kind!=='b')continue;
-   const view=this.fixedRodViews.get(z.id);if(!view)continue;
-   const visible=C.exists(s,z);
-   view.visible=visible;
-   const hot=this.blocked?.rod===z.id&&now<this.blockUntil;
-   const key=(s.states[z.id]||[]).join(',')+':'+(hot?'1':'0')+':'+(visible?'1':'0');
-   if(this.fixedRodKeys.get(z.id)!==key){
-    view.graphics.clear();
-    if(visible)this.drawBackgroundRod(s,z,view.graphics);
-    this.fixedRodKeys.set(z.id,key);
-   }
+  // A single Graphics batch avoids one render node per background clasp.
+  // Keep the complete physical clasp while either endpoint ring survives,
+  // and cull rods outside the board viewport without changing their lifecycle.
+  const active=new Set(s.rings.filter(r=>r.life==='active').map(r=>r.id));
+  const rods=s.rods.filter(z=>z.kind==='b');
+  const hotId=this.blocked&&now<this.blockUntil?this.blocked.rod:'';
+  const key=[this.zoom,this.screen.x,this.screen.y,this.turn,this.rect.x,this.rect.y,this.rect.w,this.rect.h,hotId,
+   ...rods.map(z=>z.id+':'+(s.states[z.id]||[]).join(',')+':'+z.targets.map(id=>active.has(id)?'1':'0').join(''))].join('|');
+  if(this.fixedRodsDrawKey===key)return;
+  const g=this.fixedRods.graphics;g.clear();let visibleCount=0;
+  for(const z of rods){
+   if(!z.targets.some(id=>active.has(id)))continue;
+   const p=C.pose(s,z),sp=this.toScreen(p.p),sq=this.toScreen(p.q),margin=30*this.zoom;
+   if(Math.max(sp.x,sq.x)+margin<this.rect.x||Math.min(sp.x,sq.x)-margin>this.rect.x+this.rect.w||
+      Math.max(sp.y,sq.y)+margin<this.rect.y||Math.min(sp.y,sq.y)-margin>this.rect.y+this.rect.h)continue;
+   this.drawBackgroundRod(s,z,g);visibleCount++;
   }
+  this.fixedRods.visible=visibleCount>0;
+  this.fixedRodsDrawKey=key;
  }
- private drawRods(s:State,g:Laya.Graphics,ownerFilter?:string):void{
+ private drawRods(s:State,g:Laya.Graphics):boolean{
   const jewels:{p:Point;a:number}[]=[];
   for(const z of s.rods){
-   // Fixed background rods are independent child sprites with explicit
-   // endpoint-driven visibility; this batch contains only owner-mounted rods.
-   if(z.kind==='b'||!C.exists(s,z)||(ownerFilter!==undefined&&z.owner!==ownerFilter))continue;
-   const p=C.pose(s,z),sp=this.toScreen(p.p),sq=this.toScreen(p.q),margin=(ownerFilter===undefined?12:30)*this.zoom;
+   // Background fixed rods are drawn by syncBackgroundRods in their own
+   // shared batch; this batch contains only owner-mounted rods.
+   if(z.kind==='b'||!C.exists(s,z))continue;
+   const p=C.pose(s,z),sp=this.toScreen(p.p),sq=this.toScreen(p.q),margin=12*this.zoom;
    if(Math.max(sp.x,sq.x)+margin<this.rect.x||Math.min(sp.x,sq.x)-margin>this.rect.x+this.rect.w||Math.max(sp.y,sq.y)+margin<this.rect.y||Math.min(sp.y,sq.y)-margin>this.rect.y+this.rect.h)continue;
    const a=C.angle(p.p,p.q),hot=this.blocked?.rod===z.id&&performance.now()<this.blockUntil;
    const shadow=C.rot({x:1.1,y:1.8},-this.turn);
@@ -319,12 +330,14 @@ export class Board {
    this.line(g,p.p,p.q,hot?'#e4aa7b':'#d5e9e3',2.9);
    const v=C.rot({x:0,y:-.8},a);
    this.line(g,{x:p.p.x+v.x,y:p.p.y+v.y},{x:p.q.x+v.x,y:p.q.y+v.y},'#fff9e5',.65);
-   // A mounted lock stays whole while its owner exists (even if the receiver
-   // ring is gone). When the owner is removed, Core.exists hides every part.
+   // Owner-mounted clasp must remain COMPLETE while its owner ring is alive.
+   // Receiver removal disables latching, not the physical receiver-end fitting.
+   // Keep rendering congruent with the full rod used for collision checks.
    C.endpoints(s,z).forEach((e,i)=>this.sleeve(g,e.p,a,s.states[z.id][i]));
    jewels.push({p:p.p,a});
   }
   for(const j of jewels)this.jewel(g,j.p,j.a);
+  return jewels.length>0;
  }
  draw(s:State,now=performance.now()):void{
   this.lastState=s;
@@ -336,7 +349,8 @@ export class Board {
   const ghosts=new Map(this.ghosts.map(g=>[g.r.id,g]));
   for(const r of s.rings){
    const v=this.rings.get(r.id)!;const ghost=ghosts.get(r.id);
-   const screen=this.toScreen(r),margin=72*this.zoom;
+   // Covers the outer shadow, its offset and the held-ring scale.
+   const screen=this.toScreen(r),margin=60*this.zoom;
    v.root.visible=(r.life==='active'||!!ghost)&&screen.x+margin>=this.rect.x&&screen.x-margin<=this.rect.x+this.rect.w&&screen.y+margin>=this.rect.y&&screen.y-margin<=this.rect.y+this.rect.h;
    const t=ghost?Math.min(1,(now-ghost.start)/releaseMs):0;
    // Cross-fade in place so the petal arc follows the original jade silhouette.
@@ -365,7 +379,7 @@ export class Board {
       v.halo.graphics.drawPath(0,0,path,undefined,{strokeStyle:'rgba(234,79,88,0.22)',lineWidth:6});
       v.halo.graphics.drawPath(0,0,path,undefined,{strokeStyle:'#ed6670',lineWidth:1.8});
      }
-     v.halo.cacheAs='normal';
+     v.halo.cacheAs='none';
     }
     v.halo.visible=true;v.halo.rotation=r.a;
     const fade=Math.min(1,(this.blockUntil-now)/180);
@@ -376,32 +390,20 @@ export class Board {
   }
   this.highlightedRing=now<this.blockUntil?this.blockedRing:null;
   this.syncBackgroundRods(s,now);
-  // The final action may remove one, two, or several bracelets in a single
-  // settle pass. Never let a cached clasp bitmap outlive its owner when the
-  // board reaches zero active rings. Departing clasp ghosts on the effects
-  // layer still fade normally and are destroyed before victory.
-  if(s.rings.every(r=>r.life!=='active')){
-   this.rods.visible=false;
-   this.rods.cacheAs='none';
+  const hot=now<this.blockUntil?this.blocked?.rod||'':'';
+  const key=[this.zoom,this.screen.x,this.screen.y,this.turn,hot,
+   ...s.rings.map(r=>r.id+':'+r.a+':'+r.life),
+   ...s.rods.filter(r=>r.kind==='m').map(r=>r.broken?'1':'0')].join('|');
+  if(this.rodsDrawKey!==key){
    this.rods.graphics.clear();
-   this.rodsDrawKey='';
-  }else{
-   if(!this.rods.visible){this.rods.visible=true;this.rods.cacheAs='normal';this.rodsDrawKey=''}
-   // Avoid rebuilding drawing commands on unchanged frames while rings remain.
-   const hot=now<this.blockUntil?this.blocked?.rod||'':'';
-   const key=[this.zoom,this.screen.x,this.screen.y,this.turn,hot,
-    ...s.rings.map(r=>r.id+':'+r.a+':'+r.life),
-    ...s.rods.filter(r=>r.kind==='m').map(r=>r.id+':'+(r.broken?'1':'0'))].join('|');
-   if(this.rodsDrawKey!==key){
-    this.rods.graphics.clear();this.drawRods(s,this.rods.graphics);
-    this.rodsDrawKey=key;
-   }
+   // Laya can retain the previous mesh after a visible Graphics batch is
+   // emptied. Hide the batch as soon as it has no clasps to render.
+   this.rods.visible=this.drawRods(s,this.rods.graphics);
+   this.rodsDrawKey=key;
   }
-  // Reuse the effects layer and departing clasp nodes through their lifetime.
   this.effects.graphics.clear();
   for(const ghost of this.ghosts){
    const age=now-ghost.start;
-   ghost.rods.alpha=1-age/releaseMs;
    if(ghost.glow)ghost.glow.alpha=Math.sin(Math.PI*Math.min(1,(age+20)/210));
   }
   for(const p of this.sparks){
@@ -432,7 +434,7 @@ export class Board {
    else g.drawPoly(p.x,p.y,[0,-r*1.5,r*.8,0,0,r*1.5,-r*.8,0],'rgba(213,151,170,'+(alpha*.6)+')');
   }
  }
- destroy():void{this.fixedRodViews.clear();this.fixedRodKeys.clear();this.petals.destroy();this.backdrop?.destroy(true);this.backdrop=null;this.viewport.destroy(true)}
+ destroy():void{this.petals.destroy();this.backdrop?.destroy(true);this.backdrop=null;this.viewport.destroy(true)}
 }
 
 

@@ -94,6 +94,6 @@ function validate(s){const errors=[...validateSpecial(s)];for(const r of s.rings
    errors.push('多头锁扣缺失锚点/支杆 '+z.id);
   else for(const p of z.paths)if(p.length<2||p.some(v=>!Number.isFinite(v.x)||!Number.isFinite(v.y)))errors.push('多头支杆点无效 '+z.id);
  }if(z.kind==='m'&&Math.abs(dist(ring(s,z.owner),pose(s,z).p)-R)>.0001)errors.push('安装悬空 '+z.id)}for(const r of s.rings)if(!connections(s,r.id).length)errors.push('开局意外消除 '+r.id);return errors}
-return{R,BAND,GAP,END,D,tolerance,levels,norm,diff,clone,dist,rot,point,angle,make,ring,pose,exists,endpoints,update,connections,settle,request,candidates,solve,validate,blockage,processSpecialRemoval};})();
+return{R,BAND,GAP,END,D,tolerance,levels,norm,diff,clone,dist,rot,point,angle,make,ring,pose,exists,endpoints,rodSegments,rodShapes,update,connections,settle,request,candidates,solve,validate,blockage,processSpecialRemoval};})();
 export default Core;
 

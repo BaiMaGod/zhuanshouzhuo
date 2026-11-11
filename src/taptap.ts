@@ -126,7 +126,7 @@ export class TapPlatform {
  private call<T>(capability:Capability,manager:Manager,method:string,options:Options={},board=false,timeout=30000):Promise<T>{
   return tapCall<T>(manager,method,options,board,timeout,{log:this.trace,capability,signal:this.lifecycle.signal});
  }
- exportDiagnostics(version:string):string{return this.trace.export(version,this.states)}
+ exportDiagnostics(version:string,render?:unknown):string{return this.trace.export(version,this.states,render)}
  localChanged():void{
   if(!this.save.storageHealthy){
    this.cloudBlocked=true;this.failure('cloud','local-cache',this.save.storageError||Error('本机待同步缓存写入失败'));

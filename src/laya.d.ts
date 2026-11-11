@@ -1,6 +1,6 @@
 /* Minimal declarations for the bundled LayaAir 3.4 API used by this project. */
 declare namespace Laya {
- const Config:{useWebGL2:boolean};
+ const Config:{useWebGL2:boolean;isAntialias:boolean};
  const Browser:{width:number;height:number;clientWidth:number;clientHeight:number;onMobile:boolean;mainCanvas?:{source?:{style?:{cursor:string}}}};
  const PAL:{media?:{audioCtx?:{state:string;resume():Promise<void>}}};
  const InputManager:{multiTouchEnabled:boolean};
@@ -14,6 +14,7 @@ declare namespace Laya {
  const SoundManager:{playMusic(url:string,loops?:number):SoundChannel;playSound(url:string,loops?:number,complete?:()=>void,startTime?:number):SoundChannel;autoStopMusic:boolean};
 
  function init(width:number,height:number):Promise<void>;
+ function addBeforeInitCallback(callback:()=>void):void;
  class Sprite {
   x:number;y:number;width:number;height:number;rotation:number;alpha:number;visible:boolean;
   mouseEnabled:boolean;mouseThrough:boolean;cacheAs:string;zOrder:number;name:string;
