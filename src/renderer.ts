@@ -302,14 +302,16 @@ export class Board {
   const rods=s.rods.filter(z=>z.kind==='b');
   const hotId=this.blocked&&now<this.blockUntil?this.blocked.rod:'';
   const key=[this.zoom,this.screen.x,this.screen.y,this.turn,this.rect.x,this.rect.y,this.rect.w,this.rect.h,hotId,
-   ...rods.map(z=>z.id+':'+(s.states[z.id]||[]).join(',')+':'+z.targets.map(id=>active.has(id)?'1':'0').join(''))].join('|');
+   ...rods.map(z=>z.id+':'+(z.broken?'1':'0')+':'+(s.states[z.id]||[]).join(',')+':'+z.targets.map(id=>active.has(id)?'1':'0').join(''))].join('|');
   if(this.fixedRodsDrawKey===key)return;
   const g=this.fixedRods.graphics;g.clear();let visibleCount=0;
   for(const z of rods){
-   if(!z.targets.some(id=>active.has(id)))continue;
-   const p=C.pose(s,z),sp=this.toScreen(p.p),sq=this.toScreen(p.q),margin=30*this.zoom;
-   if(Math.max(sp.x,sq.x)+margin<this.rect.x||Math.min(sp.x,sq.x)-margin>this.rect.x+this.rect.w||
-      Math.max(sp.y,sq.y)+margin<this.rect.y||Math.min(sp.y,sq.y)-margin>this.rect.y+this.rect.h)continue;
+   if(!C.exists(s,z))continue;
+   const pose=C.pose(s,z);
+   const points=(z.paths?.flat()??[pose.p,pose.q]).map(p=>this.toScreen(p));
+   const xs=points.map(p=>p.x),ys=points.map(p=>p.y),margin=30*this.zoom;
+   if(Math.max(...xs)+margin<this.rect.x||Math.min(...xs)-margin>this.rect.x+this.rect.w||
+      Math.max(...ys)+margin<this.rect.y||Math.min(...ys)-margin>this.rect.y+this.rect.h)continue;
    this.drawBackgroundRod(s,z,g);visibleCount++;
   }
   this.fixedRods.visible=visibleCount>0;

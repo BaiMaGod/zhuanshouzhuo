@@ -46,8 +46,10 @@ function assertBackgroundComplete(board,state,z,where){
  assert.equal(board.fixedRods.numChildren,0,where+': background clasps share one render node, not one Sprite per rod');
  assert.equal(countOps(board.fixedRods,'mesh'),n,where+': one central anchor is drawn for every surviving background clasp');
  assert.equal(countOps(board.fixedRods,'poly'),6*n,where+': both end sleeves of every surviving background clasp remain complete');
- assert.equal(countOps(board.fixedRods,'line'),10*n,where+': each surviving background clasp keeps its shaft and anchor detailing');
- if(Core.exists(state,z))assert.equal(Core.rodSegments(state,z).length,9,where+': collision includes both complete end fittings');
+ const shaftSegments=rod=>rod.paths?.reduce((sum,path)=>sum+path.length-1,0)??1;
+ const lines=surviving.reduce((sum,rod)=>sum+(rod.paths?3*shaftSegments(rod)+4:10),0);
+ assert.equal(countOps(board.fixedRods,'line'),lines,where+': each surviving background clasp keeps its entire shaft');
+ if(Core.exists(state,z))assert.equal(Core.rodSegments(state,z).length,shaftSegments(z)+8,where+': collision includes both complete end fittings');
 }
 
 test('across ALL levels removing a receiver never cuts another living bracelet clasp in half',()=>{
@@ -118,5 +120,17 @@ test('removing EVERY bracelet in the same settle pass clears ALL lock layers and
   for(const rod of cleared.rods.filter(z=>z.kind==='b'))
    assertBackgroundComplete(board,cleared,rod,'level '+(index+1)+' '+rod.id+' all rings removed');
  }
+ game.home();
+});
+
+test('a burst removes an entire fixed piece even with both receiver bracelets active',()=>{
+ game.load(116,true);
+ const {board}=game,state=Core.clone(game.model.state);
+ includeWholeBoard(board);
+ const rod=state.rods.find(z=>z.kind==='b');
+ assertBackgroundComplete(board,state,rod,'before burst');
+ rod.broken=true;Core.update(state);board.draw(state);
+ assert.ok(rod.targets.every(id=>active(state,id)));
+ assertBackgroundComplete(board,state,rod,'after burst');
  game.home();
 });
