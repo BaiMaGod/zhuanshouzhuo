@@ -12,8 +12,8 @@ const source=JSON.parse(await readFile(new URL('../docs/levels-101-200-level107-
 const candidate=buildLevel107GeometryCandidate(source);
 const sample=Core.levels.push(candidate.level)-1,state=Core.make(sample),moves=[];
 const progressive=JSON.parse(await readFile(new URL('./results/level107-progressive-physical-route.json',import.meta.url),'utf8'));
-assert.equal(progressive.fullRouteVerified,false,'candidate is not a published level');
-assert.ok(progressive.removedCount>=44&&progressive.actions.length>=42);
+assert.equal(progressive.fullRouteVerified,progressive.activeRemaining===0);
+assert.equal(progressive.removedCount+progressive.activeRemaining,109);
 
 for(const id of ['R005','R006']){
  const piece=state.rods.find(z=>z.id==='F003'),end=Core.endpoints(state,piece).find(e=>e.id===id);
@@ -90,8 +90,8 @@ try{
   let extended=null;
   if(width===390){
    const seenBursts=[];
-   // Replay the verified 44-action no-tool engine route through true canvas
-   // pointer events, rather than changing model angles directly in the browser.
+   const expectedIds=new Set(progressive.actions.slice(0,2).flatMap(action=>action.removed));
+   // Replay each verified rotation through the canvas pointer handlers.
    for(const [step,action] of progressive.actions.slice(2).entries()){
     await drag(page,{id:action.ringId,delta:action.delta});
     const current=await page.evaluate(()=>{
@@ -100,11 +100,11 @@ try{
       removed:g.model.state.rings.filter(r=>r.life==='removed').map(r=>r.id),
       currentBursts:g.model.state.events.filter(e=>e.kind==='burst').map(e=>e.source)};
     });
-    const removedExpected=new Set(progressive.actions.slice(0,step+3).flatMap(action=>action.removed)).size;
-    if(current.remaining!==109-removedExpected){
-      const expectedIds=new Set(progressive.actions.slice(0,step+3).flatMap(item=>item.removed));
-      const missing=[...expectedIds].filter(id=>!current.removed.includes(id));
-      const unexpected=current.removed.filter(id=>!expectedIds.has(id));
+    for(const id of action.removed)expectedIds.add(id);
+    const actualIds=new Set(current.removed);
+    const missing=[...expectedIds].filter(id=>!actualIds.has(id));
+    const unexpected=current.removed.filter(id=>!expectedIds.has(id));
+    if(missing.length||unexpected.length){
       const diagnostics=await page.evaluate(({id,step})=>{
         const {game:g,Core:C}=window.jadeDebug,r=C.ring(g.model.state,id);
         return {step,id,selected:g.model.selected,life:r?.life,angle:r?.a,progress:g.model.state.steps,
@@ -113,7 +113,7 @@ try{
       },{id:action.ringId,step:step+3});
       await page.screenshot({path:resolve(out,'mismatch-action-'+(step+3)+'.png')});
       await writeFile(resolve(out,'mismatch-action-'+(step+3)+'.json'),JSON.stringify({
-        action,diagnostics,missing,unexpected,actualRemaining:current.remaining,expectedRemaining:109-removedExpected
+        action,diagnostics,missing,unexpected,actualRemaining:current.remaining,expectedRemaining:109-expectedIds.size
       },null,2)+'\n');
       assert.fail('browser action '+(step+3)+' mismatch: '+JSON.stringify({action,missing,unexpected,diagnostics}));
     }
@@ -124,21 +124,28 @@ try{
     return{active:s.rings.filter(r=>r.life==='active').length,
       removed:s.rings.filter(r=>r.life==='removed').length,
       visibleBackground:s.rods.filter(z=>z.kind==='b'&&C.exists(s,z)).map(z=>z.id),
+      liveClasps:s.rods.filter(z=>C.exists(s,z)).map(z=>z.id),
+      claspLayersVisible:g.board.rods.visible||g.board.hasVisibleFixedRods,
       steps:s.steps};
    });
-   assert.equal(extended.active,progressive.activeRemaining,'browser must agree with physical replay after 44 actions');
+   assert.equal(extended.active,progressive.activeRemaining,'browser must agree with the physical replay');
    assert.equal(extended.removed,progressive.removedCount);
    assert.deepEqual(extended.visibleBackground,[],'all 14 independent background pieces must be gone');
+   if(progressive.fullRouteVerified){
+    assert.deepEqual(extended.liveClasps,[],'no lock remains after clearing the board');
+    assert.equal(extended.claspLayersVisible,false,'no clasp layer remains visible');
+   }
+   assert.equal(errors.length,0,errors.join(' | '));
    // GameModel intentionally trims the event buffer to the latest 24
    // entries; capture the cascade when it occurs, not 40 drags later.
    assert.deepEqual(seenBursts,['R001','R002'],'real mobile drags must trigger ordered bursts');
    extended.bursts=seenBursts;
-   await page.screenshot({path:resolve(out,width+'x'+height+'-after-44-real-drags.png')});
+   await page.screenshot({path:resolve(out,width+'x'+height+'-after-'+progressive.actions.length+'-real-drags.png')});
   }
   results.push({width,height,...initial,after:final,extended});
   await page.close();
  }
- const report={stage:'development_preview_44_real_drags',fullRouteVerified:false,moves,progressiveVerifiedActions:progressive.actions.length,results};
+ const report={stage:'development_candidate_canvas_replay',fullRouteVerified:progressive.fullRouteVerified,moves,progressiveVerifiedActions:progressive.actions.length,results};
  await writeFile(resolve(out,'report.json'),JSON.stringify(report,null,2)+'\n');
- console.log('LEVEL107_BROWSER_CANDIDATE='+JSON.stringify({viewports:results.length,drags:moves.length,complete:false}));
+ console.log('LEVEL107_BROWSER_CANDIDATE='+JSON.stringify({viewports:results.length,drags:progressive.actions.length,removed:progressive.removedCount,complete:report.fullRouteVerified}));
 }finally{await browser.close();await new Promise(r=>server.close(r))}

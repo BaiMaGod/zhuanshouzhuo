@@ -55,7 +55,8 @@ test('compiler accepts per-owner mounted-clasp quotas that exactly match the sou
 
 test('compiler rejects a correct global clasp total with the wrong Owner distribution', () => {
   const spec = makeSpec();
-  spec.mountedRods[0].ownerId = 'R002';
+  spec.rings[0].mountedClaspQuota = 0;
+  spec.rings[1].mountedClaspQuota = 1;
   assert.throws(() => compileApprovedSample(spec), /Owner自带扣数量不匹配/);
 });
 

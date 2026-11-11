@@ -24,7 +24,7 @@ function ownerCycles(state){
  return cycles;
 }
 
-test('107: progressively replay legitimate motions, preserve 81 verified removals and report remaining blockages',()=>{
+test('107: progressively replay legitimate motions, preserve 98 verified removals and report remaining blockages',()=>{
  const {level}=buildLevel107GeometryCandidate(source);
  const index=Core.levels.push(level)-1;
  try{
@@ -78,7 +78,7 @@ test('107: progressively replay legitimate motions, preserve 81 verified removal
    activeIds:active.map(r=>r.id),actualBurstEvents:state.events.filter(e=>e.kind==='burst'),
    cyclicOwnerChains:ownerCycles(state),incompatibleReceiverRings:incompatible,actions};
   // This test proves replayability, not optimality or global unsolvability.
-  assert.ok(report.removedCount>=81,'the 81-ring verified partial route regressed');
+  assert.ok(report.removedCount>=98,'the 98-ring verified partial route regressed');
   assert.deepEqual(report.actualBurstEvents.map(e=>e.source),['R001','R002']);
   assert.ok(report.actualBurstEvents.every(e=>e.brokenRodIds.length>0));
   assert.ok(actions.every(a=>Math.abs(a.delta)>0));
@@ -90,6 +90,7 @@ test('107: progressively replay legitimate motions, preserve 81 verified removal
    assert.deepEqual(result.removed,a.removed,'different removal sequence at '+i);
   }
   assert.deepEqual(replay.rings.filter(r=>r.life==='active').map(r=>r.id),report.activeIds);
+  if(report.fullRouteVerified)assert.ok(replay.rods.every(rod=>!Core.exists(replay,rod)));
   assert.deepEqual(replay.events.filter(e=>e.kind==='burst'),report.actualBurstEvents);
   mkdirSync('tests/results',{recursive:true});
   writeFileSync('tests/results/level107-progressive-physical-route.json',JSON.stringify(report,null,2)+'\n');

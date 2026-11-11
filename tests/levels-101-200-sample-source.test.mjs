@@ -62,7 +62,7 @@ test('七关逐镯源记录与背景端点目标编号都存在于原始工作�
       });
       assert.equal(new Set(targets).size, targets.length, 'unique embedded endpoint targets: ' + level.level);
       for (const id of targets) {
-        const match = /^R(\\d+)$/.exec(id);
+        const match = /^R(\d+)$/.exec(id);
         assert.ok(match && Number(match[1]) >= 1 && Number(match[1]) <= level.ringCount, 'valid target ' + id);
       }
     } else {
@@ -109,8 +109,8 @@ test('第107关逐镯与背景扣快照逐行哈希匹配原始工作簿', () =>
     piece.id, piece.heads, piece.targetRingIds, piece.hitByBurstRingIds,
     piece.ordinaryRemoval, piece.burstRemoval
   ])).join('\n');
-  assert.equal(fnv1a32(ringRows), sample.sourceVerification.checks.canonicalRingRecordsFnv1a32);
-  assert.equal(fnv1a32(backgroundRows), sample.sourceVerification.checks.canonicalBackgroundRecordsFnv1a32);
+  assert.equal(fnv1a32(ringRows), level107.sourceVerification.checks.canonicalRingRecordsFnv1a32);
+  assert.equal(fnv1a32(backgroundRows), level107.sourceVerification.checks.canonicalBackgroundRecordsFnv1a32);
   assert.equal(fnv1a32(ringRows), 'cd043048');
   assert.equal(fnv1a32(backgroundRows), '13b318d7');
 });
