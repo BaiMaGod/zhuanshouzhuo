@@ -3,7 +3,7 @@
 // the reviewed workbook source; the coordinates and receiver edges are proposed.
 import {campaignLayout} from './campaign-layout.js';
 const MAP='0,1,6,5,103,107,104,108,99,100,78,106,77,105,81,101,68,102,89,97,90,98,85,93,88,96,84,92,61,51,40,53,54,74,56,57,25,59,60,50,22,91,64,69,19,67,45,70,49,36,35,55,65,20,79,58,86,17,82,87,47,94,95,4,3,9,13,48,71,16,38,39,24,41,42,43,46,72,76,14,63,15,44,18,21,27,62,66,23,26,83,80,29,30,75,28,34,32,37,33,52,73,31,2,7,8,11,10,12'.split(',').map(Number);
-const EDGES='1:3 1:4 2:1 2:4 71:35 72:36 72:53 78:33 78:57 81:30 81:55 85:50 86:30 87:34 88:56 88:59 88:62 91:30 92:46 93:32 93:72 94:31 95:44 95:60 97:90 98:73 99:51 100:49 101:43 101:71 102:29 102:63 103:58 103:38 105:45 105:54 106:41 107:37 107:58 64:70 65:64 66:103 67:66 68:79 69:47 70:94 71:51 73:68 73:96 74:100 74:102 75:34 75:39 76:95 76:61 77:33 77:78 79:83 79:48 80:96 80:73 80:54 81:91 82:65 82:93 82:106 83:68 83:101 83:48 84:109 84:97 84:98 85:72 85:93 86:67 86:99 87:75 87:40 89:86 89:66 89:76 90:77 90:40 90:97 91:44 91:42 92:35 92:43 93:37 94:77 94:41 95:61 96:73 96:71 96:54 97:87 97:40 98:75 98:68 99:52 99:81 100:29 100:107 101:48 102:38 103:74 104:3 104:80 104:105 104:2 105:67 105:80 106:64 106:85 106:65 107:82 107:65 108:84 108:3 108:80 108:104 109:3 109:97 109:64 109:70';
+const EDGES='1:3 1:4 2:1 2:4 71:35 72:36 72:53 78:33 78:57 81:30 81:55 85:50 86:30 87:34 88:56 88:59 88:62 91:30 92:46 93:32 93:72 94:31 95:44 95:60 97:90 98:108 99:51 100:49 101:43 101:71 102:29 102:63 103:58 103:38 105:45 105:54 106:41 107:37 107:58 64:70 65:64 66:103 67:66 68:79 69:47 70:94 71:51 73:68 73:96 74:100 74:102 75:34 75:39 76:95 76:61 77:33 77:78 79:83 79:48 80:96 80:73 80:54 81:91 82:65 82:93 82:106 83:68 83:101 83:48 84:109 84:97 84:98 85:72 85:93 86:67 86:99 87:97 87:40 89:86 89:66 89:76 90:77 90:40 90:70 91:44 91:42 92:35 92:43 93:37 94:77 94:41 95:61 96:73 96:71 96:54 97:87 97:40 98:75 98:68 99:52 99:81 100:29 100:107 101:48 102:38 103:74 104:3 104:80 104:105 104:2 105:67 105:80 106:64 106:85 106:65 107:82 107:65 108:84 108:3 108:80 108:104 109:3 109:97 109:64 109:70';
 const id=n=>'R'+String(n).padStart(3,'0');
 const norm=a=>((a%360)+360)%360, d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const angle=(a,b)=>norm(Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI);
@@ -66,14 +66,17 @@ export function buildLevel107GeometryCandidate(source){
  // mounted receiver R037 remains latched, so this never auto-clears at load.
  // A full Core.request replay demonstrates two additional legal removals.
  rotations.set('R093',0);
- // The burst-side receivers release R108, which frees R080's group.
- // R073 and R096 start aligned to R080, leaving R054 as its last lock.
+ // R073 and R096 begin aligned to R080, so R054 can release that group.
  rotations.set('R073',180);
+ // R075 and R108 prealign to R098. R097 prealigns to R109 so it can
+ // release without turning its remaining rods into its neighbors.
+ rotations.set('R075',240);
  rotations.set('R080',60);
  rotations.set('R082',240);
  rotations.set('R084',240);
  rotations.set('R096',120);
- rotations.set('R097',120);
+ rotations.set('R097',180);
+ rotations.set('R108',0);
  const points=source.rings.map(r=>{const c=centers.get(r.id);return[r.id,c.x,c.y,rotations.get(r.id)??147]});
  const mountedRods=pairs.map(([a,b],i)=>{
   const owner=centers.get(id(a)),receiver=centers.get(id(b));
