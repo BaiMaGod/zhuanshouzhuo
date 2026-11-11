@@ -16,5 +16,7 @@ level('十镯合局','两组保持机关经背景杆相连。先释放四只外�
 
 levels.push(...formalLevels);
 export const TEACHING_COUNT=10, FORMAL_INDEX=10, FORMAL_COUNT=100, LEGACY_FORMAL_INDEX=54;
+// Formal level 10 is index 19 (the ten teaching stages precede formal levels).
+export const ERASE_AD_ONLY_INDEX=FORMAL_INDEX+9;
 export { levels, COLORS };
 
