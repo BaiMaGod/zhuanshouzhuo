@@ -1089,7 +1089,7 @@ class Game {
   const i=this.model.index,steps=this.model.state.steps;
   this.save.clearRun(i);
   if(this.formal){
-   const baseline=solutions[i].length;
+   const baseline=solutions[i]?.length??C.levels[i].proof?.steps??steps;
    const stars=this.save.win(i,steps,baseline,!debugEnabled());
    const last=i===this.officialLevelCount()-1;
    const level='第'+(i-TEACHING_COUNT+1)+'关';

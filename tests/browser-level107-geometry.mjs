@@ -61,16 +61,17 @@ try{
   page.on('requestfailed',r=>errors.push('requestfailed '+r.url()));
   await page.goto('http://127.0.0.1:'+server.address().port+'/?debug=1');
   await page.waitForFunction(()=>!!window.jadeDebug?.game&&!document.querySelector('#boot'),null,{timeout:60000});
-  const initial=await page.evaluate(level=>{
+  const initial=await page.evaluate(({level,verifiedSteps})=>{
    const {game:g,Core:C}=window.jadeDebug;
    // Only for QA: the unverified prototype does not have a verified hint DAG.
    level.hintGraph={kind:'dependency',order:level.points.map(p=>p[0]),
     nodes:level.points.map(p=>({id:p[0],requires:[]}))};
+   if(verifiedSteps)level.proof={steps:verifiedSteps};
    const index=C.levels.push(level)-1;
    g.load(index,true);
    return{index,active:g.model?.state.rings.filter(r=>r.life==='active').length,
     rods:g.model?.state.rods.length,errors:C.validate(g.model.state)};
-  },candidate.level);
+  },{level:candidate.level,verifiedSteps:progressive.fullRouteVerified?progressive.verifiedSteps:null});
   assert.equal(initial.active,109);
   assert.equal(initial.rods,139);
   assert.deepEqual(initial.errors,[]);
@@ -119,13 +120,14 @@ try{
     }
     for(const source of current.currentBursts)if(!seenBursts.includes(source))seenBursts.push(source);
    }
+   if(progressive.fullRouteVerified)await page.waitForFunction(()=>!!window.jadeDebug.game.victory);
    extended=await page.evaluate(()=>{
     const {game:g,Core:C}=window.jadeDebug,s=g.model.state;
     return{active:s.rings.filter(r=>r.life==='active').length,
       removed:s.rings.filter(r=>r.life==='removed').length,
       visibleBackground:s.rods.filter(z=>z.kind==='b'&&C.exists(s,z)).map(z=>z.id),
       liveClasps:s.rods.filter(z=>C.exists(s,z)).map(z=>z.id),
-      claspLayersVisible:g.board.rods.visible||g.board.hasVisibleFixedRods,
+      claspLayersVisible:g.board.hasVisibleClaspLayer,
       steps:s.steps};
    });
    assert.equal(extended.active,progressive.activeRemaining,'browser must agree with the physical replay');

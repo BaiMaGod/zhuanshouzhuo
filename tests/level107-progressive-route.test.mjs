@@ -24,7 +24,7 @@ function ownerCycles(state){
  return cycles;
 }
 
-test('107: progressively replay legitimate motions, preserve 103 verified removals and report remaining blockages',()=>{
+test('107: clear all 109 bracelets through legitimate no-tool rotations',()=>{
  const {level}=buildLevel107GeometryCandidate(source);
  const index=Core.levels.push(level)-1;
  try{
@@ -73,12 +73,11 @@ test('107: progressively replay legitimate motions, preserve 103 verified remova
    return heads.length>1&&heads.some(h=>Math.abs(Core.diff(h.angle,heads[0].angle))>2*Core.tolerance)
     ?[{id:r.id,heads}]:[];
   });
-  const report={stage:'verified_partial_engine_route',fullRouteVerified:active.length===0,
+  const report={stage:active.length===0?'verified_full_engine_route':'verified_partial_engine_route',fullRouteVerified:active.length===0,
    verifiedSteps:actions.length,removedCount:109-active.length,activeRemaining:active.length,
    activeIds:active.map(r=>r.id),actualBurstEvents:state.events.filter(e=>e.kind==='burst'),
    cyclicOwnerChains:ownerCycles(state),incompatibleReceiverRings:incompatible,actions};
-  // This test proves replayability, not optimality or global unsolvability.
-  assert.ok(report.removedCount>=103,'the 103-ring verified partial route regressed');
+
   assert.deepEqual(report.actualBurstEvents.map(e=>e.source),['R001','R002']);
   assert.ok(report.actualBurstEvents.every(e=>e.brokenRodIds.length>0));
   assert.ok(actions.every(a=>Math.abs(a.delta)>0));
@@ -90,11 +89,13 @@ test('107: progressively replay legitimate motions, preserve 103 verified remova
    assert.deepEqual(result.removed,a.removed,'different removal sequence at '+i);
   }
   assert.deepEqual(replay.rings.filter(r=>r.life==='active').map(r=>r.id),report.activeIds);
-  if(report.fullRouteVerified)assert.ok(replay.rods.every(rod=>!Core.exists(replay,rod)));
+  const liveClaspIds=replay.rods.filter(rod=>Core.exists(replay,rod)).map(rod=>rod.id);
   assert.deepEqual(replay.events.filter(e=>e.kind==='burst'),report.actualBurstEvents);
   mkdirSync('tests/results',{recursive:true});
-  writeFileSync('tests/results/level107-progressive-physical-route.json',JSON.stringify(report,null,2)+'\n');
+  writeFileSync('tests/results/level107-progressive-physical-route.json',JSON.stringify({...report,liveClaspIds},null,2)+'\n');
   console.log('LEVEL107_PROGRESSIVE='+JSON.stringify({steps:report.verifiedSteps,removed:report.removedCount,remaining:report.activeRemaining,bursts:report.actualBurstEvents.length,macros:planner.statistics.macroPlans,cycles:report.cyclicOwnerChains}));
-  console.log('LEVEL107_BLOCKERS='+JSON.stringify({activeIds:report.activeIds,cycles:report.cyclicOwnerChains,incompatible:report.incompatibleReceiverRings}));
+  console.log('LEVEL107_BLOCKERS='+JSON.stringify({activeIds:report.activeIds,cycles:report.cyclicOwnerChains,incompatible:report.incompatibleReceiverRings,liveClaspIds}));
+  assert.equal(report.removedCount,109,'complete route must remove all bracelets');
+  assert.deepEqual(liveClaspIds,[],'no clasp may remain after the last rotation');
  }finally{Core.levels.pop()}
 });
