@@ -184,8 +184,9 @@ class Game {
   if(!this.platform.available){this.toolNotice('本关'+name+'已用完');return}
   const video=this.save.canClaim(index,kind),share=this.save.canClaim(index,kind,'share');
   if(!video&&!share){this.toolNotice('当前'+name+'奖励已全部领取');return}
-  const shareLabel=share?'分享得'+name:this.save.shareClaimedToday()?'今日分享已领取':'本关分享已领取';
-  this.modal('获取1次'+name,['完整观看视频可领取1次'+name+'，视频奖励每关限1次。','分享奖励（提示或消除）每天合计限1次，重开不刷新。'],[
+  const shareRemaining=this.save.shareRemainingToday();
+  const shareLabel=share?'分享得'+name:shareRemaining===0?'今日分享已达上限':'本关分享已领取';
+  this.modal('获取1次'+name,['完整观看视频可领取1次'+name+'，视频奖励每关限1次。','分享奖励（提示和消除）每天合计限3次，今日剩余'+shareRemaining+'次；重开不刷新。'],[
    {label:video?'看视频得'+name:'视频奖励已领取',action:()=>{if(!video)return;this.hideModal();void this.watchReward(index,kind)},primary:true},
    {label:shareLabel,action:()=>{if(!share)return;this.hideModal();void this.watchReward(index,kind,'share')},primary:false},
    {label:'取消',action:()=>this.hideModal(),primary:false}
@@ -205,7 +206,7 @@ class Game {
    if(this.model!==model||this.progressRestoreBlocked())return;
    if(completed&&this.save.claim(index,kind,source)){
     this.persistRun();this.toolNotice('已获得1次'+(kind==='hint'?'提示':'消除'));void this.platform.sync();
-   }else if(completed===true)this.toolNotice(source==='share'?'今日分享额度已用完':'本关奖励已领取');
+   }else if(completed===true)this.toolNotice(source==='share'?(this.save.shareRemainingToday()===0?'今日分享额度已用完':'本关分享奖励已领取'):'本关奖励已领取');
    else if(completed===false)this.toolNotice(source==='share'?'未完成分享，未领取奖励':'未完整观看，未领取奖励');
    else if(completed===null)this.toolNotice(source==='share'?'分享暂不可用，请稍后再试':this.platform.errorMessage('ads'));
   }catch{if(this.model===model)this.toolNotice(source==='share'?'分享暂不可用，请稍后再试':this.platform.errorMessage('ads'))}
