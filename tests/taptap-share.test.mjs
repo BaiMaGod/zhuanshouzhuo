@@ -100,6 +100,36 @@ test('home leaderboard contains ranking only; empty tool buttons stay concise an
  assert.deepEqual(g.modalCard.children.filter(c=>c.label).map(c=>c.label.text),['看视频得消除','分享得消除','取消']);
  g.hideModal();
 });
+test('formal level 10 and later allow erase rewards only from completed video ads',async()=>{
+ const storage=new Save('erase-video-only-guard');
+ const today=Date.parse('2026-11-11T11:00:00Z');
+ assert.equal(storage.canClaim(18,'erase','share',today),true,'formal level 9 keeps existing rewards');
+ assert.equal(storage.canClaim(19,'erase','share',today),false,'formal level 10 is the boundary');
+ assert.equal(storage.canClaim(20,'erase','share',today),false);
+ assert.equal(storage.claim(19,'erase','share',today),false,'direct save calls cannot bypass UI');
+ assert.equal(storage.shareRemainingToday(today),3,'blocked erase shares cannot spend the daily quota');
+ assert.equal(storage.claim(19,'hint','share',today),true,'hint share reward remains available');
+ assert.equal(storage.shareRemainingToday(today),2);
+ assert.equal(storage.canClaim(19,'erase','video',today),true);
+ const m=sharing();let close;
+ m.api.createRewardedVideoAd=()=>({
+  load:async()=>{},show:async()=>{queueMicrotask(()=>close?.({isEnded:true}))},
+  onClose:fn=>{close=fn},offClose:()=>{},onError:()=>{},offError:()=>{}
+ });
+ g.platform=new TapPlatform(g.save,false,m.api,config);g.platform.sync=async()=>{};
+ g.load(19,true);
+ assert.equal(g.toolLeft('erase'),0);
+ g.toggleErase();
+ assert.equal(g.modalOpen,true);
+ assert.deepEqual(g.modalCard.children.filter(c=>c.label).map(c=>c.label.text),['看视频得消除','取消']);
+ g.hideModal();
+ await g.watchReward(19,'erase','share');
+ assert.equal(m.panel,undefined,'disallowed share never opens TapTap share sheet');
+ assert.equal(g.toolLeft('erase'),0);
+ await g.watchReward(19,'erase','video');
+ assert.equal(g.toolLeft('erase'),1);
+ assert.equal(g.save.canClaim(19,'erase','video'),false);
+});
 test('stale share callbacks cannot reward restarted boards; a completed share cannot be farmed by restart',async()=>{
  const m=sharing();g.platform=new TapPlatform(g.save,false,m.api,config);g.platform.sync=async()=>{};
  g.load(10,true);let pending=g.watchReward(10,'erase','share');
