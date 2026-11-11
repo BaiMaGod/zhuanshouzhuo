@@ -18,6 +18,17 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
+          name: level107-local-replay-source
+          path: |
+            src/
+            tests/level107-*.mjs
+            docs/levels-101-200-level107-source.json
+            package.json
+          if-no-files-found: error
+          retention-days: 3
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
           name: level107-progressive-physics-proof
           path: |
             tests/results/level107-geometry-candidate.json
