@@ -1,8 +1,8 @@
 import {Core} from './model.js';
 import type {State} from './types.js';
-import {emptyEconomy,validateEconomy,mergeEconomy,dailyStatus,claimToday,inventoryBalance,spendInventory,chinaDateKey} from './signin-inventory.js';
+import {emptyEconomy,validateEconomy,mergeEconomy,dailyStatus,claimToday,inventoryBalance,spendInventory,chinaDateKey,rewardForCycleSlot} from './signin-inventory.js';
 import type {Economy,InventoryKind,DailyStatus,DailyReward} from './signin-inventory.js';
-import {TEACHING_COUNT,FORMAL_INDEX,LEGACY_FORMAL_INDEX} from './levels.js';
+import {TEACHING_COUNT,FORMAL_INDEX,LEGACY_FORMAL_INDEX,ERASE_AD_ONLY_INDEX} from './levels.js';
 export interface Progress {version:2;unlocked:number;records:Record<string,{steps:number;stars:number}>;sound:boolean;tutorial:number}
 const LEGACY_KEY='jade-bracelet-laya-v1';
 export type RewardKind='hint'|'erase';
@@ -153,9 +153,17 @@ export class Save {
   const owner=this.recoveryOwner();if(!owner)return;
   const value=new Save(LEGACY_KEY+'-tap-'+encodeURIComponent(owner)).exportCloud();value.owner=this.owner;value.meta.tainted=true;value.meta.rankRecords={};this.mergeCloud(value);
  }
- dailySignInStatus(now=Date.now()):DailyStatus{return dailyStatus(this.meta.economy,now)}
+ eraseAdOnlyReached():boolean{
+  // A regular player reaches formal level 10 by completing formal level 9.
+  // Progress can also be restored with later completed levels.
+  return Object.keys(this.data.records).some(index=>Number(index)>=ERASE_AD_ONLY_INDEX-1&&Number(index)>=FORMAL_INDEX);
+ }
+ dailySignInStatus(now=Date.now()):DailyStatus{return dailyStatus(this.meta.economy,now,this.eraseAdOnlyReached())}
+ dailySignInRewardForSlot(slot:number,now=Date.now()):DailyReward{
+  return rewardForCycleSlot(this.meta.economy,slot,now,this.eraseAdOnlyReached());
+ }
  claimDaily(now=Date.now()):{ok:boolean;status:DailyStatus;reward:DailyReward}{
-  const result=claimToday(this.meta.economy,now);
+  const result=claimToday(this.meta.economy,now,this.eraseAdOnlyReached());
   if(result.ok)this.changed();
   return result;
  }
@@ -183,6 +191,9 @@ export class Save {
   return Math.max(0,SHARE_DAILY_LIMIT-this.shareClaimsToday(now));
  }
  canClaim(index:number,kind:RewardKind,source:RewardSource='video',now=Date.now()):boolean{
+  // From formal level 10 onward, erase can only be newly granted by video.
+  // Existing sign-in inventory and prior claimed rewards are not deleted.
+  if(index>=ERASE_AD_ONLY_INDEX&&kind==='erase'&&source==='share')return false;
   if(this.meta.rewards[index]?.[rewardKey(kind,source)]?.claimed)return false;
   return source==='video'||this.shareRemainingToday(now)>0;
  }
