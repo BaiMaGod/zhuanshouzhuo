@@ -62,6 +62,10 @@ export function buildLevel107GeometryCandidate(source){
   if(incoming)rotations.set(ring.id,angle(centers.get(ring.id),centers.get(id(incoming[0]))));
  }
  rotations.set('R004',norm(angle(centers.get('R004'),centers.get('R001'))+20));
+ // Prealign R093 with the real R085 sleeve (world angle 0°); its other
+ // mounted receiver R037 remains latched, so this never auto-clears at load.
+ // A full Core.request replay demonstrates two additional legal removals.
+ rotations.set('R093',0);
  const points=source.rings.map(r=>{const c=centers.get(r.id);return[r.id,c.x,c.y,rotations.get(r.id)??147]});
  const mountedRods=pairs.map(([a,b],i)=>{
   const owner=centers.get(id(a)),receiver=centers.get(id(b));
