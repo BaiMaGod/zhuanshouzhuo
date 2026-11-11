@@ -101,7 +101,22 @@ try{
       currentBursts:g.model.state.events.filter(e=>e.kind==='burst').map(e=>e.source)};
     });
     const removedExpected=new Set(progressive.actions.slice(0,step+3).flatMap(action=>action.removed)).size;
-    assert.equal(current.remaining,109-removedExpected,'browser action '+(step+3)+' disagrees with verified engine replay');
+    if(current.remaining!==109-removedExpected){
+      const expectedIds=new Set(progressive.actions.slice(0,step+3).flatMap(item=>item.removed));
+      const missing=[...expectedIds].filter(id=>!current.removed.includes(id));
+      const unexpected=current.removed.filter(id=>!expectedIds.has(id));
+      const diagnostics=await page.evaluate(({id,step})=>{
+        const {game:g,Core:C}=window.jadeDebug,r=C.ring(g.model.state,id);
+        return {step,id,selected:g.model.selected,life:r?.life,angle:r?.a,progress:g.model.state.steps,
+          blocking:r&&r.life==='active'?C.connections(g.model.state,id).map(v=>({rod:v.z.id,state:v.state})):[],
+          recentEvents:g.model.state.events.slice(-8)};
+      },{id:action.ringId,step:step+3});
+      await page.screenshot({path:resolve(out,'mismatch-action-'+(step+3)+'.png')});
+      await writeFile(resolve(out,'mismatch-action-'+(step+3)+'.json'),JSON.stringify({
+        action,diagnostics,missing,unexpected,actualRemaining:current.remaining,expectedRemaining:109-removedExpected
+      },null,2)+'\n');
+      assert.fail('browser action '+(step+3)+' mismatch: '+JSON.stringify({action,missing,unexpected,diagnostics}));
+    }
     for(const source of current.currentBursts)if(!seenBursts.includes(source))seenBursts.push(source);
    }
    extended=await page.evaluate(()=>{
