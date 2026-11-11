@@ -94,5 +94,6 @@ test('107: 42 real no-tool rotations remove 44; replay and report remaining bloc
   mkdirSync('tests/results',{recursive:true});
   writeFileSync('tests/results/level107-progressive-physical-route.json',JSON.stringify(report,null,2)+'\n');
   console.log('LEVEL107_PROGRESSIVE='+JSON.stringify({steps:report.verifiedSteps,removed:report.removedCount,remaining:report.activeRemaining,bursts:report.actualBurstEvents.length,macros:planner.statistics.macroPlans,cycles:report.cyclicOwnerChains}));
+  console.log('LEVEL107_BLOCKERS='+JSON.stringify({activeIds:report.activeIds,cycles:report.cyclicOwnerChains,incompatible:report.incompatibleReceiverRings}));
  }finally{Core.levels.pop()}
 });
