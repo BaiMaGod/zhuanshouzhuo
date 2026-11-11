@@ -20,6 +20,7 @@ jobs:
       - run: node --test tests/level107-geometry-probe.test.mjs
       - run: node --test tests/level107-opening-route.test.mjs
       - run: node --test tests/level107-progressive-route.test.mjs
+      - run: npm run typecheck
       - run: npm run build
       - run: npm install --no-save --no-audit --no-fund playwright pngjs
       - uses: actions/cache@v4
@@ -28,6 +29,7 @@ jobs:
           key: ${{ runner.os }}-jade-ci-playwright-1.62.1
       - run: npx playwright install --with-deps chromium
       - run: node tests/browser-level107-geometry.mjs
+      - run: node tests/browser-input.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
