@@ -1,6 +1,6 @@
 import {Core} from './model.js';
 import type {State} from './types.js';
-import {emptyEconomy,validateEconomy,mergeEconomy,dailyStatus,claimToday,inventoryBalance,spendInventory} from './signin-inventory.js';
+import {emptyEconomy,validateEconomy,mergeEconomy,dailyStatus,claimToday,inventoryBalance,spendInventory,chinaDateKey} from './signin-inventory.js';
 import type {Economy,InventoryKind,DailyStatus,DailyReward} from './signin-inventory.js';
 import {TEACHING_COUNT,FORMAL_INDEX,LEGACY_FORMAL_INDEX} from './levels.js';
 export interface Progress {version:2;unlocked:number;records:Record<string,{steps:number;stars:number}>;sound:boolean;tutorial:number}
@@ -11,7 +11,7 @@ type RewardKey=RewardKind|'shareHint'|'shareErase';
 const REWARD_KEYS:RewardKey[]=['hint','erase','shareHint','shareErase'];
 const rewardKey=(kind:RewardKind,source:RewardSource):RewardKey=>source==='video'?kind:kind==='hint'?'shareHint':'shareErase';
 interface Reward {claimed:boolean;remaining:number;generation?:number}
-interface SaveMeta {revision:number;baseRevision:number;lastAttemptAt:number;writeNotBeforeAt:number;inFlightRevision:number|null;inFlightBaseRevision:number|null;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>;economy:Economy}
+interface SaveMeta {revision:number;baseRevision:number;lastAttemptAt:number;writeNotBeforeAt:number;inFlightRevision:number|null;inFlightBaseRevision:number|null;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>;shareDailyClaims:Record<string,1>;economy:Economy}
 export interface CloudRunMigration {index:number;reason:string}
 export interface CloudMigrationReport {droppedRuns:CloudRunMigration[]}
 interface CloudSave {version:1|2;owner:string;progress:Progress;runs:Record<string,unknown>;meta:SaveMeta;migration?:CloudMigrationReport}
@@ -19,7 +19,7 @@ const freshProgress=():Progress=>({version:2,unlocked:0,records:{},sound:true,tu
 export class Save {
  private key=LEGACY_KEY;
  owner='';
- meta:SaveMeta={revision:0,baseRevision:0,lastAttemptAt:0,writeNotBeforeAt:0,inFlightRevision:null,inFlightBaseRevision:null,dirty:false,tainted:false,rankRecords:{},rewards:{},economy:emptyEconomy()};
+ meta:SaveMeta={revision:0,baseRevision:0,lastAttemptAt:0,writeNotBeforeAt:0,inFlightRevision:null,inFlightBaseRevision:null,dirty:false,tainted:false,rankRecords:{},rewards:{},shareDailyClaims:{},economy:emptyEconomy()};
  onChange:()=>void=()=>{};
  storageError:unknown=null;
  get storageHealthy():boolean{return this.storageError===null}
@@ -165,14 +165,29 @@ export class Save {
  }
  resetRewards(index:number):void{
   const items=this.meta.rewards[index];
-  const generation=Math.max(0,...REWARD_KEYS.map(key=>items?.[key]?.generation||0))+1;
-  this.meta.rewards[index]=Object.fromEntries(REWARD_KEYS.map(key=>[key,{claimed:false,remaining:0,generation}]));this.changed();
+  // Restart refreshes only video quotas. Share claims and unspent grants persist.
+  const generation=Math.max(0,items?.hint?.generation||0,items?.erase?.generation||0)+1;
+  this.meta.rewards[index]={
+   ...items,
+   hint:{claimed:false,remaining:0,generation},
+   erase:{claimed:false,remaining:0,generation}
+  };
+  this.changed();
  }
- canClaim(index:number,kind:RewardKind,source:RewardSource='video'):boolean{return !this.meta.rewards[index]?.[rewardKey(kind,source)]?.claimed}
- claim(index:number,kind:RewardKind,source:RewardSource='video'):boolean{
-  if(!this.canClaim(index,kind,source))return false;
+ shareClaimedToday(now=Date.now()):boolean{return !!this.meta.shareDailyClaims[chinaDateKey(now)]}
+ canClaim(index:number,kind:RewardKind,source:RewardSource='video',now=Date.now()):boolean{
+  if(this.meta.rewards[index]?.[rewardKey(kind,source)]?.claimed)return false;
+  if(source==='video')return true;
+  const day=chinaDateKey(now);
+  // UTC+8 day; never reopen a share quota by rolling the device clock back.
+  return !this.meta.shareDailyClaims[day]&&!Object.keys(this.meta.shareDailyClaims).some(key=>key>day);
+ }
+ claim(index:number,kind:RewardKind,source:RewardSource='video',now=Date.now()):boolean{
+  if(!this.canClaim(index,kind,source,now))return false;
   const key=rewardKey(kind,source);
-  (this.meta.rewards[index]??={})[key]={claimed:true,remaining:1,generation:this.meta.rewards[index]?.[key]?.generation||0};this.changed();return true;
+  (this.meta.rewards[index]??={})[key]={claimed:true,remaining:1,generation:this.meta.rewards[index]?.[key]?.generation||0};
+  if(source==='share')this.meta.shareDailyClaims[chinaDateKey(now)]=1;
+  this.changed();return true;
  }
  rewardLeft(index:number,kind:RewardKind):number{return (['video','share'] as const).reduce((sum,source)=>sum+(this.meta.rewards[index]?.[rewardKey(kind,source)]?.remaining||0),0)}
  consumeReward(index:number,kind:RewardKind):boolean{
@@ -247,6 +262,7 @@ export class Save {
   this.data.unlocked=Math.max(this.data.unlocked,cloud.progress.unlocked);this.data.tutorial=Math.max(this.data.tutorial,cloud.progress.tutorial);
   this.meta.revision=Math.max(this.meta.revision,cloud.meta.revision);
   this.meta.economy=mergeEconomy(this.meta.economy,cloud.meta.economy);
+  for(const day of Object.keys(cloud.meta.shareDailyClaims))this.meta.shareDailyClaims[day]=1;
   this.meta.tainted ||= cloud.meta.tainted;
   for(const [i,r] of Object.entries(cloud.meta.rankRecords)){
    const old=this.meta.rankRecords[i];this.meta.rankRecords[i]={steps:old?Math.min(old.steps,r.steps):r.steps,stars:old?Math.max(old.stars,r.stars):r.stars};
@@ -303,6 +319,14 @@ function validateMeta(value:unknown):SaveMeta{
   if(!/^(?:0|[1-9]\d*)$/.test(i)||Number(i)>=Core.levels.length||!items||typeof items!=='object')throw Error('Invalid reward');
   for(const kind of REWARD_KEYS){const r=items[kind];if(r){if(r.generation!==undefined&&(!Number.isSafeInteger(r.generation)||r.generation<0)||typeof r.claimed!=='boolean'||![0,1].includes(r.remaining)||!r.claimed&&r.remaining!==0)throw Error('Invalid reward');(rewards[i]??={})[kind]={claimed:r.claimed,remaining:r.remaining,generation:r.generation||0}}};
  }
+ const shareDailyClaims:SaveMeta['shareDailyClaims']={};
+ const rawShareClaims=m.shareDailyClaims??{};
+ if(!rawShareClaims||typeof rawShareClaims!=='object'||Array.isArray(rawShareClaims)||Object.keys(rawShareClaims).length>10000)throw Error('Invalid share claims');
+ for(const [day,claimed] of Object.entries(rawShareClaims)){
+  const date=Date.parse(day+'T00:00:00Z');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||!Number.isFinite(date)||new Date(date).toISOString().slice(0,10)!==day||claimed!==1)throw Error('Invalid share claim');
+  shareDailyClaims[day]=1;
+ }
  const rankRecords:Progress['records']={};
  for(const [i,r] of Object.entries(m.rankRecords||{})){
   if(!/^(?:0|[1-9]\d*)$/.test(i)||Number(i)<TEACHING_COUNT||Number(i)>=Core.levels.length||!r||!Number.isInteger(r.steps)||r.steps<0||!Number.isInteger(r.stars)||r.stars<1||r.stars>3)throw Error('Invalid ranked score');
@@ -310,7 +334,7 @@ function validateMeta(value:unknown):SaveMeta{
  }
  // Older cache files have no baseRevision. They are not safe to replay over cloud;
  // normalize them to a clean snapshot at their recorded revision.
- return {revision:m.revision,baseRevision,lastAttemptAt,writeNotBeforeAt,inFlightRevision,inFlightBaseRevision,dirty:hasBase&&m.dirty,tainted:m.tainted,rankRecords,rewards,economy:validateEconomy(m.economy)};
+ return {revision:m.revision,baseRevision,lastAttemptAt,writeNotBeforeAt,inFlightRevision,inFlightBaseRevision,dirty:hasBase&&m.dirty,tainted:m.tainted,rankRecords,rewards,shareDailyClaims,economy:validateEconomy(m.economy)};
 }
 function validateCloud(value:unknown,owner:string,quarantineRuns=false):CloudSave{
  const v=value as CloudSave;
