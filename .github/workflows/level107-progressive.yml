@@ -1,0 +1,38 @@
+name: Level 107 progressive physical replay
+on:
+  push:
+    branches: [feature/levels-101-200-engine]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/level107-geometry-candidate.test.mjs tests/level107-opening-route.test.mjs tests/level107-progressive-route.test.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: level107-local-replay-source
+          path: |
+            src/
+            tests/level107-*.mjs
+            docs/levels-101-200-level107-source.json
+            package.json
+          if-no-files-found: error
+          retention-days: 3
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: level107-progressive-physics-proof
+          path: |
+            tests/results/level107-geometry-candidate.json
+            tests/results/level107-opening-physical-route.json
+            tests/results/level107-progressive-physical-route.json
+          if-no-files-found: error
+          retention-days: 7

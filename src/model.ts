@@ -27,6 +27,7 @@ export class GameModel {
   this.history.push({state:Core.clone(this.state),selected:this.selected,hintProgress:this.hints?.progress||0});
   if(this.history.length>150)this.history.shift();
   target.life='removed';
+  Core.processSpecialRemoval(this.state,[id]);
   Core.update(this.state);
   const removed=[id,...Core.settle(this.state)];
   this.hints?.observe(this.state,removed);

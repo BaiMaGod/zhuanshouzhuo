@@ -1,0 +1,43 @@
+name: Level 107 source-driven geometry candidate
+on:
+  push:
+    branches: [feature/levels-101-200-engine]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  geometry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: node --test tests/level107-geometry-candidate.test.mjs
+      - run: node --test tests/level107-geometry-probe.test.mjs
+      - run: node --test tests/level107-opening-route.test.mjs
+      - run: node --test tests/level107-progressive-route.test.mjs
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm install --no-save --no-audit --no-fund playwright pngjs
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-jade-ci-playwright-1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/browser-level107-geometry.mjs
+      - run: node tests/browser-input.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: level107-candidate-geometry
+          path: |
+            tests/results/level107-geometry-candidate.json
+            tests/results/level107-geometry-probe.json
+            tests/results/level107-opening-physical-route.json
+            tests/results/level107-browser/
+          if-no-files-found: warn
+          retention-days: 7

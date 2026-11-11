@@ -363,7 +363,27 @@ function inspectRun(value:unknown,index:number):{valid:boolean;reason?:string}{
   if(s.index!==index||s.rings.some((ring,i)=>ring.x!==initial.rings[i].x||ring.y!==initial.rings[i].y))return invalid('关卡手镯布局已变化');
   // JSON object key order is not semantic; compare canonical structures so a
   // harmless serializer/order change cannot invalidate an otherwise identical run.
-  if(stableJson(s.rods)!==stableJson(initial.rods))return invalid('锁扣布局已变化');
+  // Burst fracture is mutable; actual mounted/background geometry is immutable.
+  const structural=(items:State['rods'])=>items.map(({broken,...rod})=>rod);
+  if(initial.special){
+   if(s.rods.some(z=>z.broken!==undefined&&typeof z.broken!=='boolean'))return invalid('爆裂断扣状态无效');
+   if(stableJson(structural(s.rods))!==stableJson(structural(initial.rods)))return invalid('锁扣布局已变化');
+   if(!s.special||!Array.isArray(s.special.processedRemovals)||stableJson(s.special.silkEdges)!==stableJson(initial.special.silkEdges))return invalid('特殊镯来源关系已变化');
+   const processed=new Set(s.special.processedRemovals),removed=new Set(s.rings.filter(r=>r.life==='removed').map(r=>r.id));
+   if(processed.size!==s.special.processedRemovals.length||processed.size!==removed.size||[...processed].some(id=>!removed.has(id)))return invalid('特殊镯消除事件记录不匹配');
+   for(let i=0;i<s.rings.length;i++){
+    const saved=s.rings[i],original=initial.rings[i];
+    if(saved.attribute!==original.attribute||saved.burst!==original.burst)return invalid('特殊镯属性改变');
+    const expected=initial.special.silkEdges.filter(e=>e.targetId===saved.id)
+     .filter(e=>processed.has(e.sourceId)).length;
+    if(saved.silkRemaining!==Math.max(0,(original.silkRemaining||0)-expected))return invalid('缠丝剩余层数错误');
+   }
+  }else if(stableJson(s.rods)!==stableJson(initial.rods))return invalid('锁扣布局已变化');
+  if(Core.levels[index].timed){
+   const clock=s.challengeClock;
+   if(!clock||typeof clock.started!=='boolean'||!Number.isFinite(clock.elapsedMs)||clock.elapsedMs<0||
+    ![null,'won','failed'].includes(clock.result as null|'won'|'failed'))return invalid('限时挑战计时存档无效');
+  }
   if(!s.states||typeof s.states!=='object'||initial.rods.some(rod=>!Array.isArray(s.states[rod.id])||s.states[rod.id].length!==initial.states[rod.id].length||s.states[rod.id].some(state=>!['latched','aligned','inactive'].includes(state)))||!Array.isArray(s.events)||s.rings.every(ring=>ring.life==='removed'))return invalid('锁扣状态数据无效');
   return {valid:true};
  }catch{return invalid('盘面数据无法读取')}
