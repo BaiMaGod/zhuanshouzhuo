@@ -8,10 +8,11 @@ const LEGACY_KEY='jade-bracelet-laya-v1';
 export type RewardKind='hint'|'erase';
 export type RewardSource='video'|'share';
 type RewardKey=RewardKind|'shareHint'|'shareErase';
+export const SHARE_DAILY_LIMIT=3;
 const REWARD_KEYS:RewardKey[]=['hint','erase','shareHint','shareErase'];
 const rewardKey=(kind:RewardKind,source:RewardSource):RewardKey=>source==='video'?kind:kind==='hint'?'shareHint':'shareErase';
 interface Reward {claimed:boolean;remaining:number;generation?:number}
-interface SaveMeta {revision:number;baseRevision:number;lastAttemptAt:number;writeNotBeforeAt:number;inFlightRevision:number|null;inFlightBaseRevision:number|null;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>;shareDailyClaims:Record<string,1>;economy:Economy}
+interface SaveMeta {revision:number;baseRevision:number;lastAttemptAt:number;writeNotBeforeAt:number;inFlightRevision:number|null;inFlightBaseRevision:number|null;dirty:boolean;tainted:boolean;rankRecords:Progress['records'];rewards:Record<string,Partial<Record<RewardKey,Reward>>>;shareDailyClaims:Record<string,number>;economy:Economy}
 export interface CloudRunMigration {index:number;reason:string}
 export interface CloudMigrationReport {droppedRuns:CloudRunMigration[]}
 interface CloudSave {version:1|2;owner:string;progress:Progress;runs:Record<string,unknown>;meta:SaveMeta;migration?:CloudMigrationReport}
@@ -174,19 +175,25 @@ export class Save {
   };
   this.changed();
  }
- shareClaimedToday(now=Date.now()):boolean{return !!this.meta.shareDailyClaims[chinaDateKey(now)]}
+ shareClaimsToday(now=Date.now()):number{return this.meta.shareDailyClaims[chinaDateKey(now)]||0}
+ shareRemainingToday(now=Date.now()):number{
+  const day=chinaDateKey(now);
+  // A clock rollback must not reopen an earlier day's quota.
+  if(Object.keys(this.meta.shareDailyClaims).some(key=>key>day))return 0;
+  return Math.max(0,SHARE_DAILY_LIMIT-this.shareClaimsToday(now));
+ }
  canClaim(index:number,kind:RewardKind,source:RewardSource='video',now=Date.now()):boolean{
   if(this.meta.rewards[index]?.[rewardKey(kind,source)]?.claimed)return false;
-  if(source==='video')return true;
-  const day=chinaDateKey(now);
-  // UTC+8 day; never reopen a share quota by rolling the device clock back.
-  return !this.meta.shareDailyClaims[day]&&!Object.keys(this.meta.shareDailyClaims).some(key=>key>day);
+  return source==='video'||this.shareRemainingToday(now)>0;
  }
  claim(index:number,kind:RewardKind,source:RewardSource='video',now=Date.now()):boolean{
   if(!this.canClaim(index,kind,source,now))return false;
   const key=rewardKey(kind,source);
   (this.meta.rewards[index]??={})[key]={claimed:true,remaining:1,generation:this.meta.rewards[index]?.[key]?.generation||0};
-  if(source==='share')this.meta.shareDailyClaims[chinaDateKey(now)]=1;
+  if(source==='share'){
+   const day=chinaDateKey(now);
+   this.meta.shareDailyClaims[day]=(this.meta.shareDailyClaims[day]||0)+1;
+  }
   this.changed();return true;
  }
  rewardLeft(index:number,kind:RewardKind):number{return (['video','share'] as const).reduce((sum,source)=>sum+(this.meta.rewards[index]?.[rewardKey(kind,source)]?.remaining||0),0)}
@@ -262,7 +269,12 @@ export class Save {
   this.data.unlocked=Math.max(this.data.unlocked,cloud.progress.unlocked);this.data.tutorial=Math.max(this.data.tutorial,cloud.progress.tutorial);
   this.meta.revision=Math.max(this.meta.revision,cloud.meta.revision);
   this.meta.economy=mergeEconomy(this.meta.economy,cloud.meta.economy);
-  for(const day of Object.keys(cloud.meta.shareDailyClaims))this.meta.shareDailyClaims[day]=1;
+  for(const [day,count] of Object.entries(cloud.meta.shareDailyClaims)){
+   // A stale snapshot must not reduce already-used sharing quota.
+   // Without an authoritative transactional backend, simultaneous devices
+   // cannot guarantee a strict account-wide cap; use the larger saved count.
+   this.meta.shareDailyClaims[day]=Math.max(this.meta.shareDailyClaims[day]||0,count);
+  }
   this.meta.tainted ||= cloud.meta.tainted;
   for(const [i,r] of Object.entries(cloud.meta.rankRecords)){
    const old=this.meta.rankRecords[i];this.meta.rankRecords[i]={steps:old?Math.min(old.steps,r.steps):r.steps,stars:old?Math.max(old.stars,r.stars):r.stars};
@@ -324,8 +336,8 @@ function validateMeta(value:unknown):SaveMeta{
  if(!rawShareClaims||typeof rawShareClaims!=='object'||Array.isArray(rawShareClaims)||Object.keys(rawShareClaims).length>10000)throw Error('Invalid share claims');
  for(const [day,claimed] of Object.entries(rawShareClaims)){
   const date=Date.parse(day+'T00:00:00Z');
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||!Number.isFinite(date)||new Date(date).toISOString().slice(0,10)!==day||claimed!==1)throw Error('Invalid share claim');
-  shareDailyClaims[day]=1;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||!Number.isFinite(date)||new Date(date).toISOString().slice(0,10)!==day||!Number.isInteger(claimed)||claimed<1||claimed>SHARE_DAILY_LIMIT)throw Error('Invalid share claim');
+  shareDailyClaims[day]=claimed;
  }
  const rankRecords:Progress['records']={};
  for(const [i,r] of Object.entries(m.rankRecords||{})){
