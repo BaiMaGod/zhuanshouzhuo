@@ -183,15 +183,16 @@ class Game {
   const index=this.model.index,name=kind==='hint'?'提示':'消除';
   if(!this.platform.available){this.toolNotice('本关'+name+'已用完');return}
   const video=this.save.canClaim(index,kind),share=this.save.canClaim(index,kind,'share');
-  if(!video&&!share){this.toolNotice('本关'+name+'奖励已全部领取');return}
-  this.modal('获取1次'+name,['完整观看视频或成功分享，可获得1次'+name+'。','两种方式每关各限1次，重开后重置。'],[
+  if(!video&&!share){this.toolNotice('当前'+name+'奖励已全部领取');return}
+  const shareLabel=share?'分享得'+name:this.save.shareClaimedToday()?'今日分享已领取':'本关分享已领取';
+  this.modal('获取1次'+name,['完整观看视频可领取1次'+name+'，视频奖励每关限1次。','分享奖励（提示或消除）每天合计限1次，重开不刷新。'],[
    {label:video?'看视频得'+name:'视频奖励已领取',action:()=>{if(!video)return;this.hideModal();void this.watchReward(index,kind)},primary:true},
-   {label:share?'分享得'+name:'分享奖励已领取',action:()=>{if(!share)return;this.hideModal();void this.watchReward(index,kind,'share')},primary:false},
+   {label:shareLabel,action:()=>{if(!share)return;this.hideModal();void this.watchReward(index,kind,'share')},primary:false},
    {label:'取消',action:()=>this.hideModal(),primary:false}
   ]);
   for(let i=0;i<this.modalCard!.numChildren;i++){
    const child=this.modalCard!.getChildAt(i);
-   if(child instanceof Button&&(child.label.text==='视频奖励已领取'||child.label.text==='分享奖励已领取'))child.enabled=false;
+   if(child instanceof Button&&(child.label.text==='视频奖励已领取'||(!share&&child.label.text===shareLabel)))child.enabled=false;
   }
  }
  async watchReward(index:number,kind:RewardKind,source:RewardSource='video'):Promise<void>{
@@ -204,7 +205,8 @@ class Game {
    if(this.model!==model||this.progressRestoreBlocked())return;
    if(completed&&this.save.claim(index,kind,source)){
     this.persistRun();this.toolNotice('已获得1次'+(kind==='hint'?'提示':'消除'));void this.platform.sync();
-   }else if(completed===false)this.toolNotice(source==='share'?'未完成分享，未领取奖励':'未完整观看，未领取奖励');
+   }else if(completed===true)this.toolNotice(source==='share'?'今日分享额度已用完':'本关奖励已领取');
+   else if(completed===false)this.toolNotice(source==='share'?'未完成分享，未领取奖励':'未完整观看，未领取奖励');
    else if(completed===null)this.toolNotice(source==='share'?'分享暂不可用，请稍后再试':this.platform.errorMessage('ads'));
   }catch{if(this.model===model)this.toolNotice(source==='share'?'分享暂不可用，请稍后再试':this.platform.errorMessage('ads'))}
   finally{if(this.model===model){this.busy=false;this.syncTools()}}
@@ -1126,7 +1128,7 @@ class Game {
  confirmRestart():void{
   if(!this.formal||!this.model||this.modalOpen)return;
   const index=this.model.index;
-  this.modal('重新开始？',['当前盘面将重置，免费提示恢复1次。','消除初始为0次，视频和分享奖励次数重置。'],[
+  this.modal('重新开始？',['当前盘面将重置，免费提示恢复1次。','消除初始为0次；视频奖励可重领，分享奖励不重置。'],[
    {label:'继续解镯',action:()=>this.hideModal(),primary:true},
    {label:'确认重开',action:()=>this.load(index,true),primary:false}
   ]);
