@@ -1,4 +1,4 @@
-// Real browser coverage for the 100-level campaign. Gameplay uses actual input;
+// Real browser coverage for the 107-level campaign. Gameplay uses actual input;
 // the debug bridge is only read to locate controls and observe rule state.
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
@@ -131,7 +131,14 @@ try{
   assert.ok(await p.evaluate(()=>window.jadeDebug.game.board.zoom>window.jadeDebug.game.board.fitZoom));
   await button(p,'全盘');
   assert.equal(await p.evaluate(()=>window.jadeDebug.game.board.zoom===window.jadeDebug.game.board.fitZoom),true);
-  report.profiles.push({width,height,firstLevelCleared:true,legacyLevel:45,lastLevel:100,lastCount:109,hintAfterInput:true});
+  await button(p,'button:home');await button(p,'确认返回');await button(p,'关卡图谱');
+  await p.evaluate(()=>{const g=window.jadeDebug.game;g.scrollAtlas(g.atlasMaxOffset)});
+  await button(p,'formal-level:107');
+  assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.index),116);
+  await drag(p,solutions[116][0]);
+  assert.equal(await p.evaluate(()=>window.jadeDebug.game.model.state.rings.filter(r=>r.life==='active').length),108);
+  await p.screenshot({path:resolve(out,width+'-level107.png')});
+  report.profiles.push({width,height,firstLevelCleared:true,legacyLevel:45,lastLevel:107,lastCount:109,hintAfterInput:true});
   console.log('Browser campaign passed:',width,height);await p.close();
  }
  assert.deepEqual(report.errors,[]);

@@ -1,5 +1,4 @@
-// Real Laya canvas QA for the non-publishable source-driven 107 prototype.
-// The fixture is injected only in a browser test; it is never added to levels.js.
+// Real canvas QA against the campaign entry for formal level 107.
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
@@ -61,17 +60,22 @@ try{
   page.on('requestfailed',r=>errors.push('requestfailed '+r.url()));
   await page.goto('http://127.0.0.1:'+server.address().port+'/?debug=1');
   await page.waitForFunction(()=>!!window.jadeDebug?.game&&!document.querySelector('#boot'),null,{timeout:60000});
-  const initial=await page.evaluate(({level,verifiedSteps})=>{
+  const card=await page.evaluate(()=>{
+   const g=window.jadeDebug.game;
+   g.levels();g.scrollAtlas(g.atlasMaxOffset);
+   const n=g.atlas.children.find(node=>node.name==='formal-level:107');
+   if(!n?.enabled)throw Error('Level 107 is missing from the campaign atlas');
+   const p=n.localToGlobal(new Laya.Point(n.width/2,n.height/2));
+   const box=document.querySelector('canvas').getBoundingClientRect();
+   return {x:box.left+p.x*box.width/Laya.stage.width,y:box.top+p.y*box.height/Laya.stage.height};
+  });
+  await page.mouse.click(card.x,card.y);
+  await page.waitForFunction(()=>window.jadeDebug.game.model?.index===116);
+  const initial=await page.evaluate(()=>{
    const {game:g,Core:C}=window.jadeDebug;
-   // Only for QA: the unverified prototype does not have a verified hint DAG.
-   level.hintGraph={kind:'dependency',order:level.points.map(p=>p[0]),
-    nodes:level.points.map(p=>({id:p[0],requires:[]}))};
-   if(verifiedSteps)level.proof={steps:verifiedSteps};
-   const index=C.levels.push(level)-1;
-   g.load(index,true);
-   return{index,active:g.model?.state.rings.filter(r=>r.life==='active').length,
-    rods:g.model?.state.rods.length,errors:C.validate(g.model.state)};
-  },{level:candidate.level,verifiedSteps:progressive.fullRouteVerified?progressive.verifiedSteps:null});
+   return {index:g.model.index,active:g.model.state.rings.filter(r=>r.life==='active').length,
+    rods:g.model.state.rods.length,errors:C.validate(g.model.state)};
+  });
   assert.equal(initial.active,109);
   assert.equal(initial.rods,139);
   assert.deepEqual(initial.errors,[]);
@@ -147,7 +151,7 @@ try{
   results.push({width,height,...initial,after:final,extended});
   await page.close();
  }
- const report={stage:'development_candidate_canvas_replay',fullRouteVerified:progressive.fullRouteVerified,moves,progressiveVerifiedActions:progressive.actions.length,results};
+ const report={stage:'formal_campaign_canvas_replay',fullRouteVerified:progressive.fullRouteVerified,moves,progressiveVerifiedActions:progressive.actions.length,results};
  await writeFile(resolve(out,'report.json'),JSON.stringify(report,null,2)+'\n');
  console.log('LEVEL107_BROWSER_CANDIDATE='+JSON.stringify({viewports:results.length,drags:progressive.actions.length,removed:progressive.removedCount,complete:report.fullRouteVerified}));
 }finally{await browser.close();await new Promise(r=>server.close(r))}

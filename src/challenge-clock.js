@@ -13,6 +13,7 @@ export class ChallengeClock {
   this.lastAt=null;
   this.pauses=new Set();
   this.result=snapshot?.result||null;
+  this.failedAt=null;
  }
  advance(now){
   if(!Number.isFinite(now))throw Error('Invalid monotonic clock');
@@ -28,7 +29,7 @@ export class ChallengeClock {
  timeOut(now){
   this.advance(now);
   if(this.result)return this.result==='failed';
-  if(this.started&&this.elapsedMs>=this.limitMs){this.result='failed';return true}
+  if(this.started&&this.elapsedMs>=this.limitMs){this.result='failed';this.failedAt=now;return true}
   return false;
  }
  clearAt(now){
@@ -36,7 +37,7 @@ export class ChallengeClock {
   this.advance(now);
   if(this.result==='failed'){
    // Resolve a same-timestamp deadline tie in favor of logical clearance.
-   if(this.elapsedMs===this.limitMs&&now===this.lastAt){this.result='won';return true}
+   if(this.elapsedMs===this.limitMs&&now===this.failedAt){this.result='won';return true}
    return false;
   }
   if(this.result==='won')return true;

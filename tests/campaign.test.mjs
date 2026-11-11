@@ -9,7 +9,7 @@ import {trayFit,TRAY_SURFACE,RING_ENVELOPE} from '../dist/js/tray-layout.js';
 import {readFileSync} from 'node:fs';
 
 test('所有正式关完整外缘均在不同屏幕的玉盘内，密铺行没有中间空位',()=>{
- for(let number=1;number<=100;number++){
+ for(let number=1;number<=FORMAL_COUNT;number++){
   const rings=C.make(TEACHING_COUNT+number-1).rings;
   const center={x:(Math.min(...rings.map(r=>r.x))+Math.max(...rings.map(r=>r.x)))/2,y:(Math.min(...rings.map(r=>r.y))+Math.max(...rings.map(r=>r.y)))/2};
   const rows=new Map;
@@ -27,7 +27,7 @@ test('所有正式关完整外缘均在不同屏幕的玉盘内，密铺行没�
   }
  }
  const version=JSON.parse(readFileSync('dist/version.json','utf8'));
- assert.equal(version.levels,110);assert.equal(version.teachingLevels,10);assert.equal(version.formalLevels,100);
+ assert.equal(version.levels,117);assert.equal(version.teachingLevels,10);assert.equal(version.formalLevels,107);
 });
 
 test('旧54镯成绩只迁移到第45关一次，新的第1关和教学存档独立保存',()=>{

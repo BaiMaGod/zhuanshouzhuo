@@ -45,3 +45,10 @@ test('截止同一时间戳先触发超时回调，再结算逻辑解除仍然�
  assert.equal(c.result,'won');
  assert.equal(c.timeOut(5001),false);
 });
+
+test('截止帧未消除时，后续帧及恢复失败存档均不能改判通关',()=>{
+ const c=new ChallengeClock(5);c.begin(0);
+ assert.equal(c.timeOut(5000),true);
+ assert.equal(c.clearAt(5001),false);
+ assert.equal(new ChallengeClock(5,c.snapshot(5001)).clearAt(1),false);
+});

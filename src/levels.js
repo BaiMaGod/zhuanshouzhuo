@@ -15,6 +15,6 @@ level('九镯连环','两组保持机关、三条先行拆解支线和三根背�
 level('十镯合局','两组保持机关经背景杆相连。先释放四只外围镯，再保持两侧扣位，最后拆除剩余背景连接。',[['G',0,0,180],['A',106,0,110],['B',53,91.8,250],['C',212,0,200],['D',106,183.6,10],['H',-106,0,0],['E',-212,0,70],['F',-159,-91.8,20],['I',-318,0,40],['J',-212,-183.6,140]],[['m','G','A'],['m','G','B'],['b','A','B'],['m','A','C'],['m','B','D'],['m','H','E'],['m','H','F'],['b','E','F'],['m','E','I'],['m','F','J'],['b','G','H']])];
 
 levels.push(...formalLevels);
-export const TEACHING_COUNT=10, FORMAL_INDEX=10, FORMAL_COUNT=100, LEGACY_FORMAL_INDEX=54;
+export const TEACHING_COUNT=10, FORMAL_INDEX=10, FORMAL_COUNT=formalLevels.length, LEGACY_FORMAL_INDEX=54;
 export { levels, COLORS };
 

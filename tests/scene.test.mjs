@@ -422,16 +422,16 @@ test('图谱连续跨页无空洞，懒加载保留邻页且锁定关不可点�
  assert.equal(nextFirst.y-(pageLast.y+pageLast.height),16,'跨页间距必须与普通行间距一致');
  const locked=g.atlas.children.find(n=>n.name==='formal-level:27');assert.equal(locked.enabled,false);locked.click();assert.equal(g.mode,'levels');
  const ids=new Set;
- for(let p=0;p<5;p++){
+ for(let p=0;p<6;p++){
   g.scrollAtlas(p*g.atlasHeight);assert.ok(g.atlas.children.length<=60);
   for(const n of g.atlas.children)ids.add(n.name);
  }
- assert.equal(ids.size,100);g.levels();assert.equal(g.atlasOffset,g.atlasHeight);
+ assert.equal(ids.size,107);g.levels();assert.equal(g.atlasOffset,g.atlasHeight);
  const card=g.atlas.children.find(n=>n.name==='formal-level:26');card.click();assert.equal(g.model.index,35);
  g.save.data.records=records;
 });
 
-test('正式关结算能进入下一关，第100关结算返回图谱',()=>{
+test('正式关结算能进入下一关，第100关接续101关，第107关结算返回图谱',()=>{
  const clearCurrentBoard=()=>{
   const state=g.model.state;
   for(const ring of state.rings)ring.life='removed';
@@ -442,7 +442,10 @@ test('正式关结算能进入下一关，第100关结算返回图谱',()=>{
  g.load(10);clearCurrentBoard();g.win();assert.ok(g.modalCard.children.some(n=>n.text==='第1关 · 全部解开'));
  g.modalCard.children.find(n=>n.label?.text==='下一关').click();
  assert.equal(g.model.index,11);assert.equal(g.model.state.rings.length,11);assert.equal(g.modalOpen,false);
- g.load(109);clearCurrentBoard();g.win();assert.ok(!g.modalCard.children.some(n=>n.label?.text==='下一关'));
+ g.load(109);clearCurrentBoard();g.win();
+ g.modalCard.children.find(n=>n.label?.text==='下一关').click();
+ assert.equal(g.model.index,110);assert.equal(g.model.state.rings.length,109);
+ g.load(116);clearCurrentBoard();g.win();assert.ok(!g.modalCard.children.some(n=>n.label?.text==='下一关'));
  g.modalCard.children.find(n=>n.label?.text==='关卡图谱').click();assert.equal(g.mode,'levels');
 });
 

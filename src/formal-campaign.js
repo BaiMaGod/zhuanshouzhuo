@@ -1,3 +1,4 @@
+import {advancedCampaign} from './advanced-campaign.js';
 import legacyLevel from './formal-level.js';
 import legacySolution from './legacy-formal-solution.js';
 import {mechanismFormal} from './formal-mechanisms.js';
@@ -31,4 +32,9 @@ for(let number=1;number<=100;number++){
  const mixed=mechanismFormal(number);
  if(!mixed)throw Error('Missing mixed-clasp campaign level '+number);
  formalLevels.push(mixed.level);formalSolutions.push(mixed.solution);
+}
+
+for(const {level,solution} of advancedCampaign){
+ formalLevels.push(level);
+ formalSolutions.push(solution);
 }

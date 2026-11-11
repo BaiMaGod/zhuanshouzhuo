@@ -1081,11 +1081,12 @@ class Game {
   this.controls.forEach(b=>b.enabled=this.platform.playAllowed&&!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.hintButton)this.hintButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
   if(this.eraseButton)this.eraseButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
-  if(cleared&&!this.board.hasVisibleClaspLayer&&!this.board.animating&&!this.busy&&!this.settled){this.settled=true;this.win()}
+  if(cleared&&!this.board.hasVisibleClaspLayer&&!this.board.animating&&!this.busy&&!this.settled)this.win();
  }
  win():void{
-  if(this.progressRestoreBlocked()||!this.model||!this.board||!this.model.cleared||this.board.hasVisibleClaspLayer||this.board.animating||this.busy)return;
+  if(this.settled||this.progressRestoreBlocked()||!this.model||!this.board||!this.model.cleared||this.board.hasVisibleClaspLayer||this.board.animating||this.busy)return;
   if(this.challengeClock&&!this.challengeClock.clearAt(performance.now())){this.challengeFailed();return}
+  this.settled=true;
   const i=this.model.index,steps=this.model.state.steps;
   this.save.clearRun(i);
   if(this.formal){
