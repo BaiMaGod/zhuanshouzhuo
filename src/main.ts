@@ -845,7 +845,9 @@ class Game {
    else if(gesture.kind==='pan')this.board.panTo({x:gesture.screen.x+point.x-gesture.start.x,y:gesture.screen.y+point.y-gesture.start.y});
    this.syncView();return;
   }
-  const d=this.drag;if(!d||d.pointer!==e.pointerId||this.board.animating)return;
+  // An unrelated ring can disappear during this rotation. Its exit animation
+  // must not cancel the still-active finger drag on the selected ring.
+  const d=this.drag;if(!d||d.pointer!==e.pointerId)return;
   const r=C.ring(this.model.state,d.id);if(!r||r.life!=='active'){this.releaseDrag();return}
   const p=this.board.toWorld(point);if(C.dist(p,r)<15)return;
   const a=C.angle(r,p),delta=C.diff(a,d.last);d.last=a;
@@ -894,7 +896,10 @@ class Game {
   if(res.done){this.audio.motion(res.done);if(!res.blocked)this.audio.resetContact()}
   if(res.removed.length){
    this.haptics.pulse('snap');
-   this.releaseDrag();this.board!.release(before,model.state,res.removed);this.audio.play('clear');
+   // Keep rotating if this action removed *other* rings but the finger's
+   // bracelet still exists. Release only when the selected ring itself exits.
+   if(res.removed.includes(id))this.releaseDrag();
+   this.board!.release(before,model.state,res.removed);this.audio.play('clear');
    this.say(res.removed.join('、')+' 已解开。观察下一只手镯的扣位。');
    if(this.guide&&res.removed.includes(this.guide.id))this.stopGuide(true);
   }else if(res.blocked){
