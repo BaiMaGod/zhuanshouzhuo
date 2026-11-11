@@ -427,8 +427,9 @@ class Game {
    text(cell,'第'+day+'天',5,special?-5:10,cw-10,34,special?27:24,COLORS.ink,'center',true);
    const reward=this.save.dailySignInRewardForSlot(day);
    if(special){
-    for(const [col,kind,count] of [[0,'hint',reward.hint],[1,'erase',reward.erase]] as const){
-     const cx=cw*(col===0?.27:.76);
+    const items=([['hint',reward.hint],['erase',reward.erase]] as const).filter(([,count])=>count>0);
+    for(const [col,[kind,count]] of items.entries()){
+     const cx=items.length===1?cw/2:cw*(col===0?.27:.76);
      const t=text(cell,(kind==='hint'?'提示':'消除')+'×'+count,cx-66,156,132,26,21,COLORS.ink,'center',true);
      t.name='signin-reward-label:'+kind;t.wordWrap=false;
     }
