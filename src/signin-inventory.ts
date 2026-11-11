@@ -67,7 +67,8 @@ export function rewardForCycleSlot(e:Economy,day:number,now=Date.now(),hintOnly=
  const claimedToday=!!e.claims[today],cycle=Math.floor((claimedToday?Math.max(0,dates.length-1):dates.length)/7);
  const pastDate=dates[cycle*7+day-1];
  const eraseAllowed=pastDate?!e.hintOnlyClaims[pastDate]:!hintOnly;
- return {hint:base.hint,erase:eraseAllowed?base.erase:0};
+ // Replace post-threshold sign-in erase slots with equivalent hint grants.
+ return {hint:base.hint+(eraseAllowed?0:base.erase),erase:eraseAllowed?base.erase:0};
 }
 export function dailyStatus(e:Economy,now=Date.now(),hintOnly=false):DailyStatus{
  const dateKey=chinaDateKey(now),dates=claimDates(e),claimedToday=!!e.claims[dateKey];
@@ -89,7 +90,10 @@ export function inventoryBalance(e:Economy,kind:InventoryKind):number{
  let granted=0;
  // Sign-in reward order is canonical across merged devices.
  const dates=claimDates(e);
- for(let i=0;i<dates.length;i++)if(kind!=='erase'||!e.hintOnlyClaims[dates[i]])granted+=DAILY_REWARDS[i%7]![kind];
+ for(let i=0;i<dates.length;i++){
+  const reward=DAILY_REWARDS[i%7]!,hintOnly=!!e.hintOnlyClaims[dates[i]];
+  granted+=kind==='hint'?reward.hint+(hintOnly?reward.erase:0):hintOnly?0:reward.erase;
+ }
  let used=0;
  for(const event of Object.values(e.spends))if(event.kind===kind)used++;
  return Math.max(0,granted-used);
