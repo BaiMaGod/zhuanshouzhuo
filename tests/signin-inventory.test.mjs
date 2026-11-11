@@ -92,3 +92,42 @@ test('invalid/rolled-back device dates do not award more items',()=>{
  assert.equal(s.dailySignInStatus(at(24)).clockInvalid,true);
  assert.equal(s.inventoryLeft('hint'),1);
 });
+
+test('after reaching formal level 10, new sign-in erasers become hints while old erase inventory stays intact',()=>{
+ const s=new Save('signin-erase-video-only');
+ s.claimDaily(at(23));s.claimDaily(at(24));s.claimDaily(at(25));
+ assert.equal(s.inventoryLeft('hint'),2);
+ assert.equal(s.inventoryLeft('erase'),1,'old third-day erase is retained');
+ s.win(18,5,5);
+ assert.equal(s.eraseAdOnlyReached(),true);
+ assert.deepEqual(s.dailySignInStatus(at(26)).nextReward,{hint:1,erase:0});
+ assert.deepEqual(s.dailySignInRewardForSlot(3,at(26)),{hint:0,erase:1},'previously claimed days display their original reward');
+ for(let d=26;d<=29;d++)assert.equal(s.claimDaily(at(d)).ok,true);
+ assert.equal(s.inventoryLeft('hint'),8,'day seven erase grant becomes an extra hint');
+ assert.equal(s.inventoryLeft('erase'),1,'the old erase grant is not removed');
+ assert.deepEqual(s.dailySignInRewardForSlot(7,at(29)),{hint:2,erase:0});
+ const cloud=s.exportCloud();
+ const restored=new Save('signin-erase-video-only-restore');restored.replaceCloud(cloud);
+ assert.equal(restored.inventoryLeft('hint'),8);
+ assert.equal(restored.inventoryLeft('erase'),1);
+ assert.equal(restored.consumeInventory('erase',19),true,'legacy erase stock can still be spent');
+ assert.equal(restored.inventoryLeft('erase'),0);
+});
+test('sign-in on day three after formal level 10 still awards a hint and never creates a free erase',()=>{
+ const s=new Save('signin-erase-no-empty-day');
+ s.win(18,4,4);
+ s.claimDaily(at(23));s.claimDaily(at(24));
+ assert.deepEqual(s.dailySignInStatus(at(25)).nextReward,{hint:1,erase:0});
+ assert.deepEqual(s.claimDaily(at(25)).reward,{hint:1,erase:0});
+ assert.equal(s.inventoryLeft('hint'),3);
+ assert.equal(s.inventoryLeft('erase'),0);
+ const snapshot=s.exportCloud();
+ const older=new Save('signin-erase-no-empty-day-older');
+ older.claimDaily(at(23));older.claimDaily(at(24));
+ s.mergeCloud(older.exportCloud());
+ assert.equal(s.inventoryLeft('erase'),0,'stale cloud merge must not manufacture removed erase grants');
+ assert.equal(s.inventoryLeft('hint'),3);
+ const bad=JSON.parse(JSON.stringify(snapshot));
+ bad.meta.economy.hintOnlyClaims={'2026-10-23':1,'2026-10-99':1};
+ assert.throws(()=>new Save('signin-invalid-policy').replaceCloud(bad),/Invalid sign-in reward policy/);
+});

@@ -12,7 +12,6 @@ import {snapDelta} from './snap.js';
 import {ChallengeClock} from './challenge-clock.js';
 import {Save} from './storage.js';
 import type {RewardKind,RewardSource} from './storage.js';
-import {DAILY_REWARDS} from './signin-inventory.js';
 import {FEATURE_ART,FEATURE_ASSETS,paintFeature} from './feature-art.js';
 import {TapPlatform} from './taptap.js';
 import {copyPlatformText,finishWebShell,failWebShell,debugEnabled,debugHintEnabled,exposeDebug,setGameCursorHidden} from './web-shell.js';
@@ -21,7 +20,7 @@ import {search,nextFrame} from './solver.js';
 interface GamePointer {pointerId:number;stageX:number;stageY:number;button?:number}
 import {JADE_ASSETS,jadeSprite} from './jade.js';
 import solutions from './solutions.js';
-import {TEACHING_COUNT,FORMAL_INDEX} from './levels.js';
+import {TEACHING_COUNT,FORMAL_INDEX,ERASE_AD_ONLY_INDEX} from './levels.js';
 import type {Action,Point,State,Result} from './types.js';
 
 const BOOT_STARTED=performance.now();
@@ -182,16 +181,28 @@ class Game {
   if(!this.model)return;
   const index=this.model.index,name=kind==='hint'?'提示':'消除';
   if(!this.platform.available){this.toolNotice('本关'+name+'已用完');return}
-  const video=this.save.canClaim(index,kind),share=this.save.canClaim(index,kind,'share');
-  if(!video&&!share){this.toolNotice('本关'+name+'奖励已全部领取');return}
-  this.modal('获取1次'+name,['完整观看视频或成功分享，可获得1次'+name+'。','两种方式每关各限1次，重开后重置。'],[
+  const videoOnly=kind==='erase'&&index>=ERASE_AD_ONLY_INDEX;
+  const video=this.save.canClaim(index,kind),share=!videoOnly&&this.save.canClaim(index,kind,'share');
+  if(videoOnly){
+   if(!video){this.toolNotice('本关消除广告奖励已领取');return}
+   if(!this.platform.adsAvailable){this.toolNotice('激励视频暂不可用，请稍后再试');return}
+   this.modal('获取1次消除',['正式第10关起，消除道具只能通过完整观看视频获取。','每关视频奖励限领1次，重新开始可再次领取。'],[
+    {label:'看视频得消除',action:()=>{this.hideModal();void this.watchReward(index,'erase')},primary:true},
+    {label:'取消',action:()=>this.hideModal(),primary:false}
+   ]);
+   return;
+  }
+  if(!video&&!share){this.toolNotice('当前'+name+'奖励已全部领取');return}
+  const shareRemaining=this.save.shareRemainingToday();
+  const shareLabel=share?'分享得'+name:shareRemaining===0?'今日分享已达上限':'本关分享已领取';
+  this.modal('获取1次'+name,['完整观看视频可领取1次'+name+'，视频奖励每关限1次。','分享奖励（提示和消除）每天合计限3次，今日剩余'+shareRemaining+'次；重开不刷新。'],[
    {label:video?'看视频得'+name:'视频奖励已领取',action:()=>{if(!video)return;this.hideModal();void this.watchReward(index,kind)},primary:true},
-   {label:share?'分享得'+name:'分享奖励已领取',action:()=>{if(!share)return;this.hideModal();void this.watchReward(index,kind,'share')},primary:false},
+   {label:shareLabel,action:()=>{if(!share)return;this.hideModal();void this.watchReward(index,kind,'share')},primary:false},
    {label:'取消',action:()=>this.hideModal(),primary:false}
   ]);
   for(let i=0;i<this.modalCard!.numChildren;i++){
    const child=this.modalCard!.getChildAt(i);
-   if(child instanceof Button&&(child.label.text==='视频奖励已领取'||child.label.text==='分享奖励已领取'))child.enabled=false;
+   if(child instanceof Button&&(child.label.text==='视频奖励已领取'||(!share&&child.label.text===shareLabel)))child.enabled=false;
   }
  }
  async watchReward(index:number,kind:RewardKind,source:RewardSource='video'):Promise<void>{
@@ -204,7 +215,8 @@ class Game {
    if(this.model!==model||this.progressRestoreBlocked())return;
    if(completed&&this.save.claim(index,kind,source)){
     this.persistRun();this.toolNotice('已获得1次'+(kind==='hint'?'提示':'消除'));void this.platform.sync();
-   }else if(completed===false)this.toolNotice(source==='share'?'未完成分享，未领取奖励':'未完整观看，未领取奖励');
+   }else if(completed===true)this.toolNotice(source==='share'?(this.save.shareRemainingToday()===0?'今日分享额度已用完':'本关分享奖励已领取'):'本关奖励已领取');
+   else if(completed===false)this.toolNotice(source==='share'?'未完成分享，未领取奖励':'未完整观看，未领取奖励');
    else if(completed===null)this.toolNotice(source==='share'?'分享暂不可用，请稍后再试':this.platform.errorMessage('ads'));
   }catch{if(this.model===model)this.toolNotice(source==='share'?'分享暂不可用，请稍后再试':this.platform.errorMessage('ads'))}
   finally{if(this.model===model){this.busy=false;this.syncTools()}}
@@ -413,10 +425,11 @@ class Game {
    cell.name='signin-day:'+day;cell.cacheAs='none';cell.mouseEnabled=false;card.addChild(cell);
    if(upcoming)round(cell.graphics,-2,-2,cw+4,rowHeight+4,17,'rgba(255,240,244,0.03)','#d47f96',2);
    text(cell,'第'+day+'天',5,special?-5:10,cw-10,34,special?27:24,COLORS.ink,'center',true);
-   const reward=DAILY_REWARDS[i]!;
+   const reward=this.save.dailySignInRewardForSlot(day);
    if(special){
-    for(const [col,kind,count] of [[0,'hint',reward.hint],[1,'erase',reward.erase]] as const){
-     const cx=cw*(col===0?.27:.76);
+    const items=([['hint',reward.hint],['erase',reward.erase]] as const).filter(([,count])=>count>0);
+    for(const [col,[kind,count]] of items.entries()){
+     const cx=items.length===1?cw/2:cw*(col===0?.27:.76);
      const t=text(cell,(kind==='hint'?'提示':'消除')+'×'+count,cx-66,156,132,26,21,COLORS.ink,'center',true);
      t.name='signin-reward-label:'+kind;t.wordWrap=false;
     }
@@ -1126,7 +1139,7 @@ class Game {
  confirmRestart():void{
   if(!this.formal||!this.model||this.modalOpen)return;
   const index=this.model.index;
-  this.modal('重新开始？',['当前盘面将重置，免费提示恢复1次。','消除初始为0次，视频和分享奖励次数重置。'],[
+  this.modal('重新开始？',['当前盘面将重置，免费提示恢复1次。',this.model.index>=ERASE_AD_ONLY_INDEX?'第10关起消除只能看广告获取，重开刷新视频资格。':'消除初始为0次；视频奖励可重领，分享奖励不重置。'],[
    {label:'继续解镯',action:()=>this.hideModal(),primary:true},
    {label:'确认重开',action:()=>this.load(index,true),primary:false}
   ]);

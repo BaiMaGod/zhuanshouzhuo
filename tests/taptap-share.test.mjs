@@ -32,15 +32,60 @@ test('missing template does not open sheet or consume a claim',async()=>{
  const m=sharing(),p=new TapPlatform(new Save(),false,m.api,{...config,shareTemplateId:''});
  assert.equal(p.shareAvailable,false);assert.equal(await p.shareReward(''),null);assert.equal(m.panel,undefined);p.dispose();
 });
-test('video and share quotas persist independently and spent rewards never resurrect from stale cloud',()=>{
+test('sharing is capped at three grants per Beijing day across levels and tools; video rewards stay separate',()=>{
+ const before=Date.parse('2026-11-11T15:59:00Z'),after=Date.parse('2026-11-11T16:01:00Z');
  const s=new Save('share-quotas');s.resetRewards(10);
- for(const kind of ['hint','erase'])for(const source of ['video','share']){assert.equal(s.claim(10,kind,source),true);assert.equal(s.claim(10,kind,source),false)}
- assert.equal(s.rewardLeft(10,'erase'),2);const stale=s.exportCloud();
- s.consumeReward(10,'erase');s.consumeReward(10,'erase');s.mergeCloud(stale);
- assert.equal(s.rewardLeft(10,'erase'),0);
- const reload=new Save('share-quotas');assert.equal(reload.canClaim(10,'erase','share'),false);
+ assert.equal(s.shareRemainingToday(before),3);
+ assert.equal(s.claim(10,'hint','share',before),true);
+ assert.equal(s.shareRemainingToday(before),2);
+ assert.equal(s.claim(10,'erase','share',before),true);
+ assert.equal(s.shareRemainingToday(before),1);
+ assert.equal(s.claim(11,'erase','share',before),true);
+ assert.equal(s.shareRemainingToday(before),0);
+ assert.equal(s.claim(12,'hint','share',before),false,'fourth daily share must fail');
+ assert.equal(s.claim(10,'erase','video',before),true,'ads must not spend sharing quota');
+ assert.equal(s.rewardLeft(10,'erase'),2);
+ const stale=s.exportCloud();s.consumeReward(10,'erase');s.consumeReward(10,'erase');s.mergeCloud(stale);
+ assert.equal(s.rewardLeft(10,'erase'),0,'stale cloud must not resurrect consumed rewards');
+ const reload=new Save('share-quotas');
+ assert.equal(reload.canClaim(12,'hint','share',before),false);
  reload.resetRewards(10);reload.mergeCloud(stale);
- for(const kind of ['hint','erase'])for(const source of ['video','share'])assert.equal(reload.canClaim(10,kind,source),true);
+ assert.equal(reload.shareRemainingToday(before),0,'restart cannot replenish daily sharing quota');
+ assert.equal(reload.rewardLeft(10,'hint'),1,'unspent share reward survives restart');
+ assert.equal(reload.canClaim(10,'hint','share',after),false,'restart never unlocks a claimed per-level reward');
+ assert.equal(reload.canClaim(12,'hint','share',after),true,'the Beijing midnight boundary refreshes global quota');
+ assert.equal(reload.shareRemainingToday(after),3);
+ assert.equal(reload.claim(12,'hint','share',after),true);
+ assert.equal(reload.shareRemainingToday(after),2);
+ assert.equal(reload.canClaim(13,'hint','share',before),false,'clock rollback cannot reclaim an earlier date');
+ assert.equal(reload.canClaim(10,'erase','video',after),true,'video quota resets with the board');
+});
+test('daily share counts survive cloud restore, stale merges and legacy snapshots',()=>{
+ const at=Date.parse('2026-11-11T15:59:00Z');
+ const first=new Save('new-share-save');
+ assert.equal(first.claim(10,'erase','share',at),true);
+ const one=first.exportCloud();
+ assert.equal(first.claim(11,'hint','share',at),true);
+ const two=first.exportCloud();
+ const cloud=new Save('restored-share-save');cloud.replaceCloud(two);
+ assert.equal(cloud.shareRemainingToday(at),1);
+ cloud.mergeCloud(one);
+ assert.equal(cloud.shareRemainingToday(at),1,'a stale cloud count must not roll back the quota');
+ assert.equal(cloud.claim(12,'erase','share',at),true);
+ assert.equal(cloud.shareRemainingToday(at),0);
+ cloud.mergeCloud(one);
+ assert.equal(cloud.shareRemainingToday(at),0);
+ const legacy=JSON.parse(JSON.stringify(one));delete legacy.meta.shareDailyClaims;
+ const old=new Save('legacy-share-save');old.replaceCloud(legacy);
+ assert.equal(old.shareRemainingToday(at),3,'old saves without quota must retain compatibility');
+ const priorDailyOne=new Save('old-daily-one');priorDailyOne.replaceCloud(one);
+ assert.equal(priorDailyOne.shareRemainingToday(at),2,'previous one-share save migrates as one consumed claim');
+ for(const bad of [0,4,1.5,'3']){
+  const invalid=JSON.parse(JSON.stringify(one));invalid.meta.shareDailyClaims={'2026-11-11':bad};
+  assert.throws(()=>new Save('invalid-share-'+String(bad)).replaceCloud(invalid),/Invalid share claim/);
+ }
+ const invalidDate=JSON.parse(JSON.stringify(one));invalidDate.meta.shareDailyClaims={'2026-02-30':1};
+ assert.throws(()=>new Save('invalid-share-date').replaceCloud(invalidDate),/Invalid share claim/);
 });
 await import('../dist/js/main.js');await new Promise(r=>setImmediate(r));
 const g=window.jadeDebug.game;
@@ -55,15 +100,54 @@ test('home leaderboard contains ranking only; empty tool buttons stay concise an
  assert.deepEqual(g.modalCard.children.filter(c=>c.label).map(c=>c.label.text),['看视频得消除','分享得消除','取消']);
  g.hideModal();
 });
-test('share grants once per tool and late share completion cannot reward a restarted board',async()=>{
+test('formal level 10 and later allow erase rewards only from completed video ads',async()=>{
+ const storage=new Save('erase-video-only-guard');
+ const today=Date.parse('2026-11-11T11:00:00Z');
+ assert.equal(storage.canClaim(18,'erase','share',today),true,'formal level 9 keeps existing rewards');
+ assert.equal(storage.canClaim(19,'erase','share',today),false,'formal level 10 is the boundary');
+ assert.equal(storage.canClaim(20,'erase','share',today),false);
+ assert.equal(storage.claim(19,'erase','share',today),false,'direct save calls cannot bypass UI');
+ assert.equal(storage.shareRemainingToday(today),3,'blocked erase shares cannot spend the daily quota');
+ assert.equal(storage.claim(19,'hint','share',today),true,'hint share reward remains available');
+ assert.equal(storage.shareRemainingToday(today),2);
+ assert.equal(storage.canClaim(19,'erase','video',today),true);
+ const m=sharing();let close;
+ m.api.createRewardedVideoAd=()=>({
+  load:async()=>{},show:async()=>{queueMicrotask(()=>close?.({isEnded:true}))},
+  onClose:fn=>{close=fn},offClose:()=>{},onError:()=>{},offError:()=>{}
+ });
+ g.platform=new TapPlatform(g.save,false,m.api,config);g.platform.sync=async()=>{};
+ g.load(19,true);
+ assert.equal(g.toolLeft('erase'),0);
+ g.toggleErase();
+ assert.equal(g.modalOpen,true);
+ assert.deepEqual(g.modalCard.children.filter(c=>c.label).map(c=>c.label.text),['看视频得消除','取消']);
+ g.hideModal();
+ await g.watchReward(19,'erase','share');
+ assert.equal(m.panel,undefined,'disallowed share never opens TapTap share sheet');
+ assert.equal(g.toolLeft('erase'),0);
+ await g.watchReward(19,'erase','video');
+ assert.equal(g.toolLeft('erase'),1);
+ assert.equal(g.save.canClaim(19,'erase','video'),false);
+});
+test('stale share callbacks cannot reward restarted boards; a completed share cannot be farmed by restart',async()=>{
  const m=sharing();g.platform=new TapPlatform(g.save,false,m.api,config);g.platform.sync=async()=>{};
  g.load(10,true);let pending=g.watchReward(10,'erase','share');
  g.cancel();assert.equal(g.platform.shareBusy,true);g.down({pointerId:1,stageX:300,stageY:400});assert.equal(g.drag,null);
- m.listener.success({});await pending;assert.equal(g.toolLeft('erase'),1);assert.equal(g.save.canClaim(10,'erase'),true);
+ g.load(10,true);m.listener.success({});await pending;
+ assert.equal(g.toolLeft('erase'),0);
+ assert.equal(g.save.canClaim(10,'erase','share'),true,'an obsolete callback must not consume daily quota');
+ pending=g.watchReward(10,'erase','share');m.listener.success({});await pending;
+ assert.equal(g.toolLeft('erase'),1);assert.equal(g.save.canClaim(10,'erase'),true);
  g.toggleErase();assert.equal(g.toolNoticeBox.visible,true);assert.ok(g.eraseTip.fontSize>=30);
  assert.ok(g.toolNoticeBox.y+g.toolNoticeBox.height<=g.eraseButton.y-100);
  g.load(10);assert.equal(g.toolLeft('erase'),1);assert.equal(g.eraseLeft,0);
- g.load(10,true);assert.equal(g.toolLeft('erase'),0);assert.equal(g.save.canClaim(10,'erase','share'),true);
- pending=g.watchReward(10,'erase','share');g.load(10,true);m.listener.success({});await pending;
- assert.equal(g.toolLeft('erase'),0);assert.equal(g.save.canClaim(10,'erase','share'),true);
+ g.load(10,true);assert.equal(g.toolLeft('erase'),1,'unspent share reward remains after restart');
+ assert.equal(g.save.canClaim(10,'erase','share'),false,'restart must not grant a second share');
+ assert.equal(g.save.canClaim(11,'hint','share'),true,'other levels may use the remaining two daily shares');
+ assert.equal(g.save.shareRemainingToday(),2);
+ assert.equal(g.save.claim(11,'hint','share'),true);
+ assert.equal(g.save.claim(12,'erase','share'),true);
+ assert.equal(g.save.shareRemainingToday(),0);
+ assert.equal(g.save.canClaim(13,'hint','share'),false,'a fourth share cannot be claimed elsewhere');
 });
