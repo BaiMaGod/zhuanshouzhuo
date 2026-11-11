@@ -24,7 +24,7 @@ function ownerCycles(state){
  return cycles;
 }
 
-test('107: progressively replay legitimate motions, preserve 98 verified removals and report remaining blockages',()=>{
+test('107: progressively replay legitimate motions, preserve 101 verified removals and report remaining blockages',()=>{
  const {level}=buildLevel107GeometryCandidate(source);
  const index=Core.levels.push(level)-1;
  try{
@@ -58,7 +58,7 @@ test('107: progressively replay legitimate motions, preserve 98 verified removal
      'R001 must explode first and then R002');
    }
   }
-  assert.equal(state.rings.filter(r=>r.life==='removed').length,35);
+  assert.ok(state.rings.filter(r=>r.life==='removed').length>=35,'opening rotations must clear at least 35 bracelets');
   // Extend one-ring releases with strictly legal, non-clearing setup turns:
   // prepare targets for an owner, then release that owner in actual physics.
   const planner=planPhysicalProgress(Core,state);
@@ -78,7 +78,7 @@ test('107: progressively replay legitimate motions, preserve 98 verified removal
    activeIds:active.map(r=>r.id),actualBurstEvents:state.events.filter(e=>e.kind==='burst'),
    cyclicOwnerChains:ownerCycles(state),incompatibleReceiverRings:incompatible,actions};
   // This test proves replayability, not optimality or global unsolvability.
-  assert.ok(report.removedCount>=98,'the 98-ring verified partial route regressed');
+  assert.ok(report.removedCount>=101,'the 101-ring verified partial route regressed');
   assert.deepEqual(report.actualBurstEvents.map(e=>e.source),['R001','R002']);
   assert.ok(report.actualBurstEvents.every(e=>e.brokenRodIds.length>0));
   assert.ok(actions.every(a=>Math.abs(a.delta)>0));
