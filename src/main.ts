@@ -1078,6 +1078,7 @@ class Game {
   // Keep reconciling the final board until both mounted and background clasp
   // layers are hidden; the victory modal must never cover a remnant.
   if(this.board.hasFeedback||this.board.hint||performance.now()<this.board.blockUntil||cleared)this.board.draw(this.model.state);
+  else if(!this.modalOpen)this.board.animateIdleFire(now);
   this.controls.forEach(b=>b.enabled=this.platform.playAllowed&&!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
   if(this.hintButton)this.hintButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
   if(this.eraseButton)this.eraseButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;

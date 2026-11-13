@@ -3,13 +3,14 @@ import type {CoreAPI,State,Point,Ring,Block} from './types.js';
 import {JADE_NAMES,drawJade} from './jade.js';
 import type {JadeName} from './jade.js';
 import {JadePetals} from './jade-petals.js';
+import {BurstFire} from './burst-fire.js';
 import {trayFit} from './tray-layout.js';
 import {TEACHING_COUNT} from './levels.js';
 import {THEME} from './ui.js';
 import {FEEDBACK,reducedMotion,easeOut,glint} from './feedback.js';
 const C=C0 as unknown as CoreAPI;
 export interface Ghost {r:Ring;start:number;glow:Laya.Sprite|null}
-interface RingView {material:JadeName;root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite;special:Laya.Text|null}
+interface RingView {material:JadeName;root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite;special:Laya.Text|null;fire:BurstFire|null}
 const RELEASE_GLOW:Record<JadeName,string> = {
  amber:'252,210,72', peach:'253,179,158', celadon:'174,221,164',
  ice:'166,231,219', ivory:'255,244,207'
@@ -104,6 +105,8 @@ export class Board {
    const body=new Laya.Sprite();drawJade(body.graphics,material);
    // A body never changes its local mesh; only its sprite rotation changes.
    // Use no bitmap cache: LayaAir 3.4 does not support the legacy 'normal' mode.
+   const fire=r.burst?new BurstFire():null;
+   if(fire)root.addChild(fire);
    body.cacheAs='none';root.addChild(body);
    const focus=new Laya.Sprite();focus.name='ring-focus:'+r.id;focus.visible=false;focus.mouseEnabled=false;
    // Two small polished tips identify the actual held ring, without outlining
@@ -116,15 +119,14 @@ export class Board {
    }
    focus.cacheAs='none';root.addChild(focus);
    const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index>=TEACHING_COUNT||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
-   // Temporary readable mechanism marker; special art can replace it later.
-   const special=r.burst||r.silkRemaining?new Laya.Text():null;
+   const special=r.silkRemaining?new Laya.Text():null;
    if(special){
     special.name='mechanic:'+r.id;
     special.size(82,44);special.pos(-41,-22);special.align='center';special.valign='middle';
     special.fontSize=24;special.color='#996b45';special.bold=true;
     special.mouseEnabled=false;root.addChild(special);
    }
-   this.rings.set(r.id,{material,root,body,halo,focus,label,shadow,special});
+   this.rings.set(r.id,{material,root,body,halo,focus,label,shadow,special,fire});
   });
  }
  focus(id:string|null):void{
@@ -341,6 +343,12 @@ export class Board {
   for(const j of jewels)this.jewel(g,j.p,j.a);
   return jewels.length>0;
  }
+ animateIdleFire(now:number):void{
+  if(this.quiet)return;
+  for(const view of this.rings.values()){
+   if(view.fire&&view.root.visible)view.fire.update(now,false,0);
+  }
+ }
  draw(s:State,now=performance.now()):void{
   this.lastState=s;
   const releaseMs=this.quiet?150:FEEDBACK.release;
@@ -363,10 +371,14 @@ export class Board {
    if(v.shadow.rotation!==r.a)v.shadow.rotation=r.a;
    if(v.focus.rotation!==r.a)v.focus.rotation=r.a;
    v.label.alpha=r.id===this.selected?1:.55;
+   if(v.fire&&v.root.visible){
+    v.fire.rotation=r.a;
+    v.fire.update(now,this.quiet,t);
+   }
    if(v.special){
-    v.special.visible=!!r.burst||!!r.silkRemaining;
+    v.special.visible=!!r.silkRemaining;
     if(v.special.visible){
-     v.special.text=(r.burst?'✦':'')+((r.silkRemaining||0)>0?' 缠'+r.silkRemaining:'');
+     v.special.text=' 缠'+r.silkRemaining;
      v.special.rotation=-this.turn;
     }
    }
