@@ -20,6 +20,7 @@ import {getRenderDiagnostics} from './render-diagnostics.js';
 import {search,nextFrame} from './solver.js';
 interface GamePointer {pointerId:number;stageX:number;stageY:number;button?:number}
 import {JADE_ASSETS,jadeSprite} from './jade.js';
+import {BURST_FIRE_ASSET} from './burst-fire.js';
 import solutions from './solutions.js';
 import {TEACHING_COUNT,FORMAL_INDEX} from './levels.js';
 import type {Action,Point,State,Result} from './types.js';
@@ -41,7 +42,7 @@ const HOME_LOGO_PARTS=[
 ];
 // Build pipeline injects package.json's current version for every target.
 const GAME_VERSION='__GAME_VERSION__';
-const ASSETS=[HINT_HAND_ASSET,PETAL_ASSET,...JADE_ASSETS,...FEATURE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,...HOME_LOGO_PARTS,'assets/art-v3/clasp.png'];
+const ASSETS=[BURST_FIRE_ASSET,HINT_HAND_ASSET,PETAL_ASSET,...JADE_ASSETS,...FEATURE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,...HOME_LOGO_PARTS,'assets/art-v3/clasp.png'];
 class Game {
  readonly debugMode=debugHintEnabled();
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();

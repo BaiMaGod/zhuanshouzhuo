@@ -3,7 +3,7 @@ import type {CoreAPI,State,Point,Ring,Block} from './types.js';
 import {JADE_NAMES,drawJade} from './jade.js';
 import type {JadeName} from './jade.js';
 import {JadePetals} from './jade-petals.js';
-import {BurstFire} from './burst-fire.js';
+import {BurstFire,BURST_FIRE_EXTENT} from './burst-fire.js';
 import {trayFit} from './tray-layout.js';
 import {TEACHING_COUNT} from './levels.js';
 import {THEME} from './ui.js';
@@ -360,7 +360,7 @@ export class Board {
   for(const r of s.rings){
    const v=this.rings.get(r.id)!;const ghost=ghosts.get(r.id);
    // Covers the outer shadow, its offset and the held-ring scale.
-   const screen=this.toScreen(r),margin=60*this.zoom;
+   const screen=this.toScreen(r),margin=(v.fire?BURST_FIRE_EXTENT+5:60)*this.zoom;
    v.root.visible=(r.life==='active'||!!ghost)&&screen.x+margin>=this.rect.x&&screen.x-margin<=this.rect.x+this.rect.w&&screen.y+margin>=this.rect.y&&screen.y-margin<=this.rect.y+this.rect.h;
    const t=ghost?Math.min(1,(now-ghost.start)/releaseMs):0;
    // Cross-fade in place so the petal arc follows the original jade silhouette.
