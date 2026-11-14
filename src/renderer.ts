@@ -105,8 +105,8 @@ export class Board {
    const body=new Laya.Sprite();drawJade(body.graphics,material);
    // A body never changes its local mesh; only its sprite rotation changes.
    // Use no bitmap cache: LayaAir 3.4 does not support the legacy 'normal' mode.
-   const fire=r.burst?new BurstFire():null;
-   if(fire)root.addChild(fire);
+   const fire=r.burst?new BurstFire(i%8):null;
+   if(fire){root.addChild(fire);body.addChild(fire.surface);}
    body.cacheAs='none';root.addChild(body);
    const focus=new Laya.Sprite();focus.name='ring-focus:'+r.id;focus.visible=false;focus.mouseEnabled=false;
    // Two small polished tips identify the actual held ring, without outlining

@@ -4,45 +4,54 @@ import type {CoreAPI} from './types.js';
 const C=C0 as unknown as CoreAPI;
 export const BURST_FIRE_ASSET='assets/art-rose/burst-fire.webp';
 export const BURST_FIRE_EXTENT=68;
-const columns=4,frameCount=16,frameMs=65;
+const columns=4,rows=4,frameCount=8,frameMs=75;
 const edge=BURST_FIRE_EXTENT;
 const vertices=new Float32Array([-edge,-edge,edge,-edge,edge,edge,-edge,edge]);
 const indices=new Uint16Array([0,1,2,0,2,3]);
-const frames=Array.from({length:frameCount},(_,frame)=>{
+function frameUV(frame:number,rowOffset:number):Float32Array{
  const left=(frame%columns)/columns;
- const top=Math.floor(frame/columns)/columns;
- const span=1/columns;
- return new Float32Array([left,top,left+span,top,left+span,top+span,left,top+span]);
-});
+ const top=(Math.floor(frame/columns)+rowOffset)/rows;
+ return new Float32Array([left,top,left+1/columns,top,left+1/columns,top+1/rows,left,top+1/rows]);
+}
+const frames=Array.from({length:frameCount},(_,frame)=>({
+ rim:frameUV(frame,0),surface:frameUV(frame,rows/2)
+}));
 const gap=Math.asin(C.GAP/(2*(C.R-C.BAND/2)))+.23;
 
 export class BurstFire extends Laya.Sprite {
  private frame=-1;
  private particleStep=-1;
  private flame=new Laya.Sprite();
+ readonly surface=new Laya.Sprite();
  private embers=new Laya.Sprite();
  private atlasTexture=Laya.loader.getRes(BURST_FIRE_ASSET);
 
- constructor(){
+ constructor(private phaseOffset:number){
   super();
   this.name='burst-fire';
   this.mouseEnabled=false;
+  this.surface.mouseEnabled=false;
+  this.surface.name='burst-fire-surface';
   this.addChild(this.flame);
   this.addChild(this.embers);
  }
 
  update(now:number,quiet:boolean,release:number):void{
-  const frame=quiet?0:Math.floor(now/frameMs)%frameCount;
+  const frame=quiet?0:(Math.floor(now/frameMs)+this.phaseOffset)%frameCount;
   if(frame!==this.frame){
    this.frame=frame;
    const g=this.flame.graphics;
    g.clear();
-   g.drawTriangles(this.atlasTexture,0,0,vertices,frames[frame],indices);
+   g.drawTriangles(this.atlasTexture,0,0,vertices,frames[frame].rim,indices);
+   const surface=this.surface.graphics;
+   surface.clear();
+   surface.drawTriangles(this.atlasTexture,0,0,vertices,frames[frame].surface,indices);
   }
 
   const flare=quiet?0:Math.sin(Math.PI*Math.min(1,release*1.7));
   this.flame.scale(1+.12*flare,1+.12*flare);
   this.alpha=1-.66*release;
+  this.surface.alpha=this.alpha;
   const step=quiet?-2:Math.floor(now/32);
   if(release===0&&step===this.particleStep)return;
   this.particleStep=release>0?-1:step;
