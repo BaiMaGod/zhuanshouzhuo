@@ -25,7 +25,7 @@ function makeEarlyBoard({number,angles,mounts,pairs,burst,solution}){
   steps:solution.length,secondsPerStep:3,thinkingSeconds:20,routeVerified:true
  }):null;
  return withRoute({name:'第'+number+'关',kind:'formal',revision:1,
-  tip:'观察缺口和锁扣，先释放爆裂镯打开相邻区域。',points,links,special,
+  tip:'消除烈焰玉镯，火焰花瓣会消除周围一圈玉镯。',points,links,special,
   timed:timed===null?null:{durationSeconds:timed,formulaSeconds:timed,routeSteps:solution.length}},solution);
 }
 
@@ -33,5 +33,5 @@ const board107=buildLevel107GeometryCandidate(source107).level;
 export const advancedCampaign=[
  ...earlyBoards.map(makeEarlyBoard),
  withRoute({...board107,name:'第107关',kind:'formal',revision:1,
-  tip:'先释放第一枚爆裂镯，让震裂接续触发第二枚。'},route107)
+  tip:'消除第一枚烈焰玉镯，火焰花瓣命中第二枚后会继续扩散。'},route107)
 ];

@@ -7,7 +7,8 @@ export interface HintNode {id:string;requires:string[];claspId?:string|null}
 export interface HintStage {id:string;ringId:string;targetAngle:number;requires:string[];claspId?:string;releaseId?:string}
 export type HintGraph={kind:'dependency';order:string[];nodes:HintNode[]}|{kind:'stages';stages:HintStage[]};
 export interface Block {kind:string;rod:string;target:string;text:string}
-export interface Result {done:number;removed:string[];blocked:Block|null}
+export interface FlameBurst {kind:'burst';source:string;targetIds:string[];brokenRodIds:string[]}
+export interface Result {done:number;removed:string[];blocked:Block|null;bursts?:FlameBurst[]}
 export interface CoreAPI {
  R:number;BAND:number;GAP:number;END:number;D:number;tolerance:number;
  levels:{name:string;tip:string;kind?:'formal';revision?:number;points:unknown[];links:unknown[];hintGraph?:HintGraph;proof?:{steps:number};timed?:{durationSeconds:number;formulaSeconds:number;routeSteps:number}|null}[];
@@ -21,6 +22,6 @@ export interface CoreAPI {
  update(s:State):void;settle(s:State):string[];
  request(s:State,id:string,delta:number):Result;
  candidates(s:State):Action[];solve(s:State,budget?:number):{path:Action[]|null;visited:number};
- validate(s:State):string[];blockage(s:State,id:string):Block|null;processSpecialRemoval(s:State,removedIds:string[]):void;
+ validate(s:State):string[];blockage(s:State,id:string):Block|null;processSpecialRemoval(s:State,removedIds:string[]):string[];
 }
 

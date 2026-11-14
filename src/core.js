@@ -37,7 +37,21 @@ function exists(s,z){return !z.broken&&(z.kind==='b'?z.targets.some(id=>ring(s,i
 function endpoints(s,z){if(z.kind==='b'&&z.headPoints)return z.headPoints;const p=pose(s,z);return z.kind==='m'?[{id:z.targets[0],p:p.q}]:[{id:z.targets[0],p:p.p},{id:z.targets[1],p:p.q}]}
 function update(s){s.states={};for(const z of s.rods){s.states[z.id]=endpoints(s,z).map(e=>{const r=ring(s,e.id);if(!exists(s,z)||r.life!=='active')return'inactive';if(Math.abs(dist(r,e.p)-R)>.025)return'latched';return Math.abs(diff(r.a,angle(r,e.p)))<=tolerance+1e-8?'aligned':'latched'})}}
 function connections(s,id){return s.rods.filter(z=>exists(s,z)).flatMap(z=>endpoints(s,z).map((e,i)=>({z,e,state:s.states[z.id][i],i}))).filter(x=>x.state==='latched'&&(x.e.id===id||x.z.owner===id))}
-function settle(s){const removed=[];for(let pass=0;pass<s.rings.length;pass++){update(s);const retained=new Set;for(const z of s.rods){if(!exists(s,z))continue;endpoints(s,z).forEach((e,i)=>{if(s.states[z.id][i]==='latched'){retained.add(e.id);if(z.owner)retained.add(z.owner)}})}const free=s.rings.filter(r=>r.life==='active'&&!retained.has(r.id)&&(r.silkRemaining||0)===0);if(!free.length)break;const round=free.map(r=>r.id);for(const r of free){r.life='removed';removed.push(r.id)}processSpecialRemoval(s,round)}update(s);return removed}
+function settle(s){
+ const removed=[];
+ for(let pass=0;pass<s.rings.length;pass++){
+  update(s);
+  const retained=new Set;
+  for(const z of s.rods){if(!exists(s,z))continue;endpoints(s,z).forEach((e,i)=>{if(s.states[z.id][i]==='latched'){retained.add(e.id);if(z.owner)retained.add(z.owner)}})}
+  const free=s.rings.filter(r=>r.life==='active'&&!retained.has(r.id)&&(r.silkRemaining||0)===0);
+  if(!free.length)break;
+  // Resolve the flame wave first so neighbors that also became free get a hit.
+  const source=free.find(r=>r.burst),round=(source?[source]:free).map(r=>r.id);
+  for(const id of round)ring(s,id).life='removed';
+  removed.push(...round,...processSpecialRemoval(s,round));
+ }
+ update(s);return removed;
+}
 function inRing(p,r,pad=0){const d=dist(p,r);if(d<R-BAND/2-pad||d>R+BAND/2+pad)return false;const gapHalf=Math.asin(GAP/(2*(R-BAND/2)))/D;return Math.abs(diff(angle(r,p),r.a))>Math.max(0,gapHalf-Math.asin(Math.min(1,pad/Math.max(1,d)))/D)}
 function samples(p,q,pad=2){const n=Math.ceil(dist(p,q)/2);return Array.from({length:n+1},(_,i)=>({x:p.x+(q.x-p.x)*i/n,y:p.y+(q.y-p.y)*i/n,pad}))}
 function rodShapes(s,z){if(z.kind==='b'&&z.paths)return rodSegments(s,z).flatMap(seg=>samples(seg.p,seg.q,seg.w));
@@ -81,7 +95,9 @@ if((r.silkRemaining||0)>0)return{done:0,removed:[],blocked:{kind:'silk',rod:'sil
 // Stop exactly at sleeve alignment, rather than skipping a narrow event.
 for(const z of s.rods){if(!exists(s,z))continue;for(const e of endpoints(s,z)){if(e.id!==id)continue;const d=diff(angle(r,e.p),r.a);if(d*sign>1e-8&&Math.abs(d)<=Math.abs(step))step=d;}}
 const a=r.a;r.a=norm(a+step);blocked=blockage(s,id);if(blocked){r.a=a;update(s);break}done+=step;remaining-=Math.abs(step);removed.push(...settle(s));if(r.life!=='active')break;}
-if(Math.abs(done)>.001)s.events.push({id,delta:done,removed});return{done,removed,blocked,before:old}}
+if(Math.abs(done)>.001)s.events.push({id,delta:done,removed});
+const bursts=s.special?s.events.slice(old.events.length).filter(e=>e.kind==='burst'):[];
+return{done,removed,blocked,before:old,...(bursts.length?{bursts}:{})}}
 function candidates(s){const a=[];for(const z of s.rods){if(!exists(s,z))continue;for(const e of endpoints(s,z)){const r=ring(s,e.id);if(r.life!=='active')continue;const d=diff(angle(r,e.p),r.a);if(Math.abs(d)>.001)for(const delta of[d,d>0?d-360:d+360])a.push({id:r.id,delta,rod:z.id});}}return a}
 const key=s=>s.rings.map(r=>r.life==='removed'?'x':Math.round(r.a*10)).join(',');
 function solve(initial,budget=450){const visited=new Set;let count=0;function dfs(s){if(s.rings.every(r=>r.life==='removed'))return[];if(++count>budget)return null;const k=key(s);if(visited.has(k))return null;visited.add(k);const opts=[];for(const a of candidates(s)){const c=clone(s),res=request(c,a.id,a.delta);if(res.blocked||Math.abs(res.done)<.001)continue;if(key(c)===k)continue;opts.push({a,c,res,score:res.removed.length*100-Math.abs(res.done)/360})}opts.sort((a,b)=>b.score-a.score);for(const o of opts){if(count>budget)return null;const rest=dfs(o.c);if(rest)return[{...o.a,delta:o.res.done},...rest]}return null}return{path:dfs(clone(initial)),visited:count}}

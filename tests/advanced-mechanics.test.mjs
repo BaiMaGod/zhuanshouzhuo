@@ -28,7 +28,7 @@ test('缠丝只能由不同的真实邻镯实际消除松层，重复回调不�
  s.rings[1].life='removed';processSpecialRemoval(s,['S2']);
  assert.equal(s.rings[2].silkRemaining,0);
 });
-test('爆裂按实际邻居处理，整件多头背景扣只震断一次',()=>{
+test('烈焰命中真实邻镯，整件多头背景扣只碎裂一次',()=>{
  const s=structuredClone(unit);
  s.rings=[
   {id:'A',x:0,y:0,life:'removed',a:0},
@@ -42,13 +42,28 @@ test('爆裂按实际邻居处理，整件多头背景扣只震断一次',()=>{
   {id:'NO',kind:'m',owner:'D',targets:['D']}
  ];
  prepareSpecial(s,{special:{rings:[{id:'A',attribute:'burst'}],silkEdges:[]}});
- processSpecialRemoval(s,['A']);
+ assert.deepEqual(processSpecialRemoval(s,['A']),['B']);
+ assert.deepEqual(s.rings.map(r=>r.life),['removed','removed','active','active']);
  assert.equal(s.rods[0].broken,true);
  assert.equal(s.rods[1].broken,true);
  assert.equal(s.rods[2].broken,undefined);
- assert.equal(s.events.filter(e=>e.kind==='burst').length,1);
- processSpecialRemoval(s,['A']);
- assert.equal(s.events.filter(e=>e.kind==='burst').length,1);
+ assert.deepEqual(s.events,[{kind:'burst',source:'A',targetIds:['B'],brokenRodIds:['M','F']}]);
+ assert.deepEqual(processSpecialRemoval(s,['A']),[]);
+ assert.equal(s.events.length,1);
+});
+test('第二枚烈焰玉镯接力，连爆可直接消除仍缠丝的邻镯',()=>{
+ temporaryLevel({
+  points:[['A',0,0,0],['B',92.0001,0,40],['C',184.0002,0,0],['D',276.0003,0,0]],links:[],
+  special:{rings:[{id:'A',attribute:'burst'},{id:'B',attribute:'burst'},{id:'C',attribute:'silk',silkLayers:1}],
+   silkEdges:[{sourceId:'D',targetId:'C'}]}
+ },s=>{
+  s.rings[0].life='removed';
+  assert.deepEqual(processSpecialRemoval(s,['A']),['B','C']);
+  assert.deepEqual(s.events.map(e=>[e.source,e.targetIds]),[['A',['B']],['B',['C']]]);
+  assert.equal(s.rings[2].life,'removed');
+  assert.equal(s.rings[3].life,'active','ordinary impact targets do not create another wave');
+  assert.deepEqual(s.special.processedRemovals,['A','B','C']);
+ });
 });
 test('未解除缠丝时旋转被挡，道具消除后才松丝',()=>{
  temporaryLevel({
@@ -59,7 +74,7 @@ test('未解除缠丝时旋转被挡，道具消除后才松丝',()=>{
   assert.equal(C.request(s,'B',25).blocked?.kind,'silk');
   s.rings[0].life='removed';C.processSpecialRemoval(s,['A']);C.update(s);
   assert.equal(s.rings[1].silkRemaining,0);
-  assert.equal(C.processSpecialRemoval(s,['A']),undefined);
+  assert.deepEqual(C.processSpecialRemoval(s,['A']),[]);
  });
 });
 test('多头背景扣逐端取位，所有端移除后才退出',()=>{

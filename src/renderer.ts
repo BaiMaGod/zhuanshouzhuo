@@ -1,15 +1,16 @@
 import C0 from './core.js';
-import type {CoreAPI,State,Point,Ring,Block} from './types.js';
+import type {CoreAPI,State,Point,Ring,Block,FlameBurst} from './types.js';
 import {JADE_NAMES,drawJade} from './jade.js';
 import type {JadeName} from './jade.js';
-import {JadePetals} from './jade-petals.js';
+import {JadePetals,FLAME_FLIGHT_MS} from './jade-petals.js';
 import {BurstFire,BURST_FIRE_EXTENT} from './burst-fire.js';
 import {trayFit} from './tray-layout.js';
 import {TEACHING_COUNT} from './levels.js';
 import {THEME} from './ui.js';
 import {FEEDBACK,reducedMotion,easeOut,glint} from './feedback.js';
 const C=C0 as unknown as CoreAPI;
-export interface Ghost {r:Ring;start:number;glow:Laya.Sprite|null}
+export interface Ghost {r:Ring;start:number;glow:Laya.Sprite|null;fiery:boolean}
+interface FlameHit {id:string;at:number;point?:Point;burst?:FlameBurst}
 interface RingView {material:JadeName;root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite;special:Laya.Text|null;fire:BurstFire|null}
 const RELEASE_GLOW:Record<JadeName,string> = {
  amber:'252,210,72', peach:'253,179,158', celadon:'174,221,164',
@@ -36,6 +37,11 @@ const shadowMesh=(()=>{
 export class Board {
  viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();fixedRods=new Laya.Sprite();effects=new Laya.Sprite();
  private petals=new JadePetals(this.effects);
+ private flameHits:FlameHit[]=[];
+ private flameClaspUntil=new Map<string,number>();
+ private flameFlashes:{point:Point;at:number}[]=[];
+ private flameBefore:State|null=null;
+ private flameView:State|null=null;
  backdrop:Laya.Sprite|null=null;
  rings=new Map<string,RingView>();
  center:Point={x:0,y:0}; screen:Point;zoom=1;fitZoom=1;bounds={w:1,h:1};turn=0;selected:string|null=null;
@@ -76,6 +82,7 @@ export class Board {
   // Keep this scene live-rendered; the legacy 'normal' value does not enable caching.
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
   this.ghosts=[];this.sparks=[];this.flashes=[];this.clearAt=-Infinity;this.releaseAt=-Infinity;this.streak=0;
+  this.flameHits=[];this.flameClaspUntil.clear();this.flameFlashes=[];this.flameBefore=null;this.flameView=null;
   this.quiet=reducedMotion();this.hint=null;this.blocked=null;this.blockedRing=null;this.blockUntil=0;
   this.effects.graphics.clear();
   this.petals.reset();
@@ -189,9 +196,36 @@ export class Board {
   const hits=s.rings.filter(r=>r.life==='active').map(r=>({r,d:Math.abs(C.dist(r,q)-C.R)})).filter(h=>h.d<15).sort((a,b)=>a.d-b.d);
   return hits[0]?.r||s.rings.find(r=>r.life==='active'&&C.dist(r,q)<23);
  }
- release(before:State,after:State,ids:string[]):void{
+ release(before:State,after:State,ids:string[],bursts:FlameBurst[]=[]):void{
   const now=performance.now();this.quiet=reducedMotion();
   this.streak=now-this.releaseAt<1800?Math.min(3,this.streak+1):1;this.releaseAt=now;
+  const bySource=new Map(bursts.map(event=>[event.source,event]));
+  const sourceOf=new Map<string,string>();
+  const times=new Map<string,number>();
+  if(!this.quiet&&bursts.length){
+   for(const event of bursts)for(const id of event.targetIds)sourceOf.set(id,event.source);
+   // An indirectly unlocked bracelet follows the wave that broke its clasp.
+   let latestHit=now;
+   for(const id of ids){
+    const source=sourceOf.get(id);
+    const at=source?(times.get(source)??now)+FLAME_FLIGHT_MS:latestHit;
+    latestHit=Math.max(latestHit,at);
+    if(at===now)continue;
+    times.set(id,at);
+    const point=source?this.flameContact(C.ring(after,source)!,C.ring(after,id)!):undefined;
+    this.flameHits.push({id,at,point,burst:bySource.get(id)});
+   }
+   for(const event of bursts){
+    const at=(times.get(event.source)??now)+FLAME_FLIGHT_MS;
+    for(const id of event.brokenRodIds)this.flameClaspUntil.set(id,at);
+   }
+  }
+  if(this.flameHits.length){this.flameBefore=before;this.flameView=null;}
+  this.showRelease(before,after,ids.filter(id=>!times.has(id)),now);
+  for(const event of bursts)if(!this.quiet&&!times.has(event.source))this.sendFlame(after,event,now);
+  if(after.rings.every(r=>r.life!=='active')&&this.clearAt===-Infinity)this.clearAt=Math.max(now,...times.values());
+ }
+ private showRelease(before:State,after:State,ids:string[],now:number,hit=false):void{
   const departing=ids.slice(0,FEEDBACK.maxGhosts);
   const petalCount=this.quiet||!departing.length?0:this.petals.countFor(departing.length);
   for(const id of departing){
@@ -201,10 +235,11 @@ export class Board {
    // can outlive the disappearing jade ring and look like permanent leftovers.
    // Only the jade body, petal particles and light bloom animate after removal.
    const material=this.rings.get(id)!.material;
-   const glow=this.quiet?null:this.releaseGlow(r,material);
-   this.ghosts.push({r:{...r},start:now,glow});
+   const fiery=!!r.burst;
+   const glow=this.quiet?null:this.releaseGlow(r,material,fiery||hit);
+   this.ghosts.push({r:{...r},start:now,glow,fiery});
    for(const z of before.rods)for(const e of C.endpoints(before,z))if(e.id===id)this.flash(e.p,now);
-   if(petalCount)this.petals.emit(r,r.a,HALF_GAP,C.R,material,now,petalCount);
+   if(petalCount)this.petals.emit(r,r.a,HALF_GAP,C.R,material,now,petalCount,fiery);
    if(!this.quiet)for(let k=0;k<2+this.streak;k++){
     const p=C.point(r,k*137.5,34+(k%3)*5);
     this.sparks.push({...p,start:now,seed:k,strength:this.streak});
@@ -212,9 +247,51 @@ export class Board {
   }
   while(this.ghosts.length>FEEDBACK.maxGhosts)this.disposeGhost(this.ghosts.shift()!);
   this.sparks=this.sparks.slice(-FEEDBACK.maxParticles);
-  if(after.rings.every(r=>r.life!=='active')&&this.clearAt===-Infinity)this.clearAt=now;
  }
- private releaseGlow(r:Ring,material:JadeName):Laya.Sprite{
+ private sendFlame(s:State,event:FlameBurst,now:number):void{
+  const source=C.ring(s,event.source)!,material=this.rings.get(source.id)!.material;
+  for(const id of event.targetIds){
+   const target=C.ring(s,id)!;
+   this.petals.emitFlameFlight(source,this.flameContact(source,target),C.R,material,now);
+  }
+ }
+ private flameContact(source:Ring,target:Ring):Point{
+  const angle=C.angle(target,source),gap=C.diff(angle,target.a);
+  return C.point(target,Math.abs(gap)<14?target.a+(gap<0?-14:14):angle,C.R-3);
+ }
+ get pendingFlameHits():number{return this.flameHits.length}
+ advanceFlame(s:State,now:number):boolean{
+  const arrivals=this.flameHits.filter(hit=>hit.at<=now);
+  if(!arrivals.length)return false;
+  this.flameHits=this.flameHits.filter(hit=>hit.at>now);
+  this.flameView=null;
+  for(const [id,at] of this.flameClaspUntil)if(at<=now)this.flameClaspUntil.delete(id);
+  const waves=new Map<number,{hits:string[];releases:string[]}>();
+  for(const hit of arrivals){
+   const wave=waves.get(hit.at)??{hits:[],releases:[]};
+   (hit.point?wave.hits:wave.releases).push(hit.id);waves.set(hit.at,wave);
+   if(hit.point)this.flameFlashes.push({point:hit.point,at:hit.at});
+  }
+  for(const [at,{hits,releases}] of waves){
+   if(releases.length)this.showRelease(this.flameBefore!,s,releases,at);
+   if(hits.length)this.showRelease(this.flameBefore!,s,hits,at,true);
+  }
+  for(const hit of arrivals)if(hit.burst)this.sendFlame(s,hit.burst,hit.at);
+  if(!this.flameHits.length)this.flameBefore=null;
+  return true;
+ }
+ private visibleState(s:State):State{
+  if(!this.flameHits.length)return s;
+  if(!this.flameView){
+   const held=new Set(this.flameHits.map(hit=>hit.id));
+   const view={...s,rings:s.rings.map(r=>held.has(r.id)?{...r,life:'active' as const}:r),
+    rods:s.rods.map(z=>this.flameClaspUntil.has(z.id)?{...z,broken:false}:z)};
+   C.update(view);
+   this.flameView=view;
+  }
+  return this.flameView;
+ }
+ private releaseGlow(r:Ring,material:JadeName,fire:boolean):Laya.Sprite{
   const glow=new Laya.Sprite(),arc:unknown[]=[];
   glow.mouseEnabled=false;
   for(let i=0;i<=32;i++){
@@ -222,7 +299,7 @@ export class Board {
    const point=C.point(r,angle,C.R);
    arc.push([i===0?'moveTo':'lineTo',point.x,point.y]);
   }
-  const color=RELEASE_GLOW[material];
+  const color=fire?'255,143,43':RELEASE_GLOW[material];
   glow.graphics.drawPath(0,0,arc,undefined,{strokeStyle:'rgba('+color+',0.22)',lineWidth:C.BAND+5});
   glow.graphics.drawPath(0,0,arc,undefined,{strokeStyle:'rgba('+color+',0.5)',lineWidth:C.BAND-2});
   this.effects.addChild(glow);
@@ -242,8 +319,8 @@ export class Board {
  }
  get hasVisibleFixedRods():boolean{return this.fixedRods.visible}
  get hasVisibleClaspLayer():boolean{return this.rods.visible||this.hasVisibleFixedRods}
- get animating():boolean {return this.ghosts.length>0||performance.now()-this.clearAt<(this.quiet?180:FEEDBACK.clear)}
- get hasFeedback():boolean{return this.animating||this.petals.count>0||this.sparks.length>0||this.flashes.length>0}
+ get animating():boolean {return this.pendingFlameHits>0||this.ghosts.length>0||performance.now()-this.clearAt<(this.quiet?180:FEEDBACK.clear)}
+ get hasFeedback():boolean{return this.animating||this.petals.count>0||this.sparks.length>0||this.flashes.length>0||this.flameFlashes.length>0}
  private line(g:Laya.Graphics,p:Point,q:Point,c:string,w:number):void{g.drawLine(p.x,p.y,q.x,q.y,c,w)}
  private sleeve(g:Laya.Graphics,p:Point,a:number,state:string):void{
   // Rounded silver sleeve retains its hollow opening, pose and complete outline.
@@ -351,10 +428,12 @@ export class Board {
  }
  draw(s:State,now=performance.now()):void{
   this.lastState=s;
+  s=this.visibleState(s);
   const releaseMs=this.quiet?150:FEEDBACK.release;
   this.ghosts=this.ghosts.filter(g=>{if(now-g.start<releaseMs)return true;this.disposeGhost(g);return false});
   this.sparks=this.sparks.filter(p=>now-p.start<FEEDBACK.particles);
   this.flashes=this.flashes.filter(p=>now-p.start<(this.quiet?140:FEEDBACK.alignment));
+  this.flameFlashes=this.flameFlashes.filter(f=>now-f.at<240);
   this.petals.draw(now,C.rot({x:0,y:-1},-this.turn));
   const ghosts=new Map(this.ghosts.map(g=>[g.r.id,g]));
   for(const r of s.rings){
@@ -364,7 +443,7 @@ export class Board {
    v.root.visible=(r.life==='active'||!!ghost)&&screen.x+margin>=this.rect.x&&screen.x-margin<=this.rect.x+this.rect.w&&screen.y+margin>=this.rect.y&&screen.y-margin<=this.rect.y+this.rect.h;
    const t=ghost?Math.min(1,(now-ghost.start)/releaseMs):0;
    // Cross-fade in place so the petal arc follows the original jade silhouette.
-   const dissolve=this.quiet?t:Math.max(0,(t-.28)/.72);
+   const dissolve=this.quiet?t:ghost?.fiery?Math.min(1,t*1.55):Math.max(0,(t-.28)/.72);
    v.root.alpha=ghost?1-dissolve*dissolve*(3-2*dissolve):1;
    v.root.pos(r.x,r.y);
    if(v.body.rotation!==r.a)v.body.rotation=r.a;
@@ -416,6 +495,15 @@ export class Board {
    this.rodsDrawKey=key;
   }
   this.effects.graphics.clear();
+  for(const {point,at} of this.flameFlashes){
+   const t=(now-at)/240,alpha=(1-t)**2,g=this.effects.graphics;
+   g.drawCircle(point.x,point.y,5+easeOut(t)*13,null,'rgba(239,109,30,'+(alpha*.7)+')',1.8);
+   glint(g,point.x,point.y,7*(1-t),'rgba(255,231,154,'+alpha+')');
+   for(let k=0;k<6;k++){
+    const q=C.point(point,k*137.5,3+easeOut(t)*(9+k%3*4));
+    g.drawCircle(q.x,q.y,(1-t)*(k%2?1.3:2.2),'rgba(255,155,40,'+alpha+')');
+   }
+  }
   for(const ghost of this.ghosts){
    const age=now-ghost.start;
    if(ghost.glow)ghost.glow.alpha=Math.sin(Math.PI*Math.min(1,(age+20)/210));

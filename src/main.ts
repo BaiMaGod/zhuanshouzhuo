@@ -1,6 +1,6 @@
 import {Core as C,GameModel} from './model.js';
 import {Board} from './renderer.js';
-import {PETAL_ASSET} from './jade-petals.js';
+import {PETAL_ASSET,FLAME_PETAL_ASSET} from './jade-petals.js';
 import {Victory} from './victory.js';
 import type {VictoryOptions} from './victory.js';
 import {text,panel,Button,ornament,COLORS,THEME,icon,flower,round} from './ui.js';
@@ -23,7 +23,7 @@ import {JADE_ASSETS,jadeSprite} from './jade.js';
 import {BURST_FIRE_ASSET} from './burst-fire.js';
 import solutions from './solutions.js';
 import {TEACHING_COUNT,FORMAL_INDEX} from './levels.js';
-import type {Action,Point,State,Result} from './types.js';
+import type {Action,Point,State,Result,FlameBurst} from './types.js';
 
 const BOOT_STARTED=performance.now();
 const W=720;
@@ -42,7 +42,7 @@ const HOME_LOGO_PARTS=[
 ];
 // Build pipeline injects package.json's current version for every target.
 const GAME_VERSION='__GAME_VERSION__';
-const ASSETS=[BURST_FIRE_ASSET,HINT_HAND_ASSET,PETAL_ASSET,...JADE_ASSETS,...FEATURE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,...HOME_LOGO_PARTS,'assets/art-v3/clasp.png'];
+const ASSETS=[BURST_FIRE_ASSET,HINT_HAND_ASSET,PETAL_ASSET,FLAME_PETAL_ASSET,...JADE_ASSETS,...FEATURE_ASSETS,'assets/shadow.png',TRAY,HOME_BG,...HOME_LOGO_PARTS,'assets/art-v3/clasp.png'];
 class Game {
  readonly debugMode=debugHintEnabled();
  root=new Laya.Sprite();scene=new Laya.Sprite();overlay=new Laya.Sprite();
@@ -736,8 +736,8 @@ class Game {
  say(content:string):void{if(this.message)this.message.text=content}
  sync(redraw=true):void{
   if(!this.model||!this.board)return;
-  const s=this.model.state,n=s.rings.filter(r=>r.life==='active').length;
-   this.status!.text='剩余 '+n+' 个  ·  已转 '+s.steps+' 次'+(!this.formal&&this.model.selected?'  ·  选中 '+this.model.selected:'');
+  const s=this.model.state;
+  this.renderStatus();
   this.renderChallenge(performance.now());
   this.board.selected=this.model.selected;this.board.focus(this.drag?.id||null);if(redraw)this.board.draw(s);this.syncTools();if(!this.drag)this.persistRun();
   this.controls.forEach(b=>b.enabled=this.platform.playAllowed&&!this.busy&&!this.board!.animating&&!!this.model!.selected&&!this.modalOpen);
@@ -745,6 +745,11 @@ class Game {
   if(this.demoButton)this.demoButton.label.text=this.busy?'停止':'演示';
   if(this.hintButton)this.hintButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
   if(this.eraseButton)this.eraseButton.enabled=this.platform.playAllowed&&!this.busy&&!this.platform.rewardBusy&&!this.board.animating&&!this.modalOpen;
+ }
+ private renderStatus():void{
+  const model=this.model!,s=model.state;
+  const n=s.rings.filter(r=>r.life==='active').length+this.board!.pendingFlameHits;
+  this.status!.text='剩余 '+n+' 个  ·  已转 '+s.steps+' 次'+(!this.formal&&model.selected?'  ·  选中 '+model.selected:'');
  }
  renderChallenge(now:number):void{
   if(!this.challengeClock||!this.challengeLabel)return;
@@ -898,10 +903,10 @@ class Game {
   if(res.done){this.audio.motion(res.done);if(!res.blocked)this.audio.resetContact()}
   if(res.removed.length){
    this.haptics.pulse('snap');
-   // Keep rotating if this action removed *other* rings but the finger's
-   // bracelet still exists. Release only when the selected ring itself exits.
-   if(res.removed.includes(id))this.releaseDrag();
-   this.board!.release(before,model.state,res.removed);this.audio.play('clear');
+   // An ordinary remote release keeps the current drag. A flame wave waits
+   // for its visible hits before accepting another rotation.
+   if(res.removed.includes(id)||res.bursts?.some(event=>event.targetIds.length))this.releaseDrag();
+   this.board!.release(before,model.state,res.removed,res.bursts);this.audio.play('clear');
    this.say(res.removed.join('、')+' 已解开。观察下一只手镯的扣位。');
    if(this.guide&&res.removed.includes(this.guide.id))this.stopGuide(true);
   }else if(res.blocked){
@@ -1001,7 +1006,7 @@ class Game {
     const res=this.perform(action.id,amount);remaining-=res.done;
     guide.lastDraw=0;
     if(this.guide===guide)guide.draw(model.state,performance.now(),false);
-    if(res.blocked||Math.abs(res.done)<.001||C.ring(model.state,action.id)?.life!=='active')break;
+    if(res.blocked||Math.abs(res.done)<.001||board.pendingFlameHits||C.ring(model.state,action.id)?.life!=='active')break;
    }
    this.audio.stopMotion();
    if(this.guide===guide)this.stopGuide(false);
@@ -1076,6 +1081,10 @@ class Game {
   if(!this.model||!this.board||this.mode!=='game')return;
   if(this.guide&&!this.modalOpen)this.guide.draw(this.model.state,now,!!this.drag);
   const cleared=this.model.cleared;
+  if(this.board.advanceFlame(this.model.state,now)){
+   this.renderStatus();
+   if(!this.modalOpen)this.audio.play('clear');
+  }
   // Keep reconciling the final board until both mounted and background clasp
   // layers are hidden; the victory modal must never cover a remnant.
   if(this.board.hasFeedback||this.board.hint||performance.now()<this.board.blockUntil||cleared)this.board.draw(this.model.state);
@@ -1153,10 +1162,12 @@ class Game {
   if(!target||target.life!=='active')return;
   this.eraseMode=false;this.syncEraseUI();
   this.model.selected=id;this.board.selected=id;this.sync();
-  this.modal('确认消除手镯？',['将使用消除道具移除选中的一只手镯。','该手镯上的活动扣会一起消失。'],[
+  const title=target.burst?'确认消除烈焰玉镯？':'确认消除手镯？';
+  const description=target.burst?'烈焰玉镯会碎成火焰花瓣，消除周围一圈玉镯。':'该手镯上的活动扣会一起消失。';
+  this.modal(title,['将使用消除道具移除选中的这只手镯。',description],[
    {label:'取消',action:()=>this.hideModal(),primary:false},
    {label:'确认消除',action:()=>this.eraseRing(id),primary:true}
-  ]);
+  ],!target.burst);
  }
  eraseRing(id:string):void{
   if(this.progressRestoreBlocked()||!this.formal||!this.model||!this.board||!this.debugMode&&this.toolLeft('erase')===0)return;
@@ -1167,21 +1178,25 @@ class Game {
   if(!removed.length)return;
   if(!this.debugMode)this.consumeTool('erase');
   this.releasePointers();this.stopGuide(false);this.board.hint=null;
-  this.board.release(before,this.model.state,removed);
+  const bursts=this.model.state.events.slice(before.events.length).filter((event):event is FlameBurst=>(event as FlameBurst).kind==='burst');
+  this.board.release(before,this.model.state,removed,bursts);
   this.audio.play('tool');
   this.sync();
  }
  help():void{
-  this.cancel();this.guide?.clear();this.modal('记住三件小事',[
+  this.cancel();this.guide?.clear();
+  const flame=this.model?.state.rings.some(r=>r.burst);
+  this.modal(flame?'玩法说明':'记住三件小事',[
    '① 拖动环体，让细缺口对准空心扣。点击只选中，不会转动。',
    '② 实心座随所属镯转动；带 × 的背景锁杆留在原地。被卡住，先解旁边的镯。',
-   '③ 对齐后要保持，转离会重新扣合。剩下的完整锁杆仍会挡住转动。'
+   '③ 对齐后要保持，转离会重新扣合。剩下的完整锁杆仍会挡住转动。',
+   ...(flame?['④ 烈焰玉镯碎成火焰花瓣，命中并消除周围一圈玉镯。']:[])
   ],[
    {label:'继续拆解',action:()=>this.hideModal(),primary:true},
    {label:this.formal?'观察全盘':'重看这一步',action:()=>{this.hideModal();if(this.formal){this.board?.resetView();this.syncView()}else if(this.model&&this.model.index<3)this.startGuide();else void this.hint()},primary:false}
   ]);
  }
- modal(title:string,lines:string[],actions:{label:string;action:()=>void;primary:boolean}[]):void{
+ modal(title:string,lines:string[],actions:{label:string;action:()=>void;primary:boolean}[],serifTitle=true):void{
   this.hideModal();this.modalOpen=true;this.releasePointers();this.setSystemCursor();
   this.guide?.clear();const shade=new Laya.Sprite();shade.size(W,H);shade.graphics.drawRect(0,0,W,H,'rgba(81,57,69,0.28)');shade.mouseEnabled=true;
   shade.on(Laya.Event.CLICK,this,()=>{});this.overlay.addChild(shade);this.modalShade=shade;
@@ -1192,7 +1207,7 @@ class Game {
   this.modalCard=card;
   if(Laya.Tween&&!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches){card.alpha=0;Laya.Tween.to(card,{alpha:1},140,Laya.Ease.sineOut)}
   card.mouseEnabled=true;card.on(Laya.Event.CLICK,this,()=>{});
-  text(card,title,30,28,560,68,37,COLORS.ink,'center',true);ornament(card,160,117,300);
+  text(card,title,30,28,560,68,37,COLORS.ink,'center',serifTitle);ornament(card,160,117,300);
   const body=new Laya.Sprite();body.name='modal-body';body.pos(40,139);body.size(540,1);card.addChild(body);
   let bodyContentHeight=0;
   for(const line of lines){

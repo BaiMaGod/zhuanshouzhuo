@@ -4,7 +4,7 @@ import {join,relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
 export const RUNTIME_IMAGES=[
  ...['amber','peach','celadon','ice','ivory'].map(n=>'jade-v2/'+n+'.png'),
- 'art-v3/clasp.png','art-rose/burst-fire.webp','art-rose/jade-petals-v2.png','art-rose/tray.png','art-rose/hint-hand.png',
+ 'art-v3/clasp.png','art-rose/burst-fire.webp','art-rose/jade-petals-v2.png','art-rose/flame-petals.webp','art-rose/tray.png','art-rose/hint-hand.png',
  'art-rose/home-bg.jpg',...Array.from({length:8},(_,i)=>`art-rose/home-logo-part-${i+1}.webp`),'shadow.png',
  ...['signin-shortcut','bag-shortcut','signin-panel','bag-panel','hint-tool','erase-tool'].map(n=>'art-rose/'+n+'.webp')
 ];

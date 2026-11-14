@@ -366,7 +366,7 @@ function inspectRun(value:unknown,index:number):{valid:boolean;reason?:string}{
   // Burst fracture is mutable; actual mounted/background geometry is immutable.
   const structural=(items:State['rods'])=>items.map(({broken,...rod})=>rod);
   if(initial.special){
-   if(s.rods.some(z=>z.broken!==undefined&&typeof z.broken!=='boolean'))return invalid('爆裂断扣状态无效');
+   if(s.rods.some(z=>z.broken!==undefined&&typeof z.broken!=='boolean'))return invalid('烈焰玉镯断扣状态无效');
    if(stableJson(structural(s.rods))!==stableJson(structural(initial.rods)))return invalid('锁扣布局已变化');
    if(!s.special||!Array.isArray(s.special.processedRemovals)||stableJson(s.special.silkEdges)!==stableJson(initial.special.silkEdges))return invalid('特殊镯来源关系已变化');
    const processed=new Set(s.special.processedRemovals),removed=new Set(s.rings.filter(r=>r.life==='removed').map(r=>r.id));
@@ -374,6 +374,9 @@ function inspectRun(value:unknown,index:number):{valid:boolean;reason?:string}{
    for(let i=0;i<s.rings.length;i++){
     const saved=s.rings[i],original=initial.rings[i];
     if(saved.attribute!==original.attribute||saved.burst!==original.burst)return invalid('特殊镯属性改变');
+    const remaining=saved.silkRemaining;
+    if(remaining===undefined||!Number.isInteger(remaining)||remaining<0||remaining>(original.silkRemaining||0))return invalid('缠丝剩余层数错误');
+    if(removed.has(saved.id))continue;
     const expected=initial.special.silkEdges.filter(e=>e.targetId===saved.id)
      .filter(e=>processed.has(e.sourceId)).length;
     if(saved.silkRemaining!==Math.max(0,(original.silkRemaining||0)-expected))return invalid('缠丝剩余层数错误');

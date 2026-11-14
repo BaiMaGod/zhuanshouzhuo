@@ -27,9 +27,8 @@ export class GameModel {
   this.history.push({state:Core.clone(this.state),selected:this.selected,hintProgress:this.hints?.progress||0});
   if(this.history.length>150)this.history.shift();
   target.life='removed';
-  Core.processSpecialRemoval(this.state,[id]);
-  Core.update(this.state);
-  const removed=[id,...Core.settle(this.state)];
+  const hits=Core.processSpecialRemoval(this.state,[id]);
+  const removed=[id,...hits,...Core.settle(this.state)];
   this.hints?.observe(this.state,removed);
   this.state.events.push({kind:'erase',id,removed});
   if(this.selected&&Core.ring(this.state,this.selected)?.life!=='active')this.selected=this.first();

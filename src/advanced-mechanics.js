@@ -22,9 +22,10 @@ export function prepareSpecial(s,level){
  };
 }
 export function processSpecialRemoval(s,removedIds){
- if(!s.special||!removedIds.length)return;
+ if(!s.special||!removedIds.length)return [];
  const processed=new Set(s.special.processedRemovals);
- for(const id of removedIds){
+ const queue=[...removedIds],hits=[];
+ for(const id of queue){
   if(processed.has(id))continue;
   processed.add(id);
   const source=own(s.rings,id);
@@ -39,8 +40,8 @@ export function processSpecialRemoval(s,removedIds){
    }
   }
   if(!source.burst)continue;
-  const neighborIds=new Set(s.rings.filter(r=>r.life==='active'&&near(source,r)).map(r=>r.id));
-  if(!neighborIds.size)continue;
+  const neighbors=s.rings.filter(r=>r.life==='active'&&near(source,r));
+  const neighborIds=new Set(neighbors.map(r=>r.id));
   const broken=[];
   for(const rod of s.rods){
    if(rod.broken)continue;
@@ -52,9 +53,15 @@ export function processSpecialRemoval(s,removedIds){
    rod.broken=true;
    broken.push(rod.id);
   }
-  s.events.push({kind:'burst',source:id,brokenRodIds:broken});
+  s.events.push({kind:'burst',source:id,targetIds:[...neighborIds],brokenRodIds:broken});
+  for(const target of neighbors){
+   target.life='removed';
+   queue.push(target.id);
+   hits.push(target.id);
+  }
  }
  s.special.processedRemovals=[...processed];
+ return hits;
 }
 export function validateSpecial(s){
  const errors=[],cfg=s.special;
