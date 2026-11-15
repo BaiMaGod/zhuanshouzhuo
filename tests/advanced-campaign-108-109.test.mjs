@@ -5,13 +5,16 @@ import solutions from '../src/solutions.js';
 import {FORMAL_INDEX} from '../src/levels.js';
 import {readFileSync} from 'node:fs';
 const design=JSON.parse(readFileSync(new URL('../docs/levels-101-200-design.json',import.meta.url)));
-for(const n of [108,109])test('第'+n+'关：配额、完整旋转回放和锁扣清空',()=>{
+for(const n of [108,109,110,111,112,113])test('第'+n+'关：配额、完整旋转回放和锁扣清空',()=>{
  const spec=design.levels.find(s=>s.level===n),index=FORMAL_INDEX+n-1,level=C.levels[index],s=C.make(index);
  assert.equal(level.name,'第'+n+'关');assert.equal(s.rings.length,spec.ringCount);
  const counts=Array(7).fill(0);
  for(const r of s.rings)counts[s.rods.filter(z=>z.owner===r.id).length]++;
  assert.deepEqual(counts,spec.ownedClaspRingCounts);
- assert.equal(s.rods.filter(z=>z.kind==='b').length,spec.backgroundPieceCounts[0]);
+ const bg=Array(5).fill(0);for(const z of s.rods.filter(z=>z.kind==='b'))bg[z.targets.length-2]++;
+ assert.deepEqual(bg,spec.backgroundPieceCounts);
+ assert.equal(!!level.timed,spec.timedChallenge);
+ if(level.timed)assert.equal(level.timed.durationSeconds,5*Math.ceil((3*solutions[index].length+20)/5));
  assert.equal(s.rings.filter(r=>r.burst).length,spec.burstOnly);
  assert.deepEqual(C.validate(s),[]);assert.equal(C.settle(C.clone(s)).length,0);
  for(const step of solutions[index]){
