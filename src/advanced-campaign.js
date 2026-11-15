@@ -1,6 +1,7 @@
 import {campaignLayout} from './campaign-layout.js';
 import {challengeDuration} from './advanced-mechanics.js';
 import {buildLevel107GeometryCandidate} from './level107-geometry-candidate.js';
+import {advanced110113} from './advanced-campaign-110-113.js';
 import {advanced108109} from './advanced-campaign-108-109.js';
 import {earlyBoards,source107,route107} from './advanced-campaign-data.js';
 
@@ -35,5 +36,6 @@ export const advancedCampaign=[
  ...earlyBoards.map(makeEarlyBoard),
  withRoute({...board107,name:'第107关',kind:'formal',revision:1,
   tip:'消除第一枚烈焰玉镯，火焰花瓣命中第二枚后会继续扩散。'},route107),
- ...advanced108109
+ ...advanced108109,
+ ...advanced110113
 ];
