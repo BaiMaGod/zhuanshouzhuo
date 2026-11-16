@@ -48,6 +48,14 @@ function chooseBurstNodes(spec,sources,adj,cells,quotaBy,groups,rng){
    if(extra.length===count-2){chosen=[...pair,...extra];break}
   }
  }
+ if(!chosen.length&&spec.level===119){
+  for(const group of groups.filter(g=>g.length===3)){
+   const eligible=candidates.filter(x=>group.every(t=>!adj[x.i].includes(t)));
+   const picked=[];
+   for(const x of eligible){if(far(x.i,picked))picked.push(x.i);if(picked.length===count)break}
+   if(picked.length===count){chosen=picked;break}
+  }
+ }
  if(!chosen.length){
   for(let attempt=0;attempt<180;attempt++){
    const pool=[...candidates].sort(()=>rng()-.5),picked=[];
