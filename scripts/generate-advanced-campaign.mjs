@@ -8,22 +8,46 @@ const angle=(a,b)=>norm(Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI);
 const ringId=n=>'R'+String(n).padStart(3,'0');
 function seeded(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}}
 function makeBackgroundGroups(n,adj,targetSet,counts,rng){
- const used=new Set(),groups=[],triangles=[];
+ const triangles=[];
  for(let a=0;a<n;a++)if(targetSet.has(a))for(const b of adj[a])if(b>a&&targetSet.has(b))
   for(const c of adj[b])if(c>b&&targetSet.has(c)&&adj[a].includes(c))triangles.push([a,b,c]);
  const shuffle=items=>{const a=[...items];for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
- for(let h=6;h>=2;h--){
-  const count=counts[h-2]||0;
-  if(h>3&&count)throw Error('当前批次尚未开放四至六头背景扣');
-  const options=h===3?shuffle(triangles):shuffle(Array.from({length:n},(_,a)=>a)
-   .flatMap(a=>targetSet.has(a)?adj[a].filter(b=>b>a&&targetSet.has(b)).map(b=>[a,b]):[]));
-  for(let k=0;k<count;k++){
-   const group=options.find(g=>g.every(i=>!used.has(i)));
-   if(!group)return null;
-   group.forEach(i=>used.add(i));groups.push(group);
+ const pairCount=counts[0]||0,tripleCount=counts[1]||0;
+ for(let h=4;h<=6;h++)if(counts[h-2])throw Error('当前批次尚未开放四至六头背景扣');
+ const pairAdj=new Map([...targetSet].map(i=>[i,adj[i].filter(j=>targetSet.has(j))]));
+ const memo=new Map();
+ function matchPairs(vertices,needed){
+  if(needed===0)return[];
+  if(vertices.length<needed*2)return null;
+  const key=vertices.join(',')+'|'+needed;if(memo.has(key))return memo.get(key);
+  let selected=-1,options=null;
+  for(const v of vertices){
+   const neighbors=pairAdj.get(v).filter(w=>vertices.includes(w));
+   if(neighbors.length&&(!options||neighbors.length<options.length)){selected=v;options=neighbors}
   }
+  if(selected<0){memo.set(key,null);return null}
+  const rest=vertices.filter(v=>v!==selected);
+  for(const neighbor of shuffle(options)){
+   const next=matchPairs(rest.filter(v=>v!==neighbor),needed-1);
+   if(next){const answer=[[selected,neighbor],...next];memo.set(key,answer);return answer}
+  }
+  const skipped=matchPairs(rest,needed);
+  memo.set(key,skipped);return skipped;
  }
- return groups;
+ const tripleOptions=shuffle(triangles);
+ function chooseTriples(available,remaining,chosen){
+  if(remaining===0){
+   const pairs=matchPairs(available,pairCount);
+   return pairs?[...chosen,...pairs]:null;
+  }
+  for(const group of tripleOptions){
+   if(!group.every(v=>available.includes(v)))continue;
+   const result=chooseTriples(available.filter(v=>!group.includes(v)),remaining-1,[...chosen,group]);
+   if(result)return result;
+  }
+  return null;
+ }
+ return chooseTriples([...targetSet],tripleCount,[]);
 }
 function chooseBurstNodes(spec,sources,adj,cells,quotaBy,groups,rng){
  const count=spec.burstOnly+spec.both;if(!count)return[];
