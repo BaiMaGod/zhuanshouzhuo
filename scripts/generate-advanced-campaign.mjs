@@ -57,7 +57,7 @@ function chooseBurstNodes(spec,sources,adj,cells,quotaBy,groups,rng){
   }
  }
  if(chosen.length!==count)throw Error('无法放置 '+count+' 枚烈焰玉镯');
- if(spec.level===119&&!groups.some(g=>g.length===3&&g.every(t=>!chosen.some(b=>adj[b].includes(t))))
+ if(spec.level===119&&!groups.some(g=>g.length===3&&g.every(t=>!chosen.some(b=>adj[b].includes(t)))))
   throw Error('第119关必须保留至少一件未被爆裂触及的三头背景扣');
  return chosen;
 }
