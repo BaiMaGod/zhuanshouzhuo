@@ -45,11 +45,12 @@ function assertBackgroundComplete(board,state,z,where){
  assert.equal(board.fixedRods.visible,n>0,where+': batched background layer follows all surviving clasp lifecycles');
  assert.equal(board.fixedRods.numChildren,0,where+': background clasps share one render node, not one Sprite per rod');
  assert.equal(countOps(board.fixedRods,'mesh'),n,where+': one central anchor is drawn for every surviving background clasp');
- assert.equal(countOps(board.fixedRods,'poly'),6*n,where+': both end sleeves of every surviving background clasp remain complete');
+ const heads=rod=>rod.targets.length;
+ assert.equal(countOps(board.fixedRods,'poly'),surviving.reduce((sum,rod)=>sum+3*heads(rod),0),where+': ALL end sleeves of every surviving background clasp remain complete');
  const shaftSegments=rod=>rod.paths?.reduce((sum,path)=>sum+path.length-1,0)??1;
- const lines=surviving.reduce((sum,rod)=>sum+(rod.paths?3*shaftSegments(rod)+4:10),0);
+ const lines=surviving.reduce((sum,rod)=>sum+(rod.paths?3*shaftSegments(rod)+2*heads(rod):10),0);
  assert.equal(countOps(board.fixedRods,'line'),lines,where+': each surviving background clasp keeps its entire shaft');
- if(Core.exists(state,z))assert.equal(Core.rodSegments(state,z).length,shaftSegments(z)+8,where+': collision includes both complete end fittings');
+ if(Core.exists(state,z))assert.equal(Core.rodSegments(state,z).length,shaftSegments(z)+4*heads(z),where+': collision includes every complete end fitting');
 }
 
 test('across ALL levels removing a receiver never cuts another living bracelet clasp in half',()=>{
@@ -82,7 +83,7 @@ test('across ALL levels removing a receiver never cuts another living bracelet c
  game.home();
 });
 
-test('across ALL levels background double-ended clasp is always complete until both endpoint rings disappear',()=>{
+test('across ALL levels background clasp is always complete until ALL endpoint rings disappear',()=>{
  let checked=0;
  for(let index=0;index<Core.levels.length;index++){
   game.load(index,true);
@@ -91,20 +92,23 @@ test('across ALL levels background double-ended clasp is always complete until b
   for(const rod of initial.rods.filter(z=>z.kind==='b')){
    board.draw(initial);
    assertBackgroundComplete(board,initial,rod,'level '+(index+1)+' '+rod.id+' initial');
-   for(const endpointId of rod.targets){
-    const oneRemoved=removeRings(initial,[endpointId]);
-    board.draw(oneRemoved);
-    assertBackgroundComplete(board,oneRemoved,rod,'level '+(index+1)+' '+rod.id+' only '+endpointId+' removed');
-    board.draw(oneRemoved);
-    assertBackgroundComplete(board,oneRemoved,rod,'level '+(index+1)+' '+rod.id+' cached redraw');
+   // Every nonempty proper subset: retain the entire piece, even when just
+   // one of three to six targets survives. Check cache invalidation as well.
+   const limit=1<<rod.targets.length;
+   for(let mask=1;mask<limit;mask++){
+    const ids=rod.targets.filter((_,i)=>mask&(1<<i));
+    const next=removeRings(initial,ids);
+    const where='level '+(index+1)+' '+rod.id+' removed '+ids.join(',');
+    assert.equal(Core.exists(next,next.rods.find(z=>z.id===rod.id)),mask!==limit-1,where+' lifecycle');
+    board.draw(next);
+    assertBackgroundComplete(board,next,rod,where);
+    board.draw(next);
+    assertBackgroundComplete(board,next,rod,where+' cached redraw');
    }
-   const bothRemoved=removeRings(initial,rod.targets);
-   board.draw(bothRemoved);
-   assertBackgroundComplete(board,bothRemoved,rod,'level '+(index+1)+' '+rod.id+' both removed');
    checked++;
   }
  }
- assert.ok(checked>0,'all-level campaign contains background double-ended locks');
+ assert.ok(checked>0,'all-level campaign contains background locks');
  game.home();
 });
 
@@ -123,14 +127,20 @@ test('removing EVERY bracelet in the same settle pass clears ALL lock layers and
  game.home();
 });
 
-test('a burst removes an entire fixed piece even with both receiver bracelets active',()=>{
- game.load(116,true);
+test('a burst removes an entire fixed piece even with receiver bracelets active',()=>{
+ for(const index of [116,120,121,122]){
+ game.load(index,true);
  const {board}=game,state=Core.clone(game.model.state);
  includeWholeBoard(board);
- const rod=state.rods.find(z=>z.kind==='b');
+ const rod=state.rods.find(z=>z.kind==='b'&&(index===116||z.targets.length===3));
+ assert.ok(rod,'expected background piece '+index);
+ board.draw(state);
  assertBackgroundComplete(board,state,rod,'before burst');
  rod.broken=true;Core.update(state);board.draw(state);
  assert.ok(rod.targets.every(id=>active(state,id)));
  assertBackgroundComplete(board,state,rod,'after burst');
+ board.draw(state);
+ assertBackgroundComplete(board,state,rod,'after burst cached redraw');
  game.home();
+ }
 });
