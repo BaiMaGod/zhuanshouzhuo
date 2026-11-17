@@ -239,7 +239,7 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
    return{id:pieceId+'-H'+(k+1),receiverId:ringId(j+1),pointWorld:{x:p.x+40*dx/length,y:p.y+40*dy/length},
     endpointWorldAngle:norm(Math.atan2(dy,dx)*180/Math.PI),endpointWidth:7};
   });
-  return{id:pieceId,heads:group.length,anchorWorld:anchor,endpoints,branchPaths:endpoints.map(e=>[anchor,e.pointWorld])};
+  return{id:pieceId,heads:group.members.length,anchorWorld:anchor,endpoints,branchPaths:endpoints.map(e=>[anchor,e.pointWorld])};
  });
  const incomingAngles=Array.from({length:number},()=>[]);
  for(const [,owner,target] of links){
