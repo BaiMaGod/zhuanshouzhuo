@@ -92,56 +92,75 @@ function makeBackgroundGroups(n,adj,targetSet,counts,cells,rng){
 }
 function chooseBurstNodes(spec,sources,adj,cells,quotaBy,groups,rng){
  const count=spec.burstOnly+spec.both;if(!count)return[];
- const brief=spec.designBrief||'',wantsPair=/一对|首对|短接续/.test(brief);
  const candidates=sources.map(i=>({i,degree:adj[i].length,quota:quotaBy.get(i)}))
   .sort((a,b)=>a.degree-b.degree||a.quota-b.quota||a.i-b.i);
- const groupTargets=new Set(groups.flat()),touchesGroup=i=>adj[i].some(j=>groupTargets.has(j));
  const far=(i,chosen,min=150)=>chosen.every(j=>!adj[i].includes(j)&&distance(cells[i],cells[j])>=min);
  let chosen=[];
  if(spec.level===127&&count===2){
-  const near=candidates.filter(x=>touchesGroup(x.i)),farSide=candidates.filter(x=>!touchesGroup(x.i));
-  for(const a of near){const b=farSide.find(x=>x.i!==a.i&&far(x.i,[a.i]));if(b){chosen=[a.i,b.i];break}}
+  const groupTargets=new Set(groups.flatMap(g=>g.members||g));
+  const near=candidates.filter(x=>adj[x.i].some(j=>groupTargets.has(j))),farSide=candidates.filter(x=>!adj[x.i].some(j=>groupTargets.has(j)));
+  for(const x of near){const y=farSide.find(y=>far(y.i,[x.i]));if(y){chosen=[x.i,y.i];break}}
  }
- if(!chosen.length&&wantsPair&&count>=2){
-  const pairs=[];
-  for(const a of candidates)for(const b of candidates)
-   if(a.i<b.i&&adj[a.i].includes(b.i))pairs.push([a.i,b.i]);
+ if(!chosen.length&&/一对|首对|短接续/.test(spec.designBrief||'')&&count>=2){
+  const pairs=[];for(const x of candidates)for(const y of candidates)if(x.i<y.i&&adj[x.i].includes(y.i))pairs.push([x.i,y.i]);
   pairs.sort((a,b)=>(adj[a[0]].length+adj[a[1]].length)-(adj[b[0]].length+adj[b[1]].length));
-  for(const pair of pairs){
-   const extra=[];
-   for(const c of candidates){if(pair.includes(c.i))continue;if(far(c.i,[...pair,...extra]))extra.push(c.i);if(extra.length===count-2)break}
-   if(extra.length===count-2){chosen=[...pair,...extra];break}
-  }
+  for(const pair of pairs){const extra=[];for(const x of candidates){if(pair.includes(x.i))continue;if(far(x.i,[...pair,...extra]))extra.push(x.i);if(extra.length===count-2)break}if(extra.length===count-2){chosen=[...pair,...extra];break}}
  }
- if(!chosen.length&&spec.level===119){
-  for(const group of groups.filter(g=>g.length===3)){
-   const eligible=candidates.filter(x=>group.every(t=>!adj[x.i].includes(t)));
-   const picked=[];
-   for(const x of eligible){if(far(x.i,picked))picked.push(x.i);if(picked.length===count)break}
-   if(picked.length===count){chosen=picked;break}
-  }
- }
- if(!chosen.length){
-  for(let attempt=0;attempt<180;attempt++){
-   const pool=[...candidates].sort(()=>rng()-.5),picked=[];
-   for(const x of pool){if(far(x.i,picked))picked.push(x.i);if(picked.length===count)break}
-   if(picked.length<count)for(const x of pool)if(!picked.includes(x.i)&&far(x.i,picked,92.01)){picked.push(x.i);if(picked.length===count)break}
-   if(picked.length===count){chosen=picked;break}
-  }
- }
+ if(!chosen.length){for(let attempt=0;attempt<180;attempt++){const pool=[...candidates].sort(()=>rng()-.5),picked=[];for(const x of pool){if(far(x.i,picked))picked.push(x.i);if(picked.length===count)break}if(picked.length===count){chosen=picked;break}}}
  if(chosen.length!==count)throw Error('无法放置 '+count+' 枚烈焰玉镯');
- if(spec.level===119&&!groups.some(g=>g.length===3&&g.every(t=>!chosen.some(b=>adj[b].includes(t)))))
-  throw Error('第119关必须保留至少一件未被爆裂触及的三头背景扣');
  return chosen;
+}
+function buildSpecialPlan(spec,targets,sources,adj,cells,rng){
+ const burstOnlyCount=spec.burstOnly||0,bothCount=spec.both||0,silkOnlyCount=spec.silkOnly||0;
+ const layerPlan=[];for(let layer=1;layer<=3;layer++)for(let k=0;k<(spec.silkLayerCounts?.[layer-1]||0);k++)layerPlan.push(layer);
+ if(layerPlan.length!==silkOnlyCount+bothCount)throw Error('缠丝层数分布与缠丝镯数量不一致：'+spec.level);
+ if(!burstOnlyCount&&!bothCount&&!silkOnlyCount)return{burstOnly:[],both:[],silkOnly:[],silkSources:[],silkEdges:[],layerBy:new Map()};
+ const targetList=[...targets],degree=i=>adj[i].filter(j=>targets.has(j)).length;
+ const far=(i,chosen,min=150)=>chosen.every(j=>!adj[i].includes(j)&&distance(cells[i],cells[j])>=min);
+ for(let attempt=0;attempt<240;attempt++){
+  const bothLayers=layerPlan.slice().sort((a,b)=>b-a).slice(0,bothCount);
+  const silkLayers=layerPlan.slice().sort((a,b)=>b-a).slice(bothCount);
+  const both=[];
+  const bothCandidates=targetList.filter(i=>degree(i)>=Math.max(1,...bothLayers)).sort((a,b)=>degree(b)-degree(a));
+  for(const i of bothCandidates.sort(()=>rng()-.5)){if(far(i,both)&&both.length<bothCount)both.push(i)}
+  if(both.length!==bothCount)continue;
+  const silkOnly=[],silkTargetLayers=new Map(both.map((i,k)=>[i,bothLayers[k]]));
+  for(const layers of silkLayers){
+   const candidates=targetList.filter(i=>!both.includes(i)&&!adj[i].some(j=>both.includes(j))&&
+    adj[i].filter(j=>targets.has(j)&&!both.includes(j)&&!silkOnly.includes(j)).length>=layers)
+    .sort((a,b)=>degree(b)-degree(a));
+   const chosen=candidates.find(i=>!silkOnly.includes(i));
+   if(chosen===undefined)break;
+   silkOnly.push(chosen);silkTargetLayers.set(chosen,layers);
+  }
+  if(silkOnly.length!==silkOnlyCount)continue;
+  const silkTargets=[...both,...silkOnly],silkTargetSet=new Set(silkTargets);
+  const burstOnly=[];
+  const burstCandidates=targetList.filter(i=>!silkTargetSet.has(i)&&silkTargets.every(t=>!adj[i].includes(t)))
+   .sort((a,b)=>degree(a)-degree(b));
+  for(const i of burstCandidates.sort(()=>rng()-.5)){if(far(i,burstOnly)&&far(i,both)&&burstOnly.length<burstOnlyCount)burstOnly.push(i)}
+  if(burstOnly.length!==burstOnlyCount)continue;
+  const specialSet=new Set([...both,...silkOnly,...burstOnly]);
+  const silkSources=targetList.filter(i=>!specialSet.has(i));
+  const sourceUse=new Map(silkSources.map(i=>[i,0])),silkEdges=[];
+  const targetsByDifficulty=silkTargets.map(target=>({target,layers:silkTargetLayers.get(target),
+   candidates:adj[target].filter(i=>silkSources.includes(i))})).sort((a,b)=>a.candidates.length-b.candidates.length);
+  let failed=false;
+  for(const item of targetsByDifficulty){
+   if(item.candidates.length<item.layers){failed=true;break}
+   const chosen=[...item.candidates].sort((a,b)=>sourceUse.get(a)-sourceUse.get(b)||degree(b)-degree(a)).slice(0,item.layers);
+   if(chosen.length!==item.layers){failed=true;break}
+   for(const source of chosen){sourceUse.set(source,sourceUse.get(source)+1);silkEdges.push({sourceId:ringId(source+1),targetId:ringId(item.target+1)})}
+  }
+  if(failed)continue;
+  return{burstOnly,both,silkOnly,silkSources,silkEdges,layerBy:silkTargetLayers};
+ }
+ throw Error('无法在第'+spec.level+'关布置无循环的缠丝来源/爆裂区域');
 }
 function buildOwnerOrder(sources,bursts,spec){
  const normal=sources.filter(i=>!bursts.includes(i)),brief=spec.designBrief||'';
  if(!bursts.length)return normal;
- if(/一对|首对|短接续/.test(brief)&&bursts.length>=2)
-  return [...bursts.slice(0,2),...normal,...bursts.slice(2)];
- if(spec.level===117)return [...normal.slice(0,Math.ceil(normal.length*.25)),bursts[0],...normal.slice(Math.ceil(normal.length*.25)),bursts[1]];
- if(spec.level===123)return [...normal.slice(0,Math.ceil(normal.length*.15)),bursts[0],...normal.slice(Math.ceil(normal.length*.15)),bursts[1]];
- if(spec.level===115||spec.level===125)return [...normal,...bursts];
+ if(/一对|首对|短接续/.test(brief)&&bursts.length>=2)return [...bursts.slice(0,2),...normal,...bursts.slice(2)];
  const order=[];let cursor=0;
  bursts.forEach((b,i)=>{const at=Math.floor((i+1)*normal.length/(bursts.length+1));order.push(...normal.slice(cursor,at),b);cursor=at});
  order.push(...normal.slice(cursor));return order;
