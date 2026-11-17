@@ -126,7 +126,7 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
   function addSilkTarget(layers,isBoth){
    const candidates=sourceList.filter(i=>!silkTargets.includes(i)&&!forbiddenTarget.has(i));
    const feasible=candidates.map(target=>{
-    const options=adj[target].filter(t=>targets.has(t)&&!silkSources.includes(t)&&
+    const options=adj[target].filter(t=>targets.has(t)&&
      (ownersByTarget.get(t)||[]).length>0&&
      (ownersByTarget.get(t)||[]).every(owner=>!silkTargets.includes(owner)));
     return {target,options};
