@@ -7,47 +7,88 @@ const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const angle=(a,b)=>norm(Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI);
 const ringId=n=>'R'+String(n).padStart(3,'0');
 function seeded(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}}
-function makeBackgroundGroups(n,adj,targetSet,counts,rng){
- const triangles=[];
- for(let a=0;a<n;a++)if(targetSet.has(a))for(const b of adj[a])if(b>a&&targetSet.has(b))
-  for(const c of adj[b])if(c>b&&targetSet.has(c)&&adj[a].includes(c))triangles.push([a,b,c]);
+function makeBackgroundGroups(n,adj,targetSet,counts,cells,rng){
  const shuffle=items=>{const a=[...items];for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
- const pairCount=counts[0]||0,tripleCount=counts[1]||0;
- for(let h=4;h<=6;h++)if(counts[h-2])throw Error('当前批次尚未开放四至六头背景扣');
- const pairAdj=new Map([...targetSet].map(i=>[i,adj[i].filter(j=>targetSet.has(j))]));
- const memo=new Map();
- function matchPairs(vertices,needed){
-  if(needed===0)return[];
-  if(vertices.length<needed*2)return null;
-  const key=vertices.join(',')+'|'+needed;if(memo.has(key))return memo.get(key);
-  let selected=-1,options=null;
-  for(const v of vertices){
-   const neighbors=pairAdj.get(v).filter(w=>vertices.includes(w));
-   if(neighbors.length&&(!options||neighbors.length<options.length)){selected=v;options=neighbors}
+ const groupsBySize=new Map([2,3,4,5,6].map(h=>[h,[]]));
+ const add=(members,anchor,key)=>{
+  const sorted=[...members].sort((a,b)=>a-b),membersSet=new Set(sorted);
+  if(sorted.length<2||new Set(sorted).size!==sorted.length)return;
+  for(const i of sorted)if(!targetSet.has(i))return;
+  // Every branch must approach its own receiver without crossing another jade ring.
+  for(const i of sorted){
+   const p=cells[i],dx=anchor.x-p.x,dy=anchor.y-p.y,d=Math.hypot(dx,dy);
+   if(d<40.1)return;
+   const end={x:p.x+40*dx/d,y:p.y+40*dy/d},vx=end.x-anchor.x,vy=end.y-anchor.y,den=vx*vx+vy*vy;
+   for(let j=0;j<n;j++)if(j!==i){
+    const q=cells[j],t=Math.max(0,Math.min(1,((q.x-anchor.x)*vx+(q.y-anchor.y)*vy)/den));
+    if(Math.hypot(q.x-anchor.x-t*vx,q.y-anchor.y-t*vy)<45.8)return;
+   }
   }
-  if(selected<0){memo.set(key,null);return null}
-  const rest=vertices.filter(v=>v!==selected);
-  for(const neighbor of shuffle(options)){
-   const next=matchPairs(rest.filter(v=>v!==neighbor),needed-1);
-   if(next){const answer=[[selected,neighbor],...next];memo.set(key,answer);return answer}
+  groupsBySize.get(sorted.length).push({members:sorted,anchor,key});
+ };
+ // Two- and three-head clasps use compact local junctions.
+ for(let a=0;a<n;a++)if(targetSet.has(a))for(const b of adj[a])if(b>a&&targetSet.has(b)){
+  const anchor={x:(cells[a].x+cells[b].x)/2,y:(cells[a].y+cells[b].y)/2};
+  add([a,b],anchor,'local:'+a+':'+b);
+  for(const c of adj[b])if(c>b&&targetSet.has(c)&&adj[a].includes(c)){
+   const tri=[a,b,c],center={x:tri.reduce((v,i)=>v+cells[i].x,0)/3,y:tri.reduce((v,i)=>v+cells[i].y,0)/3};
+   add(tri,center,'local:'+tri.join(':'));
   }
-  const skipped=matchPairs(rest,needed);
-  memo.set(key,skipped);return skipped;
  }
- const tripleOptions=shuffle(triangles);
- function chooseTriples(available,remaining,chosen){
-  if(remaining===0){
-   const pairs=matchPairs(available,pairCount);
-   return pairs?[...chosen,...pairs]:null;
+ // Four-to-six head clasps are placed outside the packed board perimeter.
+ // Their independent branches enter from unobstructed outer approaches.
+ const minX=Math.min(...cells.map(p=>p.x)),maxX=Math.max(...cells.map(p=>p.x));
+ const minY=Math.min(...cells.map(p=>p.y)),maxY=Math.max(...cells.map(p=>p.y));
+ const anchors=[],step=30;
+ for(const offset of [62,78,96,118]){
+  for(let y=minY-120;y<=maxY+120;y+=step){
+   anchors.push({x:minX-offset,y},{x:maxX+offset,y});
   }
-  for(const group of tripleOptions){
-   if(!group.every(v=>available.includes(v)))continue;
-   const result=chooseTriples(available.filter(v=>!group.includes(v)),remaining-1,[...chosen,group]);
-   if(result)return result;
+  for(let x=minX-120;x<=maxX+120;x+=step){
+   anchors.push({x,y:minY-offset},{x,y:maxY+offset});
   }
-  return null;
  }
- return chooseTriples([...targetSet],tripleCount,[]);
+ const seenAnchors=new Set;
+ for(const anchor of anchors){
+  const key='outer:'+Math.round(anchor.x)+':'+Math.round(anchor.y);
+  if(seenAnchors.has(key))continue;seenAnchors.add(key);
+  if(cells.some(p=>distance(p,anchor)<46.2))continue;
+  const visible=[...targetSet].filter(i=>{
+   const p=cells[i],dx=anchor.x-p.x,dy=anchor.y-p.y,d=Math.hypot(dx,dy);
+   if(d<40.1)return false;
+   const end={x:p.x+40*dx/d,y:p.y+40*dy/d},vx=end.x-anchor.x,vy=end.y-anchor.y,den=vx*vx+vy*vy;
+   for(let j=0;j<n;j++)if(j!==i){
+    const q=cells[j],t=Math.max(0,Math.min(1,((q.x-anchor.x)*vx+(q.y-anchor.y)*vy)/den));
+    if(Math.hypot(q.x-anchor.x-t*vx,q.y-anchor.y-t*vy)<46.2)return false;
+   }
+   return true;
+  }).sort((a,b)=>Math.atan2(cells[a].y-anchor.y,cells[a].x-anchor.x)-Math.atan2(cells[b].y-anchor.y,cells[b].x-anchor.x));
+  for(let h=4;h<=6;h++)if(visible.length>=h){
+   for(let start=0;start<=visible.length-h;start++)add(visible.slice(start,start+h),anchor,key);
+  }
+ }
+ const sizes=[6,5,4,3,2],required=counts||[];
+ for(let h=2;h<=6;h++)if(required[h-2]&&!groupsBySize.get(h).length)return null;
+ for(const h of sizes)groupsBySize.set(h,shuffle(groupsBySize.get(h)));
+ function search(sizeIndex,available,chosen,usedAnchors){
+  if(sizeIndex>=sizes.length)return chosen;
+  const h=sizes[sizeIndex],need=required[h-2]||0;
+  if(!need)return search(sizeIndex+1,available,chosen,usedAnchors);
+  const candidates=groupsBySize.get(h).filter(g=>!usedAnchors.has(g.key)&&g.members.every(i=>available.has(i))).slice(0,900);
+  function pick(start,left,free,selected,anchorKeys){
+   if(left===0)return search(sizeIndex+1,free,[...chosen,...selected],anchorKeys);
+   for(let i=start;i<candidates.length;i++){
+    const g=candidates[i];if(g.members.some(x=>!free.has(x)))continue;
+    const nextFree=new Set(free);g.members.forEach(x=>nextFree.delete(x));
+    const nextAnchors=new Set(anchorKeys);nextAnchors.add(g.key);
+    const result=pick(i+1,left-1,nextFree,[...selected,g],nextAnchors);
+    if(result)return result;
+   }
+   return null;
+  }
+  return pick(0,need,available,[],usedAnchors);
+ }
+ return search(0,new Set(targetSet),[],new Set());
 }
 function chooseBurstNodes(spec,sources,adj,cells,quotaBy,groups,rng){
  const count=spec.burstOnly+spec.both;if(!count)return[];
