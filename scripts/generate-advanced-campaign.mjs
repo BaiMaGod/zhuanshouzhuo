@@ -130,7 +130,7 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
     const options=adj[target].filter(source=>targets.has(source)&&source!==target&&
      !silkTargets.includes(source)&&!silkSources.includes(source)&&
      (ownersByTarget.get(source)||[]).length>0&&
-     (ownersByTarget.get(source)||[]).every(owner=>owner!==target&&!silkTargets.includes(owner)&&!silkTargets.some(silkTarget=>ownerTargets.get(owner).includes(silkTarget))));
+     (ownersByTarget.get(source)||[]).every(owner=>owner!==target&&!ownerTargets.get(owner).includes(target)&&!silkTargets.includes(owner)&&!silkTargets.some(silkTarget=>ownerTargets.get(owner).includes(silkTarget))));
     return{target,options};
    }).filter(x=>x.options.length>=layers)
     .sort((x,y)=>y.options.length-x.options.length);
