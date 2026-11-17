@@ -122,9 +122,9 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
  const layerSilk=layerPlan.slice().sort((a,b)=>b-a).slice(bothCount);
  for(let attempt=0;attempt<320;attempt++){
   const silkTargets=[],both=[],silkOnly=[],layerBy=new Map(),silkSources=[],silkEdges=[],sourceUse=new Map();
-  const forbiddenTarget=new Set();
+  const forbiddenTarget=new Set(),earlyOwnerSet=new Set();
   function addSilkTarget(layers,isBoth){
-   const candidates=sourceList.filter(i=>!silkTargets.includes(i)&&!forbiddenTarget.has(i));
+   const candidates=sourceList.filter(i=>!silkTargets.includes(i)&&!forbiddenTarget.has(i)&&!earlyOwnerSet.has(i));
    const feasible=candidates.map(target=>{
     const options=adj[target].filter(t=>targets.has(t)&&
      (ownersByTarget.get(t)||[]).length>0&&
@@ -144,7 +144,7 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
    for(const source of selected){
     if(!silkSources.includes(source))silkSources.push(source);
     sourceUse.set(source,(sourceUse.get(source)||0)+1);
-    silkEdges.push({sourceId:ringId(source+1),targetId:ringId(chosen.target+1)});
+    silkEdges.push({sourceId:ringId(source+1),targetId:ringId(chosen.target+1)});\n    for(const owner of ownersByTarget.get(source)||[])earlyOwnerSet.add(owner);
    }
    if(isBoth)for(const neighbor of adj[chosen.target])forbiddenTarget.add(neighbor);
    return true;
@@ -154,9 +154,9 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
   if(failed)continue;
   for(const layers of layerSilk)if(!addSilkTarget(layers,false)){failed=true;break}
   if(failed)continue;
-  const earlyOwners=[...new Set(silkSources.flatMap(i=>ownersByTarget.get(i)||[]))];
+  const earlyOwners=[...earlyOwnerSet];
   const burstOnly=[];
-  const burstCandidates=sourceList.filter(i=>!silkTargets.includes(i)&&!earlyOwners.includes(i)&&silkTargets.every(t=>!adj[i].includes(t)));
+  const burstCandidates=sourceList.filter(i=>!silkTargets.includes(i)&&!earlyOwnerSet.has(i)&&silkTargets.every(t=>!adj[i].includes(t)));
   for(const i of burstCandidates.sort(()=>rng()-.5)){
    if(burstOnly.every(j=>!adj[i].includes(j)))burstOnly.push(i);
    if(burstOnly.length===burstOnlyCount)break;
