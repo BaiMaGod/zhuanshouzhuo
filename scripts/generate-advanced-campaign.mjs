@@ -110,7 +110,7 @@ function chooseBurstNodes(spec,sources,adj,cells,quotaBy,groups,rng){
  if(chosen.length!==count)throw Error('无法放置 '+count+' 枚烈焰玉镯');
  return chosen;
 }
-function buildSpecialPlan(spec,targets,sources,adj,cells,rng){
+function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
  const burstOnlyCount=spec.burstOnly||0,bothCount=spec.both||0,silkOnlyCount=spec.silkOnly||0;
  const layerPlan=[];for(let layer=1;layer<=3;layer++)for(let k=0;k<(spec.silkLayerCounts?.[layer-1]||0);k++)layerPlan.push(layer);
  if(layerPlan.length!==silkOnlyCount+bothCount)throw Error('缠丝层数分布与缠丝镯数量不一致：'+spec.level);
@@ -141,19 +141,26 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,rng){
   for(const i of burstCandidates.sort(()=>rng()-.5)){if(far(i,burstOnly)&&far(i,both)&&burstOnly.length<burstOnlyCount)burstOnly.push(i)}
   if(burstOnly.length!==burstOnlyCount)continue;
   const specialSet=new Set([...both,...silkOnly,...burstOnly]);
-  const silkSources=targetList.filter(i=>!specialSet.has(i));
-  const sourceUse=new Map(silkSources.map(i=>[i,0])),silkEdges=[];
+  const plainTargets=targetList.filter(i=>!specialSet.has(i));
+  const ownersByTarget=new Map(plainTargets.map(i=>[i,sources.filter(owner=>ownerTargets.get(owner).includes(i))]));
+  const eligibleSource=(i)=>{const owners=ownersByTarget.get(i)||[];return owners.length>0&&owners.every(owner=>ownerTargets.get(owner).every(t=>!silkTargetSet.has(t)))};
+  const silkSources=[],sourceUse=new Map(),silkEdges=[];
   const targetsByDifficulty=silkTargets.map(target=>({target,layers:silkTargetLayers.get(target),
-   candidates:adj[target].filter(i=>silkSources.includes(i))})).sort((a,b)=>a.candidates.length-b.candidates.length);
+   candidates:adj[target].filter(i=>plainTargets.includes(i)&&eligibleSource(i))})).sort((a,b)=>a.candidates.length-b.candidates.length);
   let failed=false;
   for(const item of targetsByDifficulty){
    if(item.candidates.length<item.layers){failed=true;break}
-   const chosen=[...item.candidates].sort((a,b)=>sourceUse.get(a)-sourceUse.get(b)||degree(b)-degree(a)).slice(0,item.layers);
+   const chosen=[...item.candidates].sort((a,b)=>(sourceUse.get(a)||0)-(sourceUse.get(b)||0)||degree(b)-degree(a)).slice(0,item.layers);
    if(chosen.length!==item.layers){failed=true;break}
-   for(const source of chosen){sourceUse.set(source,sourceUse.get(source)+1);silkEdges.push({sourceId:ringId(source+1),targetId:ringId(item.target+1)})}
+   for(const source of chosen){
+    if(!sourceUse.has(source))silkSources.push(source);
+    sourceUse.set(source,(sourceUse.get(source)||0)+1);
+    silkEdges.push({sourceId:ringId(source+1),targetId:ringId(item.target+1)});
+   }
   }
   if(failed)continue;
-  return{burstOnly,both,silkOnly,silkSources,silkEdges,layerBy:silkTargetLayers};
+  const earlyOwners=[...new Set(silkSources.flatMap(i=>ownersByTarget.get(i)||[]))];
+  return{burstOnly,both,silkOnly,silkSources,earlyOwners,silkEdges,layerBy:silkTargetLayers};
  }
  throw Error('无法在第'+spec.level+'关布置无循环的缠丝来源/爆裂区域');
 }
@@ -229,7 +236,7 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
  const groups=bestGroups;
  const specialPlan=number<131
   ?{burstOnly:chooseBurstNodes(spec,sources,adj,cells,quotaBy,groups,rng),both:[],silkOnly:[],silkSources:[],silkEdges:[],layerBy:new Map()}
-  :buildSpecialPlan(spec,best,sources,adj,cells,rng);
+  :buildSpecialPlan(spec,best,sources,adj,cells,ownerTargets,rng);
  const bursts=[...specialPlan.burstOnly,...specialPlan.both];
  const backgroundPieces=groups.map((group,i)=>{
   const pieceId='F'+String(i+1).padStart(3,'0'),members=group.members.map(j=>cells[j]);
@@ -281,10 +288,17 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
  }
  if(number>=131&&specialPlan.silkSources.length){
   const silkSourceIds=new Set(specialPlan.silkSources.map(i=>ringId(i+1)));
-  // Remove the plain source bracelets first. This releases silk before we
-  // attempt to rotate any clasp endpoint on a silk-locked target.
-  for(const rod of [...state.rods].filter(z=>z.kind==='m'&&silkSourceIds.has(z.targets[0]))){
-   if(Core.exists(state,rod))rotateTo(rod.targets[0],rod.id);
+  // Process every owner of the selected plain silk-source rings completely.
+  // Their other clasp targets are guaranteed not to be silk-locked, preventing
+  // a circular dependency where a source cannot be removed until its own target unlocks.
+  for(const owner of specialPlan.earlyOwners){
+   const ownerId=ringId(owner+1);if(Core.ring(state,ownerId)?.life!=='active')continue;
+   const rods=state.rods.filter(z=>z.kind==='m'&&z.owner===ownerId).map(z=>z.id);
+   for(const rodId of rods){
+    if(Core.ring(state,ownerId)?.life!=='active')break;
+    const rod=state.rods.find(z=>z.id===rodId);if(rod&&Core.exists(state,rod))rotateTo(rod.targets[0],rodId);
+   }
+   Core.settle(state);
   }
   for(const piece of backgroundPieces)for(const e of piece.endpoints)
    if(silkSourceIds.has(e.receiverId)&&Core.ring(state,e.receiverId)?.life==='active')rotateTo(e.receiverId,piece.id);
