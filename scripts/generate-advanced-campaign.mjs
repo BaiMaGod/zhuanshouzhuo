@@ -154,15 +154,15 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
   if(failed)continue;
   for(const layers of layerSilk)if(!addSilkTarget(layers,false)){failed=true;break}
   if(failed)continue;
+  const earlyOwners=[...new Set(silkSources.flatMap(i=>ownersByTarget.get(i)||[]))];
   const burstOnly=[];
-  const burstCandidates=sourceList.filter(i=>!silkTargets.includes(i)&&silkTargets.every(t=>!adj[i].includes(t)));
+  const burstCandidates=sourceList.filter(i=>!silkTargets.includes(i)&&!earlyOwners.includes(i)&&silkTargets.every(t=>!adj[i].includes(t)));
   for(const i of burstCandidates.sort(()=>rng()-.5)){
    if(burstOnly.every(j=>!adj[i].includes(j)))burstOnly.push(i);
    if(burstOnly.length===burstOnlyCount)break;
   }
   if(burstOnly.length!==burstOnlyCount)continue;
   const specialSources=new Set([...silkTargets,...burstOnly]);
-  const earlyOwners=[...new Set(silkSources.flatMap(i=>ownersByTarget.get(i)||[]))];
   if(earlyOwners.some(i=>specialSources.has(i)))continue;
   return {burstOnly,both,silkOnly,silkSources,earlyOwners,silkEdges,layerBy};
  }
