@@ -128,7 +128,7 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
    const feasible=candidates.map(target=>{
     const options=adj[target].filter(t=>targets.has(t)&&
      (ownersByTarget.get(t)||[]).length>0&&
-     (ownersByTarget.get(t)||[]).every(owner=>!silkTargets.includes(owner)));
+     (ownersByTarget.get(t)||[]).every(owner=>owner!==target&&!silkTargets.includes(owner)));
     return {target,options};
    }).filter(x=>x.options.length>=layers).sort((x,y)=>y.options.length-x.options.length);
    if(!feasible.length)return false;
