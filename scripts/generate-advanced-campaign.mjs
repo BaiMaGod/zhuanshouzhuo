@@ -144,7 +144,8 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
    for(const source of selected){
     if(!silkSources.includes(source))silkSources.push(source);
     sourceUse.set(source,(sourceUse.get(source)||0)+1);
-    silkEdges.push({sourceId:ringId(source+1),targetId:ringId(chosen.target+1)});\n    for(const owner of ownersByTarget.get(source)||[])earlyOwnerSet.add(owner);
+    silkEdges.push({sourceId:ringId(source+1),targetId:ringId(chosen.target+1)});
+    for(const owner of ownersByTarget.get(source)||[])earlyOwnerSet.add(owner);
    }
    if(isBoth)for(const neighbor of adj[chosen.target])forbiddenTarget.add(neighbor);
    return true;
