@@ -162,7 +162,7 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
   const earlyOwners=[...new Set(silkSources.flatMap(i=>ownersByTarget.get(i)||[]))];
   const burstOnly=[];
   const burstCandidates=sourceList.filter(i=>!earlyOwners.includes(i)&&silkTargets.every(t=>!adj[i].includes(t)));
-  for(const i of burstCandidates.sort(()=>rng()-.5)){
+  if(burstOnlyCount>0)for(const i of burstCandidates.sort(()=>rng()-.5)){
    if(burstOnly.every(j=>!adj[i].includes(j)))burstOnly.push(i);
    if(burstOnly.length===burstOnlyCount)break;
   }
