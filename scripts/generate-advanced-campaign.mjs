@@ -112,62 +112,59 @@ function chooseBurstNodes(spec,sources,adj,cells,quotaBy,groups,rng){
 }
 function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
  const burstOnlyCount=spec.burstOnly||0,bothCount=spec.both||0,silkOnlyCount=spec.silkOnly||0;
- const layerPlan=[];for(let layer=1;layer<=3;layer++)for(let k=0;k<(spec.silkLayerCounts?.[layer-1]||0);k++)layerPlan.push(layer);
+ const layerPlan=[];
+ for(let layer=1;layer<=3;layer++)for(let k=0;k<(spec.silkLayerCounts?.[layer-1]||0);k++)layerPlan.push(layer);
  if(layerPlan.length!==silkOnlyCount+bothCount)throw Error('缠丝层数分布与缠丝镯数量不一致：'+spec.level);
  if(!burstOnlyCount&&!bothCount&&!silkOnlyCount)return{burstOnly:[],both:[],silkOnly:[],silkSources:[],earlyOwners:[],silkEdges:[],layerBy:new Map()};
- const targetList=[...targets],degree=i=>adj[i].filter(j=>targets.has(j)).length;
+ const sourceList=[...sources],targetList=[...targets];
  const ownersByTarget=new Map(targetList.map(i=>[i,sources.filter(owner=>ownerTargets.get(owner).includes(i))]));
- const blockersBySource=new Map(targetList.map(i=>[i,new Set((ownersByTarget.get(i)||[]).flatMap(owner=>ownerTargets.get(owner)))]));
  const layerBoth=layerPlan.slice().sort((a,b)=>b-a).slice(0,bothCount);
  const layerSilk=layerPlan.slice().sort((a,b)=>b-a).slice(bothCount);
  for(let attempt=0;attempt<320;attempt++){
-  const chosenTargets=[],silkSources=[],silkEdges=[],layerBy=new Map(),sourceUse=new Map();
-  const blockedFuture=new Set(),forbiddenTarget=new Set();
-  function addTarget(layers,isBoth){
-   const candidates=targetList.filter(t=>!chosenTargets.includes(t)&&!silkSources.includes(t)&&
-    !blockedFuture.has(t)&&!forbiddenTarget.has(t));
+  const silkTargets=[],both=[],silkOnly=[],layerBy=new Map(),silkSources=[],silkEdges=[],sourceUse=new Map();
+  const forbiddenTarget=new Set();
+  function addSilkTarget(layers,isBoth){
+   const candidates=sourceList.filter(i=>!silkTargets.includes(i)&&!forbiddenTarget.has(i));
    const feasible=candidates.map(target=>{
-    const sourceOptions=adj[target].filter(source=>targets.has(source)&&source!==target&&
-     !chosenTargets.includes(source)&&!silkSources.includes(source)&&
-     ![...(blockersBySource.get(source)||[])].some(blocked=>chosenTargets.includes(blocked)||blocked===target));
-    return{target,sourceOptions};
-   }).filter(x=>x.sourceOptions.length>=layers)
-    .sort((a,b)=>b.sourceOptions.length-a.sourceOptions.length||degree(b.target)-degree(a.target));
+    const options=adj[target].filter(t=>targets.has(t)&&!silkSources.includes(t)&&
+     (ownersByTarget.get(t)||[]).length>0&&
+     (ownersByTarget.get(t)||[]).every(owner=>!silkTargets.includes(owner)));
+    return {target,options};
+   }).filter(x=>x.options.length>=layers).sort((x,y)=>y.options.length-x.options.length);
    if(!feasible.length)return false;
-   const ranked=feasible.sort(()=>rng()-.5);
-   const chosen=ranked[0],target=chosen.target;
-   const sourceOptions=chosen.sourceOptions.sort((a,b)=>
-    [...(blockersBySource.get(a)||[])].length-[...(blockersBySource.get(b)||[])].length||
-    (sourceUse.get(a)||0)-(sourceUse.get(b)||0)||degree(b)-degree(a));
-   const selected=sourceOptions.slice(0,layers);
+   const chosen=feasible[Math.floor(rng()*Math.min(5,feasible.length))];
+   const selected=chosen.options.sort((x,y)=>
+    (sourceUse.get(x)||0)-(sourceUse.get(y)||0)||
+    adj[y].filter(j=>targets.has(j)).length-adj[x].filter(j=>targets.has(j)).length
+   ).slice(0,layers);
    if(selected.length!==layers)return false;
-   chosenTargets.push(target);layerBy.set(target,layers);
-   if(isBoth)for(const neighbor of adj[target])forbiddenTarget.add(neighbor);
+   silkTargets.push(chosen.target);
+   if(isBoth)both.push(chosen.target);else silkOnly.push(chosen.target);
+   layerBy.set(chosen.target,layers);
    for(const source of selected){
     if(!silkSources.includes(source))silkSources.push(source);
     sourceUse.set(source,(sourceUse.get(source)||0)+1);
-    silkEdges.push({sourceId:ringId(source+1),targetId:ringId(target+1)});
-    for(const blocked of blockersBySource.get(source)||[])blockedFuture.add(blocked);
+    silkEdges.push({sourceId:ringId(source+1),targetId:ringId(chosen.target+1)});
    }
+   if(isBoth)for(const neighbor of adj[chosen.target])forbiddenTarget.add(neighbor);
    return true;
   }
   let failed=false;
-  for(const layers of layerBoth)if(!addTarget(layers,true)){failed=true;break}
+  for(const layers of layerBoth)if(!addSilkTarget(layers,true)){failed=true;break}
   if(failed)continue;
-  const both=[...chosenTargets];
-  for(const layers of layerSilk)if(!addTarget(layers,false)){failed=true;break}
+  for(const layers of layerSilk)if(!addSilkTarget(layers,false)){failed=true;break}
   if(failed)continue;
-  const silkOnly=chosenTargets.filter(i=>!both.includes(i)),silkTargetSet=new Set(chosenTargets);
   const burstOnly=[];
-  const burstCandidates=targetList.filter(i=>!silkTargetSet.has(i)&&!silkSources.includes(i)&&
-   chosenTargets.every(t=>!adj[i].includes(t)));
+  const burstCandidates=sourceList.filter(i=>!silkTargets.includes(i)&&silkTargets.every(t=>!adj[i].includes(t)));
   for(const i of burstCandidates.sort(()=>rng()-.5)){
-   if(burstOnly.every(j=>!adj[i].includes(j)&&degree(i)>=0))burstOnly.push(i);
+   if(burstOnly.every(j=>!adj[i].includes(j)))burstOnly.push(i);
    if(burstOnly.length===burstOnlyCount)break;
   }
   if(burstOnly.length!==burstOnlyCount)continue;
+  const specialSources=new Set([...silkTargets,...burstOnly]);
   const earlyOwners=[...new Set(silkSources.flatMap(i=>ownersByTarget.get(i)||[]))];
-  return{burstOnly,both,silkOnly,silkSources,earlyOwners,silkEdges,layerBy};
+  if(earlyOwners.some(i=>specialSources.has(i)))continue;
+  return {burstOnly,both,silkOnly,silkSources,earlyOwners,silkEdges,layerBy};
  }
  throw Error('无法在第'+spec.level+'关布置无循环的缠丝来源/爆裂区域');
 }
@@ -295,9 +292,6 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
  }
  if(number>=131&&specialPlan.silkSources.length){
   const silkSourceIds=new Set(specialPlan.silkSources.map(i=>ringId(i+1)));
-  // Process every owner of the selected plain silk-source rings completely.
-  // Their other clasp targets are guaranteed not to be silk-locked, preventing
-  // a circular dependency where a source cannot be removed until its own target unlocks.
   for(const owner of specialPlan.earlyOwners){
    const ownerId=ringId(owner+1);if(Core.ring(state,ownerId)?.life!=='active')continue;
    const rods=state.rods.filter(z=>z.kind==='m'&&z.owner===ownerId).map(z=>z.id);
