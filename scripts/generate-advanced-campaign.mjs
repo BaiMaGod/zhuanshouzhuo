@@ -180,11 +180,11 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
   let penalty=0;
   for(let i=0;i<degrees.length;i++)if(degrees[i]<(quota[i]||0))penalty+=(quota[i]-degrees[i])**2*1000;
   penalty+=[...set].filter(i=>adj[i].every(j=>set.has(j))).length*10000;
-  if(!makeBackgroundGroups(number,adj,set,spec.backgroundPieceCounts,()=>.5))penalty+=50000;
+  penalty+=[...set].filter(i=>!adj[i].some(j=>!set.has(j))).length*10000;
   return penalty;
  };
- let best=null,bestScore=Infinity;
- for(let attempt=0;attempt<100;attempt++){
+ let best=null,bestScore=Infinity,bestGroups=null;
+ for(let attempt=0;attempt<60;attempt++){
   const set=new Set();while(set.size<m0)set.add(Math.floor(rng()*number));
   let current=score(set);
   for(let it=0;it<1800;it++){
@@ -195,11 +195,16 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
    if(next<=current||rng()<Math.exp((current-next)/temperature))current=next;
    else{set.delete(b);set.add(a)}
    if(current<bestScore){bestScore=current;best=new Set(set)}
-   if(current===0)break;
+   if(current===0){
+    const packed=makeBackgroundGroups(number,adj,set,spec.backgroundPieceCounts,cells,rng);
+    if(packed){best=new Set(set);bestGroups=packed;break}
+   }
   }
-  if(bestScore===0)break;
+  if(bestGroups)break;
  }
  if(bestScore!==0||!best)throw Error('无法满足自带扣配额的相邻几何分区：'+bestScore);
+ if(!bestGroups)bestGroups=makeBackgroundGroups(number,adj,best,spec.backgroundPieceCounts,cells,rng);
+ if(!bestGroups)throw Error('无法满足背景扣的端点数量与几何排布：'+number);
  const targets=[...best],sources=cells.map((_,i)=>i).filter(i=>!best.has(i));
  const ranked=sources.map(i=>({i,degree:adj[i].filter(j=>best.has(j)).length})).sort((a,b)=>b.degree-a.degree||a.i-b.i);
  const quotaBy=new Map(ranked.map((x,i)=>[x.i,quota[i]]));
@@ -221,13 +226,15 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
  }
  const points=cells.map((p,i)=>[ringId(i+1),p.x,p.y,0]),links=[];
  for(const owner of sources)for(const target of ownerTargets.get(owner))links.push(['m',ringId(owner+1),ringId(target+1)]);
- const groups=makeBackgroundGroups(number,adj,best,spec.backgroundPieceCounts,rng);
- if(!groups)throw Error('背景扣组无法满足配额');
- const bursts=chooseBurstNodes(spec,sources,adj,cells,quotaBy,groups,rng);
+ const groups=bestGroups;
+ const specialPlan=number<131
+  ?{burstOnly:chooseBurstNodes(spec,sources,adj,cells,quotaBy,groups,rng),both:[],silkOnly:[],silkSources:[],silkEdges:[],layerBy:new Map()}
+  :buildSpecialPlan(spec,best,sources,adj,cells,rng);
+ const bursts=[...specialPlan.burstOnly,...specialPlan.both];
  const backgroundPieces=groups.map((group,i)=>{
-  const pieceId='F'+String(i+1).padStart(3,'0'),members=group.map(j=>cells[j]);
-  const anchor={x:members.reduce((s,p)=>s+p.x,0)/members.length,y:members.reduce((s,p)=>s+p.y,0)/members.length};
-  const endpoints=group.map((j,k)=>{
+  const pieceId='F'+String(i+1).padStart(3,'0'),members=group.members.map(j=>cells[j]);
+  const anchor=group.anchor;
+  const endpoints=group.members.map((j,k)=>{
    const p=cells[j],dx=anchor.x-p.x,dy=anchor.y-p.y,length=Math.hypot(dx,dy);
    return{id:pieceId+'-H'+(k+1),receiverId:ringId(j+1),pointWorld:{x:p.x+40*dx/length,y:p.y+40*dy/length},
     endpointWorldAngle:norm(Math.atan2(dy,dx)*180/Math.PI),endpointWidth:7};
@@ -235,7 +242,10 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
   return{id:pieceId,heads:group.length,anchorWorld:anchor,endpoints,branchPaths:endpoints.map(e=>[anchor,e.pointWorld])};
  });
  const incomingAngles=Array.from({length:number},()=>[]);
- for(const [,owner,target] of links)incomingAngles[Number(target.slice(1))-1].push(angle(cells[Number(target.slice(1))-1],cells[Number(owner.slice(1))-1]));
+ for(const [,owner,target] of links){
+  incomingAngles[Number(target.slice(1))-1].push(angle(cells[Number(target.slice(1))-1],cells[Number(owner.slice(1))-1]));
+  incomingAngles[Number(owner.slice(1))-1].push(angle(cells[Number(owner.slice(1))-1],cells[Number(target.slice(1))-1]));
+ }
  for(const piece of backgroundPieces)for(const e of piece.endpoints)incomingAngles[Number(e.receiverId.slice(1))-1].push(e.endpointWorldAngle);
  for(let i=0;i<number;i++){
   let selected=0,clearance=-1;
@@ -243,7 +253,11 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
   if(clearance<=3)throw Error('初始缺口无法避开锁扣 '+ringId(i+1));
   points[i][3]=selected;
  }
- const special={rings:bursts.map(i=>({id:ringId(i+1),attribute:'burst',silkLayers:0})),silkEdges:[]};
+ const special={rings:[
+  ...specialPlan.burstOnly.map(i=>({id:ringId(i+1),attribute:'burst',silkLayers:0})),
+  ...specialPlan.silkOnly.map(i=>({id:ringId(i+1),attribute:'silk',silkLayers:specialPlan.layerBy.get(i)})),
+  ...specialPlan.both.map(i=>({id:ringId(i+1),attribute:'burst+silk',silkLayers:specialPlan.layerBy.get(i)}))
+ ],silkEdges:specialPlan.silkEdges};
  const level={name:'第'+number+'关',kind:'formal',revision:1,tip:spec.designBrief,points,links,backgroundPieces,special,timed:null};
  const Core=createCore(level);let state=Core.make(0);
  const errors=Core.validate(state);if(errors.length)throw Error('初始物理校验失败：'+errors.slice(0,8).join('；'));
@@ -265,7 +279,19 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
   if(!accepted)throw Error('物理路线被阻挡 '+targetId+'/'+rodId+'：'+reason);
   state=accepted.trial;solution.push({id:targetId,delta:accepted.result.done,rod:rodId});
  }
- for(const owner of buildOwnerOrder(sources,bursts,spec)){
+ if(number>=131&&specialPlan.silkSources.length){
+  const silkSourceIds=new Set(specialPlan.silkSources.map(i=>ringId(i+1)));
+  // Remove the plain source bracelets first. This releases silk before we
+  // attempt to rotate any clasp endpoint on a silk-locked target.
+  for(const rod of [...state.rods].filter(z=>z.kind==='m'&&silkSourceIds.has(z.targets[0]))){
+   if(Core.exists(state,rod))rotateTo(rod.targets[0],rod.id);
+  }
+  for(const piece of backgroundPieces)for(const e of piece.endpoints)
+   if(silkSourceIds.has(e.receiverId)&&Core.ring(state,e.receiverId)?.life==='active')rotateTo(e.receiverId,piece.id);
+  Core.settle(state);
+ }
+ const sourceOrder=number<131?buildOwnerOrder(sources,bursts,spec):sources;
+ for(const owner of sourceOrder){
   const ownerId=ringId(owner+1);if(Core.ring(state,ownerId)?.life!=='active')continue;
   const rods=state.rods.filter(z=>z.kind==='m'&&z.owner===ownerId).map(z=>z.id);
   for(const rodId of rods){
@@ -294,6 +320,7 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
  const actualQuota=ranked.map(x=>quotaBy.get(x.i)).sort((a,b)=>a-b);
  return{level,solution,stats:{level:number,rings:number,edges:links.length,sourceCount:sources.length,targetCount:targets.length,
   backgroundPieces:backgroundPieces.length,headCounts:backgroundPieces.reduce((a,p)=>(a[p.heads]=(a[p.heads]||0)+1,a),{}),
-  bursts:bursts.length,routeSteps:solution.length,remaining:0,
+  bursts:bursts.length,silkOnly:specialPlan.silkOnly.length,both:specialPlan.both.length,
+  silkEdges:specialPlan.silkEdges.length,routeSteps:solution.length,remaining:0,
   ownedClaspRingCounts:actualQuota.reduce((a,q)=>(a[q]=(a[q]||0)+1,a),{})}};
 }
