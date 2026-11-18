@@ -128,7 +128,7 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
     !blockedFuture.has(t)&&!forbiddenTarget.has(t));
    const feasible=candidates.map(target=>{
     const options=adj[target].filter(source=>targets.has(source)&&source!==target&&
-     !silkTargets.includes(source)&&!silkSources.includes(source)&&
+     !silkTargets.includes(source)&&
      (ownersByTarget.get(source)||[]).length>0&&
      (ownersByTarget.get(source)||[]).every(owner=>owner!==target&&!ownerTargets.get(owner).includes(target)&&!silkTargets.includes(owner)&&!silkTargets.some(silkTarget=>ownerTargets.get(owner).includes(silkTarget))));
     return{target,options};
