@@ -153,7 +153,7 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
      (ownersByTarget.get(source)||[]).every(owner=>owner!==target&&!ownerTargets.get(owner).includes(target)&&!silkTargets.includes(owner)&&!silkTargets.some(silkTarget=>ownerTargets.get(owner).includes(silkTarget))));
     return{target,options};
    }).filter(x=>x.options.length>=layers)
-    .sort((x,y)=>y.options.length-x.options.length);
+    .sort((x,y)=>x.options.length-y.options.length);
    if(!feasible.length)return false;
    const chosen=feasible[Math.floor(rng()*Math.min(12,feasible.length))],target=chosen.target;
    const selected=chosen.options.sort((x,y)=>
