@@ -21,7 +21,7 @@ function makeBackgroundGroups(n,adj,targetSet,counts,cells,rng){
    const end={x:p.x+40*dx/d,y:p.y+40*dy/d},vx=end.x-anchor.x,vy=end.y-anchor.y,den=vx*vx+vy*vy;
    for(let j=0;j<n;j++)if(j!==i){
     const q=cells[j],t=Math.max(0,Math.min(1,((q.x-anchor.x)*vx+(q.y-anchor.y)*vy)/den));
-    if(Math.hypot(q.x-anchor.x-t*vx,q.y-anchor.y-t*vy)<50)return;
+    if(Math.hypot(q.x-anchor.x-t*vx,q.y-anchor.y-t*vy)<45.8)return;
    }
   }
   groupsBySize.get(sorted.length).push({members:sorted,anchor,key});
@@ -52,14 +52,14 @@ function makeBackgroundGroups(n,adj,targetSet,counts,cells,rng){
  for(const anchor of anchors){
   const key='outer:'+Math.round(anchor.x)+':'+Math.round(anchor.y);
   if(seenAnchors.has(key))continue;seenAnchors.add(key);
-  if(cells.some(p=>distance(p,anchor)<50))continue;
+  if(cells.some(p=>distance(p,anchor)<46.2))continue;
   const visible=[...targetSet].filter(i=>{
    const p=cells[i],dx=anchor.x-p.x,dy=anchor.y-p.y,d=Math.hypot(dx,dy);
    if(d<40.1)return false;
    const end={x:p.x+40*dx/d,y:p.y+40*dy/d},vx=end.x-anchor.x,vy=end.y-anchor.y,den=vx*vx+vy*vy;
    for(let j=0;j<n;j++)if(j!==i){
     const q=cells[j],t=Math.max(0,Math.min(1,((q.x-anchor.x)*vx+(q.y-anchor.y)*vy)/den));
-    if(Math.hypot(q.x-anchor.x-t*vx,q.y-anchor.y-t*vy)<50)return false;
+    if(Math.hypot(q.x-anchor.x-t*vx,q.y-anchor.y-t*vy)<46.2)return false;
    }
    return true;
   }).sort((a,b)=>Math.atan2(cells[a].y-anchor.y,cells[a].x-anchor.x)-Math.atan2(cells[b].y-anchor.y,cells[b].x-anchor.x));
@@ -255,6 +255,47 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
   });
   return{id:pieceId,heads:group.members.length,anchorWorld:anchor,endpoints,branchPaths:endpoints.map(e=>[anchor,e.pointWorld])};
  });
+ // Reposition large fixed-clasp junctions after candidate grouping. The original
+ // visibility test is intentionally loose for discovery; this final pass uses
+ // the actual rod width plus ring band clearance so another branch cannot sweep
+ // through a neighboring ring during a physical rotation.
+ const boardMinX=Math.min(...cells.map(p=>p.x)),boardMaxX=Math.max(...cells.map(p=>p.x));
+ const boardMinY=Math.min(...cells.map(p=>p.y)),boardMaxY=Math.max(...cells.map(p=>p.y));
+ const anchorCandidates=[],anchorKeys=new Set();
+ const addAnchor=(x,y)=>{const key=Math.round(x*10)+':'+Math.round(y*10);if(!anchorKeys.has(key)){anchorKeys.add(key);anchorCandidates.push({x,y})}};
+ for(const offset of [62,78,96,118,140,160,180,200,230,260,300]){
+  for(let y=boardMinY-180;y<=boardMaxY+180;y+=20){addAnchor(boardMinX-offset,y);addAnchor(boardMaxX+offset,y)}
+  for(let x=boardMinX-180;x<=boardMaxX+180;x+=20){addAnchor(x,boardMinY-offset);addAnchor(x,boardMaxY+offset)}
+ }
+ const pointSegmentDistance=(p,a,b)=>{
+  const dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy)));
+  return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);
+ };
+ for(const piece of backgroundPieces.filter(p=>p.heads>=4)){
+  let best=null;
+  for(const anchor of anchorCandidates){
+   if(cells.some(p=>distance(p,anchor)<50))continue;
+   let clearance=Infinity,valid=true;
+   const endpoints=[];
+   for(const e of piece.endpoints){
+    const index=Number(e.receiverId.slice(1))-1,p=cells[index],dx=anchor.x-p.x,dy=anchor.y-p.y,d=Math.hypot(dx,dy);
+    if(d<40.1){valid=false;break}
+    const pointWorld={x:p.x+40*dx/d,y:p.y+40*dy/d};
+    for(let j=0;j<cells.length;j++)if(j!==index){
+     const gap=pointSegmentDistance(cells[j],anchor,pointWorld);
+     clearance=Math.min(clearance,gap);
+     if(gap<50){valid=false;break}
+    }
+    if(!valid)break;
+    endpoints.push({...e,pointWorld,endpointWorldAngle:norm(Math.atan2(dy,dx)*180/Math.PI)});
+   }
+   if(valid&&(!best||clearance>best.clearance))best={anchor,clearance,endpoints};
+  }
+  if(!best)throw Error('无法为 '+piece.id+' 找到无环体碰撞的多头扣锚点');
+  piece.anchorWorld=best.anchor;
+  piece.endpoints=best.endpoints;
+  piece.branchPaths=best.endpoints.map(e=>[best.anchor,e.pointWorld]);
+ }
  const incomingAngles=Array.from({length:number},()=>[]);
  for(const [,owner,target] of links){
   incomingAngles[Number(target.slice(1))-1].push(angle(cells[Number(target.slice(1))-1],cells[Number(owner.slice(1))-1]));
