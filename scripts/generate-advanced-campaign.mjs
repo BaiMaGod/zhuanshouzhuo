@@ -125,7 +125,7 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
  // triples so this dependency is guaranteed rather than left to random luck.
  const sharedPairs=[];
  const sharedDoubleInBoth=layerBoth.length>0;
- if(/共享来源/.test(spec.designBrief||'')&&(sharedDoubleInBoth?layerSilk.includes(1):(layerSilk.includes(2)&&layerSilk.includes(1)))){
+ if(/共享来源|同一来源/.test((spec.focus||'')+' '+(spec.designBrief||''))&&(sharedDoubleInBoth?layerSilk.includes(1):(layerSilk.includes(2)&&layerSilk.includes(1)))){
   const optionsFor=target=>adj[target].filter(source=>targets.has(source)&&source!==target&&
    (ownersByTarget.get(source)||[]).length>0&&
    (ownersByTarget.get(source)||[]).every(owner=>owner!==target&&!ownerTargets.get(owner).includes(target)));
