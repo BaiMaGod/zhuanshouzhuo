@@ -124,7 +124,8 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
  // targets. Precompute legal (two-layer target, one-layer target, shared source)
  // triples so this dependency is guaranteed rather than left to random luck.
  const sharedPairs=[];
- if(/共享来源/.test(spec.designBrief||'')&&layerBoth.length&&layerSilk.length){
+ const sharedDoubleInBoth=layerBoth.length>0;
+ if(/共享来源/.test(spec.designBrief||'')&&(sharedDoubleInBoth?layerSilk.includes(1):(layerSilk.includes(2)&&layerSilk.includes(1)))){
   const optionsFor=target=>adj[target].filter(source=>targets.has(source)&&source!==target&&
    (ownersByTarget.get(source)||[]).length>0&&
    (ownersByTarget.get(source)||[]).every(owner=>owner!==target&&!ownerTargets.get(owner).includes(target)));
@@ -175,17 +176,21 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
   }
   let failed=false;
   const sharedSeed=sharedPairs.length?sharedPairs[Math.floor(rng()*Math.min(80,sharedPairs.length))]:null;
+  const remainingBoth=[...layerBoth],remainingSilk=[...layerSilk];
   if(sharedSeed){
    const a=sharedSeed.doubleTarget,b=sharedSeed.singleTarget,shared=sharedSeed.sharedSource,extra=sharedSeed.extraSource;
-   silkTargets.push(a,b);silkOnly.push(a,b);layerBy.set(a,2);layerBy.set(b,1);
+   silkTargets.push(a,b);
+   if(sharedDoubleInBoth){both.push(a);remainingBoth.splice(remainingBoth.indexOf(2),1)}else{silkOnly.push(a);remainingSilk.splice(remainingSilk.indexOf(2),1)}
+   silkOnly.push(b);remainingSilk.splice(remainingSilk.indexOf(1),1);
+   layerBy.set(a,2);layerBy.set(b,1);
    silkSources.push(shared,extra);sourceUse.set(shared,2);sourceUse.set(extra,1);
    silkEdges.push({sourceId:ringId(shared+1),targetId:ringId(a+1)},{sourceId:ringId(extra+1),targetId:ringId(a+1)},{sourceId:ringId(shared+1),targetId:ringId(b+1)});
    for(const owner of [...new Set([...(ownersByTarget.get(shared)||[]),...(ownersByTarget.get(extra)||[])])])
     for(const blocked of ownerTargets.get(owner))blockedFuture.add(blocked);
   }
-  for(const layers of (sharedSeed?layerBoth.slice(1):layerBoth))if(!addTarget(layers,true)){failed=true;break}
+  for(const layers of remainingBoth)if(!addTarget(layers,true)){failed=true;break}
   if(failed)continue;
-  for(const layers of (sharedSeed?layerSilk.slice(1):layerSilk))if(!addTarget(layers,false)){failed=true;break}
+  for(const layers of remainingSilk)if(!addTarget(layers,false)){failed=true;break}
   if(failed)continue;
   const earlyOwners=[...new Set(silkSources.flatMap(i=>ownersByTarget.get(i)||[]))];
   const burstOnly=[];
