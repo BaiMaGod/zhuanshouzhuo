@@ -21,7 +21,7 @@ function makeBackgroundGroups(n,adj,targetSet,counts,cells,rng){
    const end={x:p.x+40*dx/d,y:p.y+40*dy/d},vx=end.x-anchor.x,vy=end.y-anchor.y,den=vx*vx+vy*vy;
    for(let j=0;j<n;j++)if(j!==i){
     const q=cells[j],t=Math.max(0,Math.min(1,((q.x-anchor.x)*vx+(q.y-anchor.y)*vy)/den));
-    if(Math.hypot(q.x-anchor.x-t*vx,q.y-anchor.y-t*vy)<45.8)return;
+    if(Math.hypot(q.x-anchor.x-t*vx,q.y-anchor.y-t*vy)<50)return;
    }
   }
   groupsBySize.get(sorted.length).push({members:sorted,anchor,key});
@@ -52,14 +52,14 @@ function makeBackgroundGroups(n,adj,targetSet,counts,cells,rng){
  for(const anchor of anchors){
   const key='outer:'+Math.round(anchor.x)+':'+Math.round(anchor.y);
   if(seenAnchors.has(key))continue;seenAnchors.add(key);
-  if(cells.some(p=>distance(p,anchor)<46.2))continue;
+  if(cells.some(p=>distance(p,anchor)<50))continue;
   const visible=[...targetSet].filter(i=>{
    const p=cells[i],dx=anchor.x-p.x,dy=anchor.y-p.y,d=Math.hypot(dx,dy);
    if(d<40.1)return false;
    const end={x:p.x+40*dx/d,y:p.y+40*dy/d},vx=end.x-anchor.x,vy=end.y-anchor.y,den=vx*vx+vy*vy;
    for(let j=0;j<n;j++)if(j!==i){
     const q=cells[j],t=Math.max(0,Math.min(1,((q.x-anchor.x)*vx+(q.y-anchor.y)*vy)/den));
-    if(Math.hypot(q.x-anchor.x-t*vx,q.y-anchor.y-t*vy)<46.2)return false;
+    if(Math.hypot(q.x-anchor.x-t*vx,q.y-anchor.y-t*vy)<50)return false;
    }
    return true;
   }).sort((a,b)=>Math.atan2(cells[a].y-anchor.y,cells[a].x-anchor.x)-Math.atan2(cells[b].y-anchor.y,cells[b].x-anchor.x));
