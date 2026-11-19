@@ -149,6 +149,7 @@ function buildSpecialPlan(spec,targets,sources,adj,cells,ownerTargets,rng){
    const feasible=candidates.map(target=>{
     const options=adj[target].filter(source=>targets.has(source)&&source!==target&&
      !silkTargets.includes(source)&&
+     (!/共享来源|同一来源/.test((spec.focus||'')+' '+(spec.designBrief||''))||!sourceUse.has(source))&&
      (ownersByTarget.get(source)||[]).length>0&&
      (ownersByTarget.get(source)||[]).every(owner=>owner!==target&&!ownerTargets.get(owner).includes(target)&&!silkTargets.includes(owner)&&!silkTargets.some(silkTarget=>ownerTargets.get(owner).includes(silkTarget))));
     return{target,options};
