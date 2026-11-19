@@ -2755,7 +2755,7 @@
       "special": {
         "rings": [
           {
-            "id": "R045",
+            "id": "R071",
             "attribute": "silk",
             "silkLayers": 2
           },
@@ -2765,12 +2765,37 @@
             "silkLayers": 1
           },
           {
-            "id": "R072",
+            "id": "R123",
             "attribute": "silk",
             "silkLayers": 2
           },
           {
-            "id": "R111",
+            "id": "R078",
+            "attribute": "silk",
+            "silkLayers": 1
+          },
+          {
+            "id": "R098",
+            "attribute": "silk",
+            "silkLayers": 1
+          },
+          {
+            "id": "R068",
+            "attribute": "silk",
+            "silkLayers": 1
+          },
+          {
+            "id": "R063",
+            "attribute": "silk",
+            "silkLayers": 1
+          },
+          {
+            "id": "R053",
+            "attribute": "silk",
+            "silkLayers": 1
+          },
+          {
+            "id": "R115",
             "attribute": "silk",
             "silkLayers": 1
           },
@@ -2778,554 +2803,529 @@
             "id": "R117",
             "attribute": "silk",
             "silkLayers": 1
-          },
-          {
-            "id": "R056",
-            "attribute": "silk",
-            "silkLayers": 1
-          },
-          {
-            "id": "R142",
-            "attribute": "silk",
-            "silkLayers": 1
-          },
-          {
-            "id": "R029",
-            "attribute": "silk",
-            "silkLayers": 1
-          },
-          {
-            "id": "R099",
-            "attribute": "silk",
-            "silkLayers": 1
-          },
-          {
-            "id": "R139",
-            "attribute": "silk",
-            "silkLayers": 1
           }
         ],
         "silkEdges": [
           {
-            "sourceId": "R071",
-            "targetId": "R045"
+            "sourceId": "R045",
+            "targetId": "R071"
           },
           {
-            "sourceId": "R053",
-            "targetId": "R045"
+            "sourceId": "R109",
+            "targetId": "R071"
           },
           {
-            "sourceId": "R071",
+            "sourceId": "R045",
             "targetId": "R077"
           },
           {
-            "sourceId": "R078",
-            "targetId": "R072"
+            "sourceId": "R087",
+            "targetId": "R123"
           },
           {
-            "sourceId": "R106",
-            "targetId": "R072"
+            "sourceId": "R111",
+            "targetId": "R123"
           },
           {
-            "sourceId": "R123",
-            "targetId": "R111"
+            "sourceId": "R072",
+            "targetId": "R078"
+          },
+          {
+            "sourceId": "R142",
+            "targetId": "R098"
+          },
+          {
+            "sourceId": "R056",
+            "targetId": "R068"
+          },
+          {
+            "sourceId": "R099",
+            "targetId": "R063"
+          },
+          {
+            "sourceId": "R029",
+            "targetId": "R053"
+          },
+          {
+            "sourceId": "R139",
+            "targetId": "R115"
           },
           {
             "sourceId": "R105",
             "targetId": "R117"
-          },
-          {
-            "sourceId": "R068",
-            "targetId": "R056"
-          },
-          {
-            "sourceId": "R098",
-            "targetId": "R142"
-          },
-          {
-            "sourceId": "R053",
-            "targetId": "R029"
-          },
-          {
-            "sourceId": "R063",
-            "targetId": "R099"
-          },
-          {
-            "sourceId": "R115",
-            "targetId": "R139"
           }
         ]
       },
       "timed": {
-        "durationSeconds": 735,
-        "formulaSeconds": 735,
-        "routeSteps": 202
+        "durationSeconds": 730,
+        "formulaSeconds": 730,
+        "routeSteps": 201
       },
       "hintGraph": {
         "kind": "stages",
         "stages": [
           {
             "id": "S1",
-            "ringId": "R071",
-            "targetAngle": 240,
-            "claspId": "L111",
+            "ringId": "R045",
+            "targetAngle": 120,
+            "claspId": "L38",
             "requires": []
           },
           {
             "id": "S2",
-            "ringId": "R053",
-            "targetAngle": 300,
-            "claspId": "L112",
+            "ringId": "R049",
+            "targetAngle": 180,
+            "claspId": "L39",
             "requires": [
               "S1"
             ]
           },
           {
             "id": "S3",
-            "ringId": "R065",
-            "targetAngle": 0,
-            "claspId": "L113",
+            "ringId": "R033",
+            "targetAngle": 240,
+            "claspId": "L40",
             "requires": [
               "S2"
             ]
           },
           {
             "id": "S4",
-            "ringId": "R046",
-            "targetAngle": 240,
-            "claspId": "L69",
+            "ringId": "R029",
+            "targetAngle": 60,
+            "claspId": "L41",
             "requires": [
               "S3"
             ]
           },
           {
             "id": "S5",
-            "ringId": "R078",
-            "targetAngle": 300,
-            "claspId": "L70",
+            "ringId": "R109",
+            "targetAngle": 241.25,
+            "claspId": "L152",
             "requires": [
               "S4"
             ]
           },
           {
             "id": "S6",
-            "ringId": "R026",
-            "targetAngle": 180,
-            "claspId": "L71",
+            "ringId": "R131",
+            "targetAngle": 60,
+            "claspId": "L153",
             "requires": [
               "S5"
             ]
           },
           {
             "id": "S7",
-            "ringId": "R098",
-            "targetAngle": 60,
-            "claspId": "L119",
+            "ringId": "R087",
+            "targetAngle": 180,
+            "claspId": "L92",
             "requires": [
               "S6"
             ]
           },
           {
             "id": "S8",
-            "ringId": "R078",
-            "targetAngle": 240,
-            "claspId": "L120",
+            "ringId": "R055",
+            "targetAngle": 120,
+            "claspId": "L93",
             "requires": [
               "S7"
             ]
           },
           {
             "id": "S9",
-            "ringId": "R106",
+            "ringId": "R111",
             "targetAngle": 240,
-            "claspId": "L148",
+            "claspId": "L97",
             "requires": [
               "S8"
             ]
           },
           {
             "id": "S10",
-            "ringId": "R078",
-            "targetAngle": 180,
-            "claspId": "L149",
+            "ringId": "R087",
+            "targetAngle": 300,
+            "claspId": "L98",
             "requires": [
               "S9"
             ]
           },
           {
             "id": "S11",
-            "ringId": "R106",
-            "targetAngle": 60,
-            "claspId": "L138",
+            "ringId": "R111",
+            "targetAngle": 300,
+            "claspId": "L136",
             "requires": [
               "S10"
             ]
           },
           {
             "id": "S12",
-            "ringId": "R122",
-            "targetAngle": 240,
-            "claspId": "L139",
+            "ringId": "R119",
+            "targetAngle": 119.99999999999989,
+            "claspId": "L137",
             "requires": [
               "S11"
             ]
           },
           {
             "id": "S13",
-            "ringId": "R123",
-            "targetAngle": 181.25,
-            "claspId": "L128",
+            "ringId": "R072",
+            "targetAngle": 0,
+            "claspId": "L74",
             "requires": [
               "S12"
             ]
           },
           {
             "id": "S14",
-            "ringId": "R115",
-            "targetAngle": 300,
-            "claspId": "L129",
+            "ringId": "R040",
+            "targetAngle": 180,
+            "claspId": "L75",
             "requires": [
               "S13"
             ]
           },
           {
             "id": "S15",
-            "ringId": "R105",
-            "targetAngle": 300,
-            "claspId": "L171",
+            "ringId": "R046",
+            "targetAngle": 60.00000000000006,
+            "claspId": "L76",
             "requires": [
               "S14"
             ]
           },
           {
             "id": "S16",
-            "ringId": "R039",
-            "targetAngle": 240,
-            "claspId": "L77",
+            "ringId": "R122",
+            "targetAngle": 300.0000000000001,
+            "claspId": "L114",
             "requires": [
               "S15"
             ]
           },
           {
             "id": "S17",
-            "ringId": "R065",
-            "targetAngle": 180,
-            "claspId": "L78",
+            "ringId": "R072",
+            "targetAngle": 60,
+            "claspId": "L115",
             "requires": [
               "S16"
             ]
           },
           {
             "id": "S18",
-            "ringId": "R081",
-            "targetAngle": 120,
-            "claspId": "L79",
+            "ringId": "R142",
+            "targetAngle": 300,
+            "claspId": "L154",
             "requires": [
               "S17"
             ]
           },
           {
             "id": "S19",
-            "ringId": "R068",
-            "targetAngle": 60.00000000000006,
-            "claspId": "L80",
+            "ringId": "R096",
+            "targetAngle": 120,
+            "claspId": "L155",
             "requires": [
               "S18"
             ]
           },
           {
             "id": "S20",
-            "ringId": "R100",
-            "targetAngle": 119.99999999999989,
-            "claspId": "L105",
+            "ringId": "R142",
+            "targetAngle": 59.999999999999886,
+            "claspId": "L160",
             "requires": [
               "S19"
             ]
           },
           {
             "id": "S21",
-            "ringId": "R068",
-            "targetAngle": 180,
-            "claspId": "L106",
+            "ringId": "R056",
+            "targetAngle": 60,
+            "claspId": "L53",
             "requires": [
               "S20"
             ]
           },
           {
             "id": "S22",
-            "ringId": "R068",
-            "targetAngle": 300,
-            "claspId": "L130",
+            "ringId": "R039",
+            "targetAngle": 180,
+            "claspId": "L54",
             "requires": [
               "S21"
             ]
           },
           {
             "id": "S23",
-            "ringId": "R134",
-            "targetAngle": 60,
-            "claspId": "L131",
+            "ringId": "R021",
+            "targetAngle": 240,
+            "claspId": "L55",
             "requires": [
               "S22"
             ]
           },
           {
             "id": "S24",
-            "ringId": "R100",
-            "targetAngle": 0,
-            "claspId": "L132",
+            "ringId": "R056",
+            "targetAngle": 120,
+            "claspId": "L59",
             "requires": [
               "S23"
             ]
           },
           {
             "id": "S25",
-            "ringId": "R098",
-            "targetAngle": 0,
-            "claspId": "L88",
+            "ringId": "R028",
+            "targetAngle": 300,
+            "claspId": "L60",
             "requires": [
               "S24"
             ]
           },
           {
             "id": "S26",
-            "ringId": "R096",
-            "targetAngle": 60,
-            "claspId": "L99",
+            "ringId": "R056",
+            "targetAngle": 178.75,
+            "claspId": "L89",
             "requires": [
               "S25"
             ]
           },
           {
             "id": "S27",
-            "ringId": "R098",
-            "targetAngle": 301.25,
-            "claspId": "L100",
+            "ringId": "R099",
+            "targetAngle": 240,
+            "claspId": "L101",
             "requires": [
               "S26"
             ]
           },
           {
             "id": "S28",
-            "ringId": "R063",
-            "targetAngle": 180,
-            "claspId": "L51",
+            "ringId": "R097",
+            "targetAngle": 120,
+            "claspId": "L102",
             "requires": [
               "S27"
             ]
           },
           {
             "id": "S29",
-            "ringId": "R013",
-            "targetAngle": 0,
-            "claspId": "L52",
+            "ringId": "R129",
+            "targetAngle": 180,
+            "claspId": "L121",
             "requires": [
               "S28"
             ]
           },
           {
             "id": "S30",
-            "ringId": "R063",
-            "targetAngle": 240,
-            "claspId": "L63",
+            "ringId": "R119",
+            "targetAngle": 238.7499999999999,
+            "claspId": "L122",
             "requires": [
               "S29"
             ]
           },
           {
             "id": "S31",
-            "ringId": "R033",
-            "targetAngle": 60,
-            "claspId": "L64",
+            "ringId": "R099",
+            "targetAngle": 120,
+            "claspId": "L123",
             "requires": [
               "S30"
             ]
           },
           {
             "id": "S32",
-            "ringId": "R115",
-            "targetAngle": 240,
-            "claspId": "L109",
+            "ringId": "R097",
+            "targetAngle": 60,
+            "claspId": "L156",
             "requires": [
               "S31"
             ]
           },
           {
             "id": "S33",
-            "ringId": "R106",
-            "targetAngle": 142.25,
-            "claspId": "F001",
+            "ringId": "R099",
+            "targetAngle": 300,
+            "claspId": "L157",
             "requires": [
               "S32"
             ]
           },
           {
             "id": "S34",
-            "ringId": "R071",
-            "targetAngle": 91.25,
-            "claspId": "F002",
+            "ringId": "R029",
+            "targetAngle": 120,
+            "claspId": "L16",
             "requires": [
               "S33"
             ]
           },
           {
             "id": "S35",
-            "ringId": "R105",
-            "targetAngle": 58.75,
-            "claspId": "F004",
+            "ringId": "R011",
+            "targetAngle": 240,
+            "claspId": "L17",
             "requires": [
               "S34"
             ]
           },
           {
             "id": "S36",
-            "ringId": "R115",
-            "targetAngle": 121.25,
-            "claspId": "F006",
+            "ringId": "R021",
+            "targetAngle": 60,
+            "claspId": "L18",
             "requires": [
               "S35"
             ]
           },
           {
             "id": "S37",
-            "ringId": "R053",
-            "targetAngle": 241.25,
-            "claspId": "F007",
+            "ringId": "R139",
+            "targetAngle": 240,
+            "claspId": "L133",
             "requires": [
               "S36"
             ]
           },
           {
             "id": "S38",
-            "ringId": "R078",
-            "targetAngle": 61.25,
-            "claspId": "F012",
+            "ringId": "R102",
+            "targetAngle": 0,
+            "claspId": "L134",
             "requires": [
               "S37"
             ]
           },
           {
             "id": "S39",
-            "ringId": "R063",
-            "targetAngle": 358.75,
-            "claspId": "F013",
+            "ringId": "R138",
+            "targetAngle": 0,
+            "claspId": "L163",
             "requires": [
               "S38"
             ]
           },
           {
             "id": "S40",
-            "ringId": "R068",
-            "targetAngle": 358.75,
-            "claspId": "F018",
+            "ringId": "R139",
+            "targetAngle": 180,
+            "claspId": "L164",
             "requires": [
               "S39"
             ]
           },
           {
             "id": "S41",
-            "ringId": "R007",
-            "targetAngle": 180,
-            "claspId": "L1",
+            "ringId": "R105",
+            "targetAngle": 300,
+            "claspId": "L171",
             "requires": [
               "S40"
             ]
           },
           {
             "id": "S42",
-            "ringId": "R010",
-            "targetAngle": 0,
-            "claspId": "L2",
+            "ringId": "R142",
+            "targetAngle": 116.74999999999989,
+            "claspId": "F001",
             "requires": [
               "S41"
             ]
           },
           {
             "id": "S43",
-            "ringId": "R014",
-            "targetAngle": 60,
-            "claspId": "L3",
+            "ringId": "R045",
+            "targetAngle": 331.25,
+            "claspId": "F002",
             "requires": [
               "S42"
             ]
           },
           {
             "id": "S44",
-            "ringId": "R011",
-            "targetAngle": 180,
-            "claspId": "L4",
+            "ringId": "R029",
+            "targetAngle": 208.75,
+            "claspId": "F003",
             "requires": [
               "S43"
             ]
           },
           {
             "id": "S45",
-            "ringId": "R007",
-            "targetAngle": 240,
-            "claspId": "L5",
+            "ringId": "R105",
+            "targetAngle": 58.75,
+            "claspId": "F004",
             "requires": [
               "S44"
             ]
           },
           {
             "id": "S46",
-            "ringId": "R012",
-            "targetAngle": 0,
-            "claspId": "L6",
+            "ringId": "R139",
+            "targetAngle": 298.75,
+            "claspId": "F006",
             "requires": [
               "S45"
             ]
           },
           {
             "id": "S47",
-            "ringId": "R013",
-            "targetAngle": 180,
-            "claspId": "L7",
+            "ringId": "R087",
+            "targetAngle": 358.75,
+            "claspId": "F008",
             "requires": [
               "S46"
             ]
           },
           {
             "id": "S48",
-            "ringId": "R017",
-            "targetAngle": 240,
-            "claspId": "L8",
+            "ringId": "R111",
+            "targetAngle": 181.25,
+            "claspId": "F008",
             "requires": [
               "S47"
             ]
           },
           {
             "id": "S49",
-            "ringId": "R007",
-            "targetAngle": 120,
-            "claspId": "L9",
+            "ringId": "R072",
+            "targetAngle": 241.25,
+            "claspId": "F012",
             "requires": [
               "S48"
             ]
           },
           {
             "id": "S50",
-            "ringId": "R012",
-            "targetAngle": 300,
-            "claspId": "L10",
+            "ringId": "R099",
+            "targetAngle": 181.25,
+            "claspId": "F013",
             "requires": [
               "S49"
             ]
           },
           {
             "id": "S51",
-            "ringId": "R010",
-            "targetAngle": 60,
-            "claspId": "L11",
+            "ringId": "R007",
+            "targetAngle": 180,
+            "claspId": "L1",
             "requires": [
               "S50"
             ]
           },
           {
             "id": "S52",
-            "ringId": "R021",
-            "targetAngle": 120,
-            "claspId": "L12",
+            "ringId": "R010",
+            "targetAngle": 0,
+            "claspId": "L2",
             "requires": [
               "S51"
             ]
@@ -3333,215 +3333,215 @@
           {
             "id": "S53",
             "ringId": "R014",
-            "targetAngle": 0,
-            "claspId": "L13",
+            "targetAngle": 60,
+            "claspId": "L3",
             "requires": [
               "S52"
             ]
           },
           {
             "id": "S54",
-            "ringId": "R022",
-            "targetAngle": 300,
-            "claspId": "L14",
+            "ringId": "R011",
+            "targetAngle": 180,
+            "claspId": "L4",
             "requires": [
               "S53"
             ]
           },
           {
             "id": "S55",
-            "ringId": "R017",
-            "targetAngle": 180,
-            "claspId": "L15",
+            "ringId": "R007",
+            "targetAngle": 240,
+            "claspId": "L5",
             "requires": [
               "S54"
             ]
           },
           {
             "id": "S56",
-            "ringId": "R029",
-            "targetAngle": 119.99999999999994,
-            "claspId": "L16",
+            "ringId": "R012",
+            "targetAngle": 0,
+            "claspId": "L6",
             "requires": [
               "S55"
             ]
           },
           {
             "id": "S57",
-            "ringId": "R011",
-            "targetAngle": 240,
-            "claspId": "L17",
+            "ringId": "R013",
+            "targetAngle": 180,
+            "claspId": "L7",
             "requires": [
               "S56"
             ]
           },
           {
             "id": "S58",
-            "ringId": "R021",
-            "targetAngle": 60,
-            "claspId": "L18",
+            "ringId": "R017",
+            "targetAngle": 240,
+            "claspId": "L8",
             "requires": [
               "S57"
             ]
           },
           {
             "id": "S59",
-            "ringId": "R022",
-            "targetAngle": 240,
-            "claspId": "L19",
+            "ringId": "R007",
+            "targetAngle": 120,
+            "claspId": "L9",
             "requires": [
               "S58"
             ]
           },
           {
             "id": "S60",
-            "ringId": "R026",
-            "targetAngle": 0,
-            "claspId": "L20",
+            "ringId": "R012",
+            "targetAngle": 300,
+            "claspId": "L10",
             "requires": [
               "S59"
             ]
           },
           {
             "id": "S61",
-            "ringId": "R012",
+            "ringId": "R010",
             "targetAngle": 60,
-            "claspId": "L21",
+            "claspId": "L11",
             "requires": [
               "S60"
             ]
           },
           {
             "id": "S62",
-            "ringId": "R012",
-            "targetAngle": 240,
-            "claspId": "L22",
+            "ringId": "R021",
+            "targetAngle": 120,
+            "claspId": "L12",
             "requires": [
               "S61"
             ]
           },
           {
             "id": "S63",
-            "ringId": "R032",
-            "targetAngle": 60,
-            "claspId": "L23",
+            "ringId": "R014",
+            "targetAngle": 0,
+            "claspId": "L13",
             "requires": [
               "S62"
             ]
           },
           {
             "id": "S64",
-            "ringId": "R010",
-            "targetAngle": 120,
-            "claspId": "L24",
+            "ringId": "R022",
+            "targetAngle": 300,
+            "claspId": "L14",
             "requires": [
               "S63"
             ]
           },
           {
             "id": "S65",
-            "ringId": "R007",
-            "targetAngle": 0,
-            "claspId": "L25",
+            "ringId": "R017",
+            "targetAngle": 180,
+            "claspId": "L15",
             "requires": [
               "S64"
             ]
           },
           {
             "id": "S66",
-            "ringId": "R033",
-            "targetAngle": 120,
-            "claspId": "L26",
+            "ringId": "R022",
+            "targetAngle": 240,
+            "claspId": "L19",
             "requires": [
               "S65"
             ]
           },
           {
             "id": "S67",
-            "ringId": "R013",
-            "targetAngle": 300,
-            "claspId": "L27",
+            "ringId": "R026",
+            "targetAngle": 0,
+            "claspId": "L20",
             "requires": [
               "S66"
             ]
           },
           {
             "id": "S68",
-            "ringId": "R011",
+            "ringId": "R012",
             "targetAngle": 60,
-            "claspId": "L28",
+            "claspId": "L21",
             "requires": [
               "S67"
             ]
           },
           {
             "id": "S69",
-            "ringId": "R021",
-            "targetAngle": 180,
-            "claspId": "L29",
+            "ringId": "R012",
+            "targetAngle": 240,
+            "claspId": "L22",
             "requires": [
               "S68"
             ]
           },
           {
             "id": "S70",
-            "ringId": "R028",
-            "targetAngle": 0,
-            "claspId": "L30",
+            "ringId": "R032",
+            "targetAngle": 60,
+            "claspId": "L23",
             "requires": [
               "S69"
             ]
           },
           {
             "id": "S71",
-            "ringId": "R014",
-            "targetAngle": 300,
-            "claspId": "L31",
+            "ringId": "R010",
+            "targetAngle": 120,
+            "claspId": "L24",
             "requires": [
               "S70"
             ]
           },
           {
             "id": "S72",
-            "ringId": "R017",
-            "targetAngle": 120,
-            "claspId": "L32",
+            "ringId": "R007",
+            "targetAngle": 0,
+            "claspId": "L25",
             "requires": [
               "S71"
             ]
           },
           {
             "id": "S73",
-            "ringId": "R022",
-            "targetAngle": 0,
-            "claspId": "L33",
+            "ringId": "R033",
+            "targetAngle": 120,
+            "claspId": "L26",
             "requires": [
               "S72"
             ]
           },
           {
             "id": "S74",
-            "ringId": "R014",
-            "targetAngle": 180,
-            "claspId": "L34",
+            "ringId": "R013",
+            "targetAngle": 300,
+            "claspId": "L27",
             "requires": [
               "S73"
             ]
           },
           {
             "id": "S75",
-            "ringId": "R010",
-            "targetAngle": 240,
-            "claspId": "L35",
+            "ringId": "R011",
+            "targetAngle": 60,
+            "claspId": "L28",
             "requires": [
               "S74"
             ]
           },
           {
             "id": "S76",
-            "ringId": "R032",
-            "targetAngle": 300,
-            "claspId": "L36",
+            "ringId": "R021",
+            "targetAngle": 180,
+            "claspId": "L29",
             "requires": [
               "S75"
             ]
@@ -3549,260 +3549,260 @@
           {
             "id": "S77",
             "ringId": "R028",
-            "targetAngle": 120,
-            "claspId": "L37",
+            "targetAngle": 0,
+            "claspId": "L30",
             "requires": [
               "S76"
             ]
           },
           {
             "id": "S78",
-            "ringId": "R045",
-            "targetAngle": 120,
-            "claspId": "L38",
+            "ringId": "R014",
+            "targetAngle": 300,
+            "claspId": "L31",
             "requires": [
               "S77"
             ]
           },
           {
             "id": "S79",
-            "ringId": "R049",
-            "targetAngle": 180,
-            "claspId": "L39",
+            "ringId": "R017",
+            "targetAngle": 120,
+            "claspId": "L32",
             "requires": [
               "S78"
             ]
           },
           {
             "id": "S80",
-            "ringId": "R033",
-            "targetAngle": 240,
-            "claspId": "L40",
+            "ringId": "R022",
+            "targetAngle": 0,
+            "claspId": "L33",
             "requires": [
               "S79"
             ]
           },
           {
             "id": "S81",
-            "ringId": "R029",
-            "targetAngle": 60,
-            "claspId": "L41",
+            "ringId": "R014",
+            "targetAngle": 180,
+            "claspId": "L34",
             "requires": [
               "S80"
             ]
           },
           {
             "id": "S82",
-            "ringId": "R013",
-            "targetAngle": 60,
-            "claspId": "L42",
+            "ringId": "R010",
+            "targetAngle": 240,
+            "claspId": "L35",
             "requires": [
               "S81"
             ]
           },
           {
             "id": "S83",
-            "ringId": "R017",
-            "targetAngle": 0,
-            "claspId": "L43",
+            "ringId": "R032",
+            "targetAngle": 300,
+            "claspId": "L36",
             "requires": [
               "S82"
             ]
           },
           {
             "id": "S84",
-            "ringId": "R026",
-            "targetAngle": 60,
-            "claspId": "L44",
+            "ringId": "R028",
+            "targetAngle": 120,
+            "claspId": "L37",
             "requires": [
               "S83"
             ]
           },
           {
             "id": "S85",
-            "ringId": "R046",
-            "targetAngle": 0,
-            "claspId": "L45",
+            "ringId": "R013",
+            "targetAngle": 60,
+            "claspId": "L42",
             "requires": [
               "S84"
             ]
           },
           {
             "id": "S86",
-            "ringId": "R040",
-            "targetAngle": 240,
-            "claspId": "L46",
+            "ringId": "R017",
+            "targetAngle": 0,
+            "claspId": "L43",
             "requires": [
               "S85"
             ]
           },
           {
             "id": "S87",
-            "ringId": "R055",
-            "targetAngle": 240,
-            "claspId": "L47",
+            "ringId": "R026",
+            "targetAngle": 60,
+            "claspId": "L44",
             "requires": [
               "S86"
             ]
           },
           {
             "id": "S88",
-            "ringId": "R017",
-            "targetAngle": 60,
-            "claspId": "L48",
+            "ringId": "R046",
+            "targetAngle": 5.684341886080802e-14,
+            "claspId": "L45",
             "requires": [
               "S87"
             ]
           },
           {
             "id": "S89",
-            "ringId": "R026",
+            "ringId": "R040",
             "targetAngle": 240,
-            "claspId": "L49",
+            "claspId": "L46",
             "requires": [
               "S88"
             ]
           },
           {
             "id": "S90",
-            "ringId": "R012",
-            "targetAngle": 180,
-            "claspId": "L50",
+            "ringId": "R055",
+            "targetAngle": 240,
+            "claspId": "L47",
             "requires": [
               "S89"
             ]
           },
           {
             "id": "S91",
-            "ringId": "R056",
+            "ringId": "R017",
             "targetAngle": 60,
-            "claspId": "L53",
+            "claspId": "L48",
             "requires": [
               "S90"
             ]
           },
           {
             "id": "S92",
-            "ringId": "R039",
-            "targetAngle": 180,
-            "claspId": "L54",
+            "ringId": "R026",
+            "targetAngle": 240,
+            "claspId": "L49",
             "requires": [
               "S91"
             ]
           },
           {
             "id": "S93",
-            "ringId": "R021",
-            "targetAngle": 240,
-            "claspId": "L55",
+            "ringId": "R012",
+            "targetAngle": 180,
+            "claspId": "L50",
             "requires": [
               "S92"
             ]
           },
           {
             "id": "S94",
-            "ringId": "R040",
-            "targetAngle": 0,
-            "claspId": "L56",
+            "ringId": "R063",
+            "targetAngle": 180,
+            "claspId": "L51",
             "requires": [
               "S93"
             ]
           },
           {
             "id": "S95",
-            "ringId": "R058",
-            "targetAngle": 300,
-            "claspId": "L57",
+            "ringId": "R013",
+            "targetAngle": 0,
+            "claspId": "L52",
             "requires": [
               "S94"
             ]
           },
           {
             "id": "S96",
-            "ringId": "R022",
-            "targetAngle": 58.75,
-            "claspId": "L58",
+            "ringId": "R040",
+            "targetAngle": 0,
+            "claspId": "L56",
             "requires": [
               "S95"
             ]
           },
           {
             "id": "S97",
-            "ringId": "R056",
-            "targetAngle": 120,
-            "claspId": "L59",
+            "ringId": "R058",
+            "targetAngle": 300,
+            "claspId": "L57",
             "requires": [
               "S96"
             ]
           },
           {
             "id": "S98",
-            "ringId": "R028",
-            "targetAngle": 300,
-            "claspId": "L60",
+            "ringId": "R022",
+            "targetAngle": 58.75,
+            "claspId": "L58",
             "requires": [
               "S97"
             ]
           },
           {
             "id": "S99",
-            "ringId": "R055",
-            "targetAngle": 180,
-            "claspId": "L61",
+            "ringId": "R032",
+            "targetAngle": 119.99999999999994,
+            "claspId": "L62",
             "requires": [
               "S98"
             ]
           },
           {
             "id": "S100",
-            "ringId": "R032",
-            "targetAngle": 119.99999999999994,
-            "claspId": "L62",
+            "ringId": "R063",
+            "targetAngle": 240,
+            "claspId": "L63",
             "requires": [
               "S99"
             ]
           },
           {
             "id": "S101",
-            "ringId": "R028",
-            "targetAngle": 180,
-            "claspId": "L65",
+            "ringId": "R033",
+            "targetAngle": 60,
+            "claspId": "L64",
             "requires": [
               "S100"
             ]
           },
           {
             "id": "S102",
-            "ringId": "R088",
-            "targetAngle": 0,
-            "claspId": "L67",
+            "ringId": "R028",
+            "targetAngle": 180,
+            "claspId": "L65",
             "requires": [
               "S101"
             ]
           },
           {
             "id": "S103",
-            "ringId": "R032",
-            "targetAngle": 240,
-            "claspId": "L68",
+            "ringId": "R055",
+            "targetAngle": 298.75,
+            "claspId": "L66",
             "requires": [
               "S102"
             ]
           },
           {
             "id": "S104",
-            "ringId": "R072",
+            "ringId": "R088",
             "targetAngle": 0,
-            "claspId": "L74",
+            "claspId": "L67",
             "requires": [
               "S103"
             ]
           },
           {
             "id": "S105",
-            "ringId": "R040",
-            "targetAngle": 180,
-            "claspId": "L75",
+            "ringId": "R032",
+            "targetAngle": 240,
+            "claspId": "L68",
             "requires": [
               "S104"
             ]
@@ -3810,431 +3810,431 @@
           {
             "id": "S106",
             "ringId": "R046",
-            "targetAngle": 58.75,
-            "claspId": "L76",
+            "targetAngle": 241.25000000000006,
+            "claspId": "L69",
             "requires": [
               "S105"
             ]
           },
           {
             "id": "S107",
-            "ringId": "R096",
-            "targetAngle": 0,
-            "claspId": "L82",
+            "ringId": "R078",
+            "targetAngle": 300,
+            "claspId": "L70",
             "requires": [
               "S106"
             ]
           },
           {
             "id": "S108",
-            "ringId": "R088",
-            "targetAngle": 60,
-            "claspId": "L83",
+            "ringId": "R026",
+            "targetAngle": 180,
+            "claspId": "L71",
             "requires": [
               "S107"
             ]
           },
           {
             "id": "S109",
-            "ringId": "R032",
-            "targetAngle": 180,
-            "claspId": "L84",
+            "ringId": "R028",
+            "targetAngle": 240,
+            "claspId": "L73",
             "requires": [
               "S108"
             ]
           },
           {
             "id": "S110",
-            "ringId": "R097",
-            "targetAngle": 180,
-            "claspId": "L85",
+            "ringId": "R039",
+            "targetAngle": 240,
+            "claspId": "L77",
             "requires": [
               "S109"
             ]
           },
           {
             "id": "S111",
-            "ringId": "R049",
-            "targetAngle": 60,
-            "claspId": "L86",
+            "ringId": "R065",
+            "targetAngle": 180,
+            "claspId": "L78",
             "requires": [
               "S110"
             ]
           },
           {
             "id": "S112",
-            "ringId": "R033",
-            "targetAngle": 358.75,
-            "claspId": "L87",
+            "ringId": "R081",
+            "targetAngle": 120,
+            "claspId": "L79",
             "requires": [
               "S111"
             ]
           },
           {
             "id": "S113",
-            "ringId": "R056",
-            "targetAngle": 178.75,
-            "claspId": "L89",
+            "ringId": "R068",
+            "targetAngle": 60.00000000000006,
+            "claspId": "L80",
             "requires": [
               "S112"
             ]
           },
           {
             "id": "S114",
-            "ringId": "R058",
-            "targetAngle": 180,
-            "claspId": "L90",
+            "ringId": "R096",
+            "targetAngle": 0,
+            "claspId": "L82",
             "requires": [
               "S113"
             ]
           },
           {
             "id": "S115",
-            "ringId": "R040",
-            "targetAngle": 120,
-            "claspId": "L91",
+            "ringId": "R088",
+            "targetAngle": 60,
+            "claspId": "L83",
             "requires": [
               "S114"
             ]
           },
           {
             "id": "S116",
-            "ringId": "R087",
+            "ringId": "R032",
             "targetAngle": 180,
-            "claspId": "L92",
+            "claspId": "L84",
             "requires": [
               "S115"
             ]
           },
           {
             "id": "S117",
-            "ringId": "R055",
-            "targetAngle": 121.25,
-            "claspId": "L93",
+            "ringId": "R097",
+            "targetAngle": 180,
+            "claspId": "L85",
             "requires": [
               "S116"
             ]
           },
           {
             "id": "S118",
-            "ringId": "R102",
-            "targetAngle": 300,
-            "claspId": "L94",
+            "ringId": "R049",
+            "targetAngle": 60,
+            "claspId": "L86",
             "requires": [
               "S117"
             ]
           },
           {
             "id": "S119",
-            "ringId": "R058",
-            "targetAngle": 60.00000000000006,
-            "claspId": "L95",
+            "ringId": "R033",
+            "targetAngle": 1.25,
+            "claspId": "L87",
             "requires": [
               "S118"
             ]
           },
           {
             "id": "S120",
-            "ringId": "R108",
-            "targetAngle": 60.00000000000006,
-            "claspId": "L96",
+            "ringId": "R098",
+            "targetAngle": 0,
+            "claspId": "L88",
             "requires": [
               "S119"
             ]
           },
           {
             "id": "S121",
-            "ringId": "R111",
-            "targetAngle": 240,
-            "claspId": "L97",
+            "ringId": "R058",
+            "targetAngle": 180,
+            "claspId": "L90",
             "requires": [
               "S120"
             ]
           },
           {
             "id": "S122",
-            "ringId": "R087",
-            "targetAngle": 300,
-            "claspId": "L98",
+            "ringId": "R040",
+            "targetAngle": 120,
+            "claspId": "L91",
             "requires": [
               "S121"
             ]
           },
           {
             "id": "S123",
-            "ringId": "R099",
-            "targetAngle": 240,
-            "claspId": "L101",
+            "ringId": "R102",
+            "targetAngle": 300,
+            "claspId": "L94",
             "requires": [
               "S122"
             ]
           },
           {
             "id": "S124",
-            "ringId": "R097",
-            "targetAngle": 120,
-            "claspId": "L102",
+            "ringId": "R058",
+            "targetAngle": 60.00000000000006,
+            "claspId": "L95",
             "requires": [
               "S123"
             ]
           },
           {
             "id": "S125",
-            "ringId": "R088",
-            "targetAngle": 300,
-            "claspId": "L103",
+            "ringId": "R108",
+            "targetAngle": 60.00000000000006,
+            "claspId": "L96",
             "requires": [
               "S124"
             ]
           },
           {
             "id": "S126",
-            "ringId": "R119",
-            "targetAngle": 180,
-            "claspId": "L104",
+            "ringId": "R096",
+            "targetAngle": 60,
+            "claspId": "L99",
             "requires": [
               "S125"
             ]
           },
           {
             "id": "S127",
-            "ringId": "R102",
-            "targetAngle": 240,
-            "claspId": "L107",
+            "ringId": "R098",
+            "targetAngle": 300,
+            "claspId": "L100",
             "requires": [
               "S126"
             ]
           },
           {
             "id": "S128",
-            "ringId": "R058",
-            "targetAngle": 119.99999999999994,
-            "claspId": "L108",
+            "ringId": "R088",
+            "targetAngle": 300,
+            "claspId": "L103",
             "requires": [
               "S127"
             ]
           },
           {
             "id": "S129",
-            "ringId": "R108",
-            "targetAngle": 5.684341886080802e-14,
-            "claspId": "L110",
+            "ringId": "R100",
+            "targetAngle": 119.99999999999989,
+            "claspId": "L105",
             "requires": [
               "S128"
             ]
           },
           {
             "id": "S130",
-            "ringId": "R122",
-            "targetAngle": 300,
-            "claspId": "L114",
+            "ringId": "R068",
+            "targetAngle": 180,
+            "claspId": "L106",
             "requires": [
               "S129"
             ]
           },
           {
             "id": "S131",
-            "ringId": "R072",
-            "targetAngle": 60,
-            "claspId": "L115",
+            "ringId": "R102",
+            "targetAngle": 240,
+            "claspId": "L107",
             "requires": [
               "S130"
             ]
           },
           {
             "id": "S132",
-            "ringId": "R077",
-            "targetAngle": 60,
-            "claspId": "L116",
+            "ringId": "R058",
+            "targetAngle": 119.99999999999994,
+            "claspId": "L108",
             "requires": [
               "S131"
             ]
           },
           {
             "id": "S133",
-            "ringId": "R117",
-            "targetAngle": 119.99999999999989,
-            "claspId": "L117",
+            "ringId": "R115",
+            "targetAngle": 240,
+            "claspId": "L109",
             "requires": [
               "S132"
             ]
           },
           {
             "id": "S134",
-            "ringId": "R049",
-            "targetAngle": 1.25,
-            "claspId": "L118",
+            "ringId": "R108",
+            "targetAngle": 5.684341886080802e-14,
+            "claspId": "L110",
             "requires": [
               "S133"
             ]
           },
           {
             "id": "S135",
-            "ringId": "R129",
-            "targetAngle": 180,
-            "claspId": "L121",
+            "ringId": "R071",
+            "targetAngle": 240,
+            "claspId": "L111",
             "requires": [
               "S134"
             ]
           },
           {
             "id": "S136",
-            "ringId": "R119",
-            "targetAngle": 240,
-            "claspId": "L122",
+            "ringId": "R053",
+            "targetAngle": 300,
+            "claspId": "L112",
             "requires": [
               "S135"
             ]
           },
           {
             "id": "S137",
-            "ringId": "R099",
-            "targetAngle": 120,
-            "claspId": "L123",
+            "ringId": "R065",
+            "targetAngle": 0,
+            "claspId": "L113",
             "requires": [
               "S136"
             ]
           },
           {
             "id": "S138",
-            "ringId": "R130",
-            "targetAngle": 60.000000000000114,
-            "claspId": "L124",
+            "ringId": "R077",
+            "targetAngle": 60,
+            "claspId": "L116",
             "requires": [
               "S137"
             ]
           },
           {
             "id": "S139",
-            "ringId": "R131",
-            "targetAngle": 119.99999999999994,
-            "claspId": "L125",
+            "ringId": "R117",
+            "targetAngle": 119.99999999999989,
+            "claspId": "L117",
             "requires": [
               "S138"
             ]
           },
           {
             "id": "S140",
-            "ringId": "R081",
-            "targetAngle": 0,
-            "claspId": "L126",
+            "ringId": "R049",
+            "targetAngle": 1.25,
+            "claspId": "L118",
             "requires": [
               "S139"
             ]
           },
           {
             "id": "S141",
-            "ringId": "R122",
-            "targetAngle": 0,
-            "claspId": "L127",
+            "ringId": "R098",
+            "targetAngle": 58.75,
+            "claspId": "L119",
             "requires": [
               "S140"
             ]
           },
           {
             "id": "S142",
-            "ringId": "R139",
+            "ringId": "R078",
             "targetAngle": 240,
-            "claspId": "L133",
+            "claspId": "L120",
             "requires": [
               "S141"
             ]
           },
           {
             "id": "S143",
-            "ringId": "R102",
-            "targetAngle": 0,
-            "claspId": "L134",
+            "ringId": "R130",
+            "targetAngle": 60.000000000000114,
+            "claspId": "L124",
             "requires": [
               "S142"
             ]
           },
           {
             "id": "S144",
-            "ringId": "R111",
-            "targetAngle": 300,
-            "claspId": "L136",
+            "ringId": "R131",
+            "targetAngle": 120,
+            "claspId": "L125",
             "requires": [
               "S143"
             ]
           },
           {
             "id": "S145",
-            "ringId": "R119",
-            "targetAngle": 121.25,
-            "claspId": "L137",
+            "ringId": "R081",
+            "targetAngle": 0,
+            "claspId": "L126",
             "requires": [
               "S144"
             ]
           },
           {
             "id": "S146",
-            "ringId": "R100",
-            "targetAngle": 180,
-            "claspId": "L140",
+            "ringId": "R123",
+            "targetAngle": 181.25,
+            "claspId": "L128",
             "requires": [
               "S145"
             ]
           },
           {
             "id": "S147",
-            "ringId": "R130",
-            "targetAngle": 1.1368683772161603e-13,
-            "claspId": "L141",
+            "ringId": "R115",
+            "targetAngle": 300,
+            "claspId": "L129",
             "requires": [
               "S146"
             ]
           },
           {
             "id": "S148",
-            "ringId": "R081",
+            "ringId": "R068",
             "targetAngle": 300,
-            "claspId": "L142",
+            "claspId": "L130",
             "requires": [
               "S147"
             ]
           },
           {
             "id": "S149",
-            "ringId": "R131",
-            "targetAngle": 180,
-            "claspId": "L143",
+            "ringId": "R134",
+            "targetAngle": 60,
+            "claspId": "L131",
             "requires": [
               "S148"
             ]
           },
           {
             "id": "S150",
-            "ringId": "R138",
-            "targetAngle": 240,
-            "claspId": "L144",
+            "ringId": "R100",
+            "targetAngle": 0,
+            "claspId": "L132",
             "requires": [
               "S149"
             ]
           },
           {
             "id": "S151",
-            "ringId": "R102",
-            "targetAngle": 181.25,
-            "claspId": "L145",
+            "ringId": "R106",
+            "targetAngle": 60,
+            "claspId": "L138",
             "requires": [
               "S150"
             ]
           },
           {
             "id": "S152",
-            "ringId": "R126",
-            "targetAngle": 300,
-            "claspId": "L146",
+            "ringId": "R122",
+            "targetAngle": 240.0000000000001,
+            "claspId": "L139",
             "requires": [
               "S151"
             ]
           },
           {
             "id": "S153",
-            "ringId": "R088",
-            "targetAngle": 240,
-            "claspId": "L147",
+            "ringId": "R100",
+            "targetAngle": 180,
+            "claspId": "L140",
             "requires": [
               "S152"
             ]
@@ -4242,143 +4242,143 @@
           {
             "id": "S154",
             "ringId": "R130",
-            "targetAngle": 118.75000000000011,
-            "claspId": "L150",
+            "targetAngle": 1.1368683772161603e-13,
+            "claspId": "L141",
             "requires": [
               "S153"
             ]
           },
           {
             "id": "S155",
-            "ringId": "R108",
-            "targetAngle": 301.25000000000006,
-            "claspId": "L151",
+            "ringId": "R081",
+            "targetAngle": 300,
+            "claspId": "L142",
             "requires": [
               "S154"
             ]
           },
           {
             "id": "S156",
-            "ringId": "R109",
-            "targetAngle": 241.25,
-            "claspId": "L152",
+            "ringId": "R131",
+            "targetAngle": 178.75,
+            "claspId": "L143",
             "requires": [
               "S155"
             ]
           },
           {
             "id": "S157",
-            "ringId": "R131",
-            "targetAngle": 61.25,
-            "claspId": "L153",
+            "ringId": "R138",
+            "targetAngle": 240,
+            "claspId": "L144",
             "requires": [
               "S156"
             ]
           },
           {
             "id": "S158",
-            "ringId": "R142",
-            "targetAngle": 300,
-            "claspId": "L154",
+            "ringId": "R102",
+            "targetAngle": 181.25,
+            "claspId": "L145",
             "requires": [
               "S157"
             ]
           },
           {
             "id": "S159",
-            "ringId": "R096",
-            "targetAngle": 119.99999999999989,
-            "claspId": "L155",
+            "ringId": "R126",
+            "targetAngle": 300,
+            "claspId": "L146",
             "requires": [
               "S158"
             ]
           },
           {
             "id": "S160",
-            "ringId": "R097",
-            "targetAngle": 60,
-            "claspId": "L156",
+            "ringId": "R088",
+            "targetAngle": 240,
+            "claspId": "L147",
             "requires": [
               "S159"
             ]
           },
           {
             "id": "S161",
-            "ringId": "R099",
-            "targetAngle": 300,
-            "claspId": "L157",
+            "ringId": "R106",
+            "targetAngle": 240,
+            "claspId": "L148",
             "requires": [
               "S160"
             ]
           },
           {
             "id": "S162",
-            "ringId": "R117",
-            "targetAngle": 60,
-            "claspId": "L158",
+            "ringId": "R078",
+            "targetAngle": 180,
+            "claspId": "L149",
             "requires": [
               "S161"
             ]
           },
           {
             "id": "S163",
-            "ringId": "R097",
-            "targetAngle": 301.25,
-            "claspId": "L159",
+            "ringId": "R130",
+            "targetAngle": 118.75000000000011,
+            "claspId": "L150",
             "requires": [
               "S162"
             ]
           },
           {
             "id": "S164",
-            "ringId": "R142",
-            "targetAngle": 59.999999999999886,
-            "claspId": "L160",
+            "ringId": "R108",
+            "targetAngle": 301.25000000000006,
+            "claspId": "L151",
             "requires": [
               "S163"
             ]
           },
           {
             "id": "S165",
-            "ringId": "R122",
+            "ringId": "R117",
             "targetAngle": 60,
-            "claspId": "L161",
+            "claspId": "L158",
             "requires": [
               "S164"
             ]
           },
           {
             "id": "S166",
-            "ringId": "R138",
-            "targetAngle": 0,
-            "claspId": "L163",
+            "ringId": "R097",
+            "targetAngle": 300,
+            "claspId": "L159",
             "requires": [
               "S165"
             ]
           },
           {
             "id": "S167",
-            "ringId": "R139",
+            "ringId": "R134",
             "targetAngle": 180,
-            "claspId": "L164",
+            "claspId": "L165",
             "requires": [
               "S166"
             ]
           },
           {
             "id": "S168",
-            "ringId": "R134",
-            "targetAngle": 180,
-            "claspId": "L165",
+            "ringId": "R126",
+            "targetAngle": 118.75,
+            "claspId": "L167",
             "requires": [
               "S167"
             ]
           },
           {
             "id": "S169",
-            "ringId": "R126",
-            "targetAngle": 118.75,
-            "claspId": "L167",
+            "ringId": "R097",
+            "targetAngle": 358.75,
+            "claspId": "L168",
             "requires": [
               "S168"
             ]
@@ -4394,8 +4394,8 @@
           },
           {
             "id": "S171",
-            "ringId": "R122",
-            "targetAngle": 161.5,
+            "ringId": "R106",
+            "targetAngle": 144.75,
             "claspId": "F001",
             "requires": [
               "S170"
@@ -4403,8 +4403,8 @@
           },
           {
             "id": "S172",
-            "ringId": "R138",
-            "targetAngle": 178.25,
+            "ringId": "R122",
+            "targetAngle": 164.0000000000001,
             "claspId": "F001",
             "requires": [
               "S171"
@@ -4412,8 +4412,8 @@
           },
           {
             "id": "S173",
-            "ringId": "R142",
-            "targetAngle": 116.74999999999989,
+            "ringId": "R138",
+            "targetAngle": 181,
             "claspId": "F001",
             "requires": [
               "S172"
@@ -4421,8 +4421,8 @@
           },
           {
             "id": "S174",
-            "ringId": "R045",
-            "targetAngle": 331.25,
+            "ringId": "R071",
+            "targetAngle": 91.25,
             "claspId": "F002",
             "requires": [
               "S173"
@@ -4448,8 +4448,8 @@
           },
           {
             "id": "S177",
-            "ringId": "R029",
-            "targetAngle": 208.75,
+            "ringId": "R039",
+            "targetAngle": 91.25,
             "claspId": "F003",
             "requires": [
               "S176"
@@ -4457,26 +4457,26 @@
           },
           {
             "id": "S178",
-            "ringId": "R039",
-            "targetAngle": 91.25,
-            "claspId": "F003",
+            "ringId": "R117",
+            "targetAngle": 241.25,
+            "claspId": "F004",
             "requires": [
               "S177"
             ]
           },
           {
             "id": "S179",
-            "ringId": "R117",
-            "targetAngle": 241.25,
-            "claspId": "F004",
+            "ringId": "R014",
+            "targetAngle": 238.75,
+            "claspId": "F005",
             "requires": [
               "S178"
             ]
           },
           {
             "id": "S180",
-            "ringId": "R014",
-            "targetAngle": 238.75,
+            "ringId": "R028",
+            "targetAngle": 61.25,
             "claspId": "F005",
             "requires": [
               "S179"
@@ -4484,18 +4484,18 @@
           },
           {
             "id": "S181",
-            "ringId": "R028",
-            "targetAngle": 61.25,
-            "claspId": "F005",
+            "ringId": "R115",
+            "targetAngle": 121.25,
+            "claspId": "F006",
             "requires": [
               "S180"
             ]
           },
           {
             "id": "S182",
-            "ringId": "R139",
-            "targetAngle": 298.75,
-            "claspId": "F006",
+            "ringId": "R053",
+            "targetAngle": 241.25,
+            "claspId": "F007",
             "requires": [
               "S181"
             ]
@@ -4503,7 +4503,7 @@
           {
             "id": "S183",
             "ringId": "R065",
-            "targetAngle": 61.25,
+            "targetAngle": 58.75,
             "claspId": "F007",
             "requires": [
               "S182"
@@ -4511,179 +4511,170 @@
           },
           {
             "id": "S184",
-            "ringId": "R087",
-            "targetAngle": 358.75,
-            "claspId": "F008",
+            "ringId": "R088",
+            "targetAngle": 121.25,
+            "claspId": "F009",
             "requires": [
               "S183"
             ]
           },
           {
             "id": "S185",
-            "ringId": "R111",
-            "targetAngle": 181.25,
-            "claspId": "F008",
+            "ringId": "R096",
+            "targetAngle": 301.25,
+            "claspId": "F009",
             "requires": [
               "S184"
             ]
           },
           {
             "id": "S186",
-            "ringId": "R088",
-            "targetAngle": 121.25,
-            "claspId": "F009",
+            "ringId": "R010",
+            "targetAngle": 181.25,
+            "claspId": "F010",
             "requires": [
               "S185"
             ]
           },
           {
             "id": "S187",
-            "ringId": "R096",
-            "targetAngle": 301.2499999999999,
-            "claspId": "F009",
+            "ringId": "R032",
+            "targetAngle": 1.25,
+            "claspId": "F010",
             "requires": [
               "S186"
             ]
           },
           {
             "id": "S188",
-            "ringId": "R010",
-            "targetAngle": 181.25,
-            "claspId": "F010",
+            "ringId": "R007",
+            "targetAngle": 301.25,
+            "claspId": "F011",
             "requires": [
               "S187"
             ]
           },
           {
             "id": "S189",
-            "ringId": "R032",
-            "targetAngle": 1.25,
-            "claspId": "F010",
+            "ringId": "R011",
+            "targetAngle": 118.75,
+            "claspId": "F011",
             "requires": [
               "S188"
             ]
           },
           {
             "id": "S190",
-            "ringId": "R007",
-            "targetAngle": 301.25,
-            "claspId": "F011",
+            "ringId": "R078",
+            "targetAngle": 61.25,
+            "claspId": "F012",
             "requires": [
               "S189"
             ]
           },
           {
             "id": "S191",
-            "ringId": "R011",
-            "targetAngle": 118.75,
-            "claspId": "F011",
+            "ringId": "R063",
+            "targetAngle": 358.75,
+            "claspId": "F013",
             "requires": [
               "S190"
             ]
           },
           {
             "id": "S192",
-            "ringId": "R072",
-            "targetAngle": 241.25,
-            "claspId": "F012",
+            "ringId": "R012",
+            "targetAngle": 121.25,
+            "claspId": "F014",
             "requires": [
               "S191"
             ]
           },
           {
             "id": "S193",
-            "ringId": "R099",
-            "targetAngle": 181.25,
-            "claspId": "F013",
+            "ringId": "R026",
+            "targetAngle": 298.75,
+            "claspId": "F014",
             "requires": [
               "S192"
             ]
           },
           {
             "id": "S194",
-            "ringId": "R012",
-            "targetAngle": 121.25,
-            "claspId": "F014",
+            "ringId": "R040",
+            "targetAngle": 61.25,
+            "claspId": "F015",
             "requires": [
               "S193"
             ]
           },
           {
             "id": "S195",
-            "ringId": "R026",
-            "targetAngle": 298.75,
-            "claspId": "F014",
+            "ringId": "R058",
+            "targetAngle": 238.75,
+            "claspId": "F015",
             "requires": [
               "S194"
             ]
           },
           {
             "id": "S196",
-            "ringId": "R040",
-            "targetAngle": 61.25,
-            "claspId": "F015",
+            "ringId": "R100",
+            "targetAngle": 298.75,
+            "claspId": "F016",
             "requires": [
               "S195"
             ]
           },
           {
             "id": "S197",
-            "ringId": "R058",
-            "targetAngle": 238.75,
-            "claspId": "F015",
+            "ringId": "R134",
+            "targetAngle": 121.25,
+            "claspId": "F016",
             "requires": [
               "S196"
             ]
           },
           {
             "id": "S198",
-            "ringId": "R100",
-            "targetAngle": 298.75,
-            "claspId": "F016",
+            "ringId": "R013",
+            "targetAngle": 118.75,
+            "claspId": "F017",
             "requires": [
               "S197"
             ]
           },
           {
             "id": "S199",
-            "ringId": "R134",
-            "targetAngle": 121.25,
-            "claspId": "F016",
+            "ringId": "R017",
+            "targetAngle": 301.25,
+            "claspId": "F017",
             "requires": [
               "S198"
             ]
           },
           {
             "id": "S200",
-            "ringId": "R013",
-            "targetAngle": 118.75,
-            "claspId": "F017",
+            "ringId": "R068",
+            "targetAngle": 358.75,
+            "claspId": "F018",
             "requires": [
               "S199"
             ]
           },
           {
             "id": "S201",
-            "ringId": "R017",
-            "targetAngle": 301.25,
-            "claspId": "F017",
-            "requires": [
-              "S200"
-            ]
-          },
-          {
-            "id": "S202",
             "ringId": "R081",
             "targetAngle": 181.25,
             "claspId": "F018",
             "requires": [
-              "S201"
+              "S200"
             ]
           }
         ]
       },
       "proof": {
-        "steps": 202,
+        "steps": 201,
         "engineReplay": true
       }
     }
@@ -4691,74 +4682,204 @@
   "solutions": [
     [
       {
-        "id": "R071",
+        "id": "R045",
         "delta": -105,
-        "rod": "L111"
+        "rod": "L38"
       },
       {
-        "id": "R053",
-        "delta": -150,
-        "rod": "L112"
+        "id": "R049",
+        "delta": -90,
+        "rod": "L39"
       },
       {
-        "id": "R065",
+        "id": "R033",
+        "delta": 60,
+        "rod": "L40"
+      },
+      {
+        "id": "R029",
+        "delta": 105,
+        "rod": "L41"
+      },
+      {
+        "id": "R109",
+        "delta": -178.75,
+        "rod": "L152"
+      },
+      {
+        "id": "R131",
+        "delta": 120,
+        "rod": "L153"
+      },
+      {
+        "id": "R087",
         "delta": 90,
-        "rod": "L113"
+        "rod": "L92"
+      },
+      {
+        "id": "R055",
+        "delta": 90,
+        "rod": "L93"
+      },
+      {
+        "id": "R111",
+        "delta": -180,
+        "rod": "L97"
+      },
+      {
+        "id": "R087",
+        "delta": 120,
+        "rod": "L98"
+      },
+      {
+        "id": "R111",
+        "delta": 60,
+        "rod": "L136"
+      },
+      {
+        "id": "R119",
+        "delta": 119.99999999999989,
+        "rod": "L137"
+      },
+      {
+        "id": "R072",
+        "delta": -150,
+        "rod": "L74"
+      },
+      {
+        "id": "R040",
+        "delta": -120,
+        "rod": "L75"
       },
       {
         "id": "R046",
-        "delta": 90,
-        "rod": "L69"
-      },
-      {
-        "id": "R078",
-        "delta": -60,
-        "rod": "L70"
-      },
-      {
-        "id": "R026",
-        "delta": 60,
-        "rod": "L71"
-      },
-      {
-        "id": "R098",
-        "delta": -120,
-        "rod": "L119"
-      },
-      {
-        "id": "R078",
-        "delta": -60,
-        "rod": "L120"
-      },
-      {
-        "id": "R106",
-        "delta": -90,
-        "rod": "L148"
-      },
-      {
-        "id": "R078",
-        "delta": -60,
-        "rod": "L149"
-      },
-      {
-        "id": "R106",
-        "delta": -180,
-        "rod": "L138"
+        "delta": -89.99999999999994,
+        "rod": "L76"
       },
       {
         "id": "R122",
-        "delta": 129,
-        "rod": "L139"
+        "delta": -170.9999999999999,
+        "rod": "L114"
       },
       {
-        "id": "R123",
-        "delta": -178.75,
-        "rod": "L128"
+        "id": "R072",
+        "delta": 60,
+        "rod": "L115"
       },
       {
-        "id": "R115",
+        "id": "R142",
+        "delta": 91,
+        "rod": "L154"
+      },
+      {
+        "id": "R096",
+        "delta": -90,
+        "rod": "L155"
+      },
+      {
+        "id": "R142",
+        "delta": 119.99999999999989,
+        "rod": "L160"
+      },
+      {
+        "id": "R056",
+        "delta": 120,
+        "rod": "L53"
+      },
+      {
+        "id": "R039",
+        "delta": -165,
+        "rod": "L54"
+      },
+      {
+        "id": "R021",
+        "delta": -135,
+        "rod": "L55"
+      },
+      {
+        "id": "R056",
+        "delta": 60,
+        "rod": "L59"
+      },
+      {
+        "id": "R028",
+        "delta": -90,
+        "rod": "L60"
+      },
+      {
+        "id": "R056",
+        "delta": 58.75,
+        "rod": "L89"
+      },
+      {
+        "id": "R099",
+        "delta": -150,
+        "rod": "L101"
+      },
+      {
+        "id": "R097",
         "delta": -120,
-        "rod": "L129"
+        "rod": "L102"
+      },
+      {
+        "id": "R129",
+        "delta": 120,
+        "rod": "L121"
+      },
+      {
+        "id": "R119",
+        "delta": 118.75,
+        "rod": "L122"
+      },
+      {
+        "id": "R099",
+        "delta": -120,
+        "rod": "L123"
+      },
+      {
+        "id": "R097",
+        "delta": -60,
+        "rod": "L156"
+      },
+      {
+        "id": "R099",
+        "delta": -180,
+        "rod": "L157"
+      },
+      {
+        "id": "R029",
+        "delta": 60,
+        "rod": "L16"
+      },
+      {
+        "id": "R011",
+        "delta": -90,
+        "rod": "L17"
+      },
+      {
+        "id": "R021",
+        "delta": -180,
+        "rod": "L18"
+      },
+      {
+        "id": "R139",
+        "delta": -180,
+        "rod": "L133"
+      },
+      {
+        "id": "R102",
+        "delta": -90,
+        "rod": "L134"
+      },
+      {
+        "id": "R138",
+        "delta": -90,
+        "rod": "L163"
+      },
+      {
+        "id": "R139",
+        "delta": -60,
+        "rod": "L164"
       },
       {
         "id": "R105",
@@ -4766,99 +4887,19 @@
         "rod": "L171"
       },
       {
-        "id": "R039",
-        "delta": -105,
-        "rod": "L77"
-      },
-      {
-        "id": "R065",
-        "delta": -180,
-        "rod": "L78"
-      },
-      {
-        "id": "R081",
-        "delta": 60,
-        "rod": "L79"
-      },
-      {
-        "id": "R068",
-        "delta": -59.99999999999994,
-        "rod": "L80"
-      },
-      {
-        "id": "R100",
-        "delta": 59.999999999999886,
-        "rod": "L105"
-      },
-      {
-        "id": "R068",
-        "delta": 120,
-        "rod": "L106"
-      },
-      {
-        "id": "R068",
-        "delta": 120,
-        "rod": "L130"
-      },
-      {
-        "id": "R134",
-        "delta": 150,
-        "rod": "L131"
-      },
-      {
-        "id": "R100",
-        "delta": -119.99999999999989,
-        "rod": "L132"
-      },
-      {
-        "id": "R098",
-        "delta": -60,
-        "rod": "L88"
-      },
-      {
-        "id": "R096",
-        "delta": -150,
-        "rod": "L99"
-      },
-      {
-        "id": "R098",
-        "delta": -58.75,
-        "rod": "L100"
-      },
-      {
-        "id": "R063",
-        "delta": 120,
-        "rod": "L51"
-      },
-      {
-        "id": "R013",
-        "delta": 120,
-        "rod": "L52"
-      },
-      {
-        "id": "R063",
-        "delta": 60,
-        "rod": "L63"
-      },
-      {
-        "id": "R033",
-        "delta": -120,
-        "rod": "L64"
-      },
-      {
-        "id": "R115",
-        "delta": -60,
-        "rod": "L109"
-      },
-      {
-        "id": "R106",
-        "delta": 82.25,
+        "id": "R142",
+        "delta": 56.75,
         "rod": "F001"
       },
       {
-        "id": "R071",
+        "id": "R045",
         "delta": -148.75,
         "rod": "F002"
+      },
+      {
+        "id": "R029",
+        "delta": 88.75,
+        "rod": "F003"
       },
       {
         "id": "R105",
@@ -4866,29 +4907,29 @@
         "rod": "F004"
       },
       {
-        "id": "R115",
-        "delta": -118.75,
+        "id": "R139",
+        "delta": 118.75,
         "rod": "F006"
       },
       {
-        "id": "R053",
-        "delta": -58.75,
-        "rod": "F007"
+        "id": "R087",
+        "delta": 58.75,
+        "rod": "F008"
       },
       {
-        "id": "R078",
+        "id": "R111",
         "delta": -118.75,
+        "rod": "F008"
+      },
+      {
+        "id": "R072",
+        "delta": -178.75,
         "rod": "F012"
       },
       {
-        "id": "R063",
-        "delta": 118.75,
+        "id": "R099",
+        "delta": -118.75,
         "rod": "F013"
-      },
-      {
-        "id": "R068",
-        "delta": 58.75,
-        "rod": "F018"
       },
       {
         "id": "R007",
@@ -4907,7 +4948,7 @@
       },
       {
         "id": "R011",
-        "delta": -150,
+        "delta": -60,
         "rod": "L4"
       },
       {
@@ -4922,7 +4963,7 @@
       },
       {
         "id": "R013",
-        "delta": -180,
+        "delta": -60,
         "rod": "L7"
       },
       {
@@ -4947,7 +4988,7 @@
       },
       {
         "id": "R021",
-        "delta": 105,
+        "delta": 60,
         "rod": "L12"
       },
       {
@@ -4966,28 +5007,13 @@
         "rod": "L15"
       },
       {
-        "id": "R029",
-        "delta": 164.99999999999994,
-        "rod": "L16"
-      },
-      {
-        "id": "R011",
-        "delta": 60,
-        "rod": "L17"
-      },
-      {
-        "id": "R021",
-        "delta": -60,
-        "rod": "L18"
-      },
-      {
         "id": "R022",
         "delta": -60,
         "rod": "L19"
       },
       {
         "id": "R026",
-        "delta": -180,
+        "delta": -120,
         "rod": "L20"
       },
       {
@@ -5017,7 +5043,7 @@
       },
       {
         "id": "R033",
-        "delta": 60,
+        "delta": -120,
         "rod": "L26"
       },
       {
@@ -5027,17 +5053,17 @@
       },
       {
         "id": "R011",
-        "delta": -180,
+        "delta": -120,
         "rod": "L28"
       },
       {
         "id": "R021",
-        "delta": 120,
+        "delta": 60,
         "rod": "L29"
       },
       {
         "id": "R028",
-        "delta": -30,
+        "delta": 60,
         "rod": "L30"
       },
       {
@@ -5076,26 +5102,6 @@
         "rod": "L37"
       },
       {
-        "id": "R045",
-        "delta": -105,
-        "rod": "L38"
-      },
-      {
-        "id": "R049",
-        "delta": -90,
-        "rod": "L39"
-      },
-      {
-        "id": "R033",
-        "delta": 120,
-        "rod": "L40"
-      },
-      {
-        "id": "R029",
-        "delta": -59.99999999999994,
-        "rod": "L41"
-      },
-      {
         "id": "R013",
         "delta": 120,
         "rod": "L42"
@@ -5112,17 +5118,17 @@
       },
       {
         "id": "R046",
-        "delta": 120,
+        "delta": -60,
         "rod": "L45"
       },
       {
         "id": "R040",
-        "delta": -60,
+        "delta": 60,
         "rod": "L46"
       },
       {
         "id": "R055",
-        "delta": -150,
+        "delta": 120,
         "rod": "L47"
       },
       {
@@ -5141,19 +5147,14 @@
         "rod": "L50"
       },
       {
-        "id": "R056",
+        "id": "R063",
         "delta": 120,
-        "rod": "L53"
+        "rod": "L51"
       },
       {
-        "id": "R039",
+        "id": "R013",
         "delta": -60,
-        "rod": "L54"
-      },
-      {
-        "id": "R021",
-        "delta": 60,
-        "rod": "L55"
+        "rod": "L52"
       },
       {
         "id": "R040",
@@ -5171,29 +5172,29 @@
         "rod": "L58"
       },
       {
-        "id": "R056",
-        "delta": 60,
-        "rod": "L59"
-      },
-      {
-        "id": "R028",
-        "delta": -180,
-        "rod": "L60"
-      },
-      {
-        "id": "R055",
-        "delta": -60,
-        "rod": "L61"
-      },
-      {
         "id": "R032",
         "delta": 179.99999999999994,
         "rod": "L62"
       },
       {
+        "id": "R063",
+        "delta": 60,
+        "rod": "L63"
+      },
+      {
+        "id": "R033",
+        "delta": -60,
+        "rod": "L64"
+      },
+      {
         "id": "R028",
-        "delta": -120,
+        "delta": 60,
         "rod": "L65"
+      },
+      {
+        "id": "R055",
+        "delta": 58.75,
+        "rod": "L66"
       },
       {
         "id": "R088",
@@ -5206,23 +5207,48 @@
         "rod": "L68"
       },
       {
-        "id": "R072",
-        "delta": -150,
-        "rod": "L74"
-      },
-      {
-        "id": "R040",
-        "delta": -180,
-        "rod": "L75"
-      },
-      {
         "id": "R046",
-        "delta": 58.75,
-        "rod": "L76"
+        "delta": -118.75,
+        "rod": "L69"
+      },
+      {
+        "id": "R078",
+        "delta": -60,
+        "rod": "L70"
+      },
+      {
+        "id": "R026",
+        "delta": -60,
+        "rod": "L71"
+      },
+      {
+        "id": "R028",
+        "delta": 60,
+        "rod": "L73"
+      },
+      {
+        "id": "R039",
+        "delta": 60,
+        "rod": "L77"
+      },
+      {
+        "id": "R065",
+        "delta": -90,
+        "rod": "L78"
+      },
+      {
+        "id": "R081",
+        "delta": 60,
+        "rod": "L79"
+      },
+      {
+        "id": "R068",
+        "delta": -59.99999999999994,
+        "rod": "L80"
       },
       {
         "id": "R096",
-        "delta": -60,
+        "delta": -120,
         "rod": "L82"
       },
       {
@@ -5237,7 +5263,7 @@
       },
       {
         "id": "R097",
-        "delta": -60,
+        "delta": 120,
         "rod": "L85"
       },
       {
@@ -5247,13 +5273,13 @@
       },
       {
         "id": "R033",
-        "delta": 118.75,
+        "delta": -58.75,
         "rod": "L87"
       },
       {
-        "id": "R056",
-        "delta": 58.75,
-        "rod": "L89"
+        "id": "R098",
+        "delta": -180,
+        "rod": "L88"
       },
       {
         "id": "R058",
@@ -5262,22 +5288,12 @@
       },
       {
         "id": "R040",
-        "delta": -60,
+        "delta": 120,
         "rod": "L91"
       },
       {
-        "id": "R087",
-        "delta": 90,
-        "rod": "L92"
-      },
-      {
-        "id": "R055",
-        "delta": -58.75,
-        "rod": "L93"
-      },
-      {
         "id": "R102",
-        "delta": -150,
+        "delta": -60,
         "rod": "L94"
       },
       {
@@ -5291,24 +5307,14 @@
         "rod": "L96"
       },
       {
-        "id": "R111",
-        "delta": -180,
-        "rod": "L97"
+        "id": "R096",
+        "delta": 60,
+        "rod": "L99"
       },
       {
-        "id": "R087",
-        "delta": 120,
-        "rod": "L98"
-      },
-      {
-        "id": "R099",
-        "delta": -150,
-        "rod": "L101"
-      },
-      {
-        "id": "R097",
+        "id": "R098",
         "delta": -60,
-        "rod": "L102"
+        "rod": "L100"
       },
       {
         "id": "R088",
@@ -5316,9 +5322,14 @@
         "rod": "L103"
       },
       {
-        "id": "R119",
-        "delta": -180,
-        "rod": "L104"
+        "id": "R100",
+        "delta": 59.999999999999886,
+        "rod": "L105"
+      },
+      {
+        "id": "R068",
+        "delta": 120,
+        "rod": "L106"
       },
       {
         "id": "R102",
@@ -5331,19 +5342,29 @@
         "rod": "L108"
       },
       {
+        "id": "R115",
+        "delta": -180,
+        "rod": "L109"
+      },
+      {
         "id": "R108",
         "delta": -60,
         "rod": "L110"
       },
       {
-        "id": "R122",
-        "delta": 60,
-        "rod": "L114"
+        "id": "R071",
+        "delta": -105,
+        "rod": "L111"
       },
       {
-        "id": "R072",
-        "delta": 60,
-        "rod": "L115"
+        "id": "R053",
+        "delta": -150,
+        "rod": "L112"
+      },
+      {
+        "id": "R065",
+        "delta": -180,
+        "rod": "L113"
       },
       {
         "id": "R077",
@@ -5361,19 +5382,14 @@
         "rod": "L118"
       },
       {
-        "id": "R129",
-        "delta": 120,
-        "rod": "L121"
+        "id": "R098",
+        "delta": 118.75,
+        "rod": "L119"
       },
       {
-        "id": "R119",
-        "delta": 60,
-        "rod": "L122"
-      },
-      {
-        "id": "R099",
-        "delta": -120,
-        "rod": "L123"
+        "id": "R078",
+        "delta": -60,
+        "rod": "L120"
       },
       {
         "id": "R130",
@@ -5382,7 +5398,7 @@
       },
       {
         "id": "R131",
-        "delta": 179.99999999999994,
+        "delta": 60,
         "rod": "L125"
       },
       {
@@ -5391,29 +5407,39 @@
         "rod": "L126"
       },
       {
-        "id": "R122",
+        "id": "R123",
+        "delta": -178.75,
+        "rod": "L128"
+      },
+      {
+        "id": "R115",
         "delta": 60,
-        "rod": "L127"
+        "rod": "L129"
       },
       {
-        "id": "R139",
-        "delta": -180,
-        "rod": "L133"
-      },
-      {
-        "id": "R102",
+        "id": "R068",
         "delta": 120,
-        "rod": "L134"
+        "rod": "L130"
       },
       {
-        "id": "R111",
-        "delta": 60,
-        "rod": "L136"
+        "id": "R134",
+        "delta": 150,
+        "rod": "L131"
       },
       {
-        "id": "R119",
-        "delta": -118.75,
-        "rod": "L137"
+        "id": "R100",
+        "delta": -119.99999999999989,
+        "rod": "L132"
+      },
+      {
+        "id": "R106",
+        "delta": 90,
+        "rod": "L138"
+      },
+      {
+        "id": "R122",
+        "delta": -60,
+        "rod": "L139"
       },
       {
         "id": "R100",
@@ -5432,17 +5458,17 @@
       },
       {
         "id": "R131",
-        "delta": 60,
+        "delta": 58.75,
         "rod": "L143"
       },
       {
         "id": "R138",
-        "delta": 150,
+        "delta": -120,
         "rod": "L144"
       },
       {
         "id": "R102",
-        "delta": -178.75,
+        "delta": -58.75,
         "rod": "L145"
       },
       {
@@ -5456,6 +5482,16 @@
         "rod": "L147"
       },
       {
+        "id": "R106",
+        "delta": -180,
+        "rod": "L148"
+      },
+      {
+        "id": "R078",
+        "delta": -60,
+        "rod": "L149"
+      },
+      {
         "id": "R130",
         "delta": 118.75,
         "rod": "L150"
@@ -5466,64 +5502,14 @@
         "rod": "L151"
       },
       {
-        "id": "R109",
-        "delta": -178.75,
-        "rod": "L152"
-      },
-      {
-        "id": "R131",
-        "delta": -118.75,
-        "rod": "L153"
-      },
-      {
-        "id": "R142",
-        "delta": 91,
-        "rod": "L154"
-      },
-      {
-        "id": "R096",
-        "delta": 119.99999999999989,
-        "rod": "L155"
-      },
-      {
-        "id": "R097",
-        "delta": -60,
-        "rod": "L156"
-      },
-      {
-        "id": "R099",
-        "delta": -180,
-        "rod": "L157"
-      },
-      {
         "id": "R117",
         "delta": -59.999999999999886,
         "rod": "L158"
       },
       {
         "id": "R097",
-        "delta": -118.75,
-        "rod": "L159"
-      },
-      {
-        "id": "R142",
-        "delta": 119.99999999999989,
-        "rod": "L160"
-      },
-      {
-        "id": "R122",
-        "delta": 60,
-        "rod": "L161"
-      },
-      {
-        "id": "R138",
         "delta": 120,
-        "rod": "L163"
-      },
-      {
-        "id": "R139",
-        "delta": -60,
-        "rod": "L164"
+        "rod": "L159"
       },
       {
         "id": "R134",
@@ -5536,27 +5522,32 @@
         "rod": "L167"
       },
       {
+        "id": "R097",
+        "delta": 58.75,
+        "rod": "L168"
+      },
+      {
         "id": "R129",
         "delta": 118.75,
         "rod": "L169"
       },
       {
+        "id": "R106",
+        "delta": -95.25,
+        "rod": "F001"
+      },
+      {
         "id": "R122",
-        "delta": 101.5,
+        "delta": -76,
         "rod": "F001"
       },
       {
         "id": "R138",
-        "delta": 178.25,
+        "delta": -59,
         "rod": "F001"
       },
       {
-        "id": "R142",
-        "delta": 56.75,
-        "rod": "F001"
-      },
-      {
-        "id": "R045",
+        "id": "R071",
         "delta": -148.75,
         "rod": "F002"
       },
@@ -5567,17 +5558,12 @@
       },
       {
         "id": "R021",
-        "delta": 88.75,
-        "rod": "F003"
-      },
-      {
-        "id": "R029",
         "delta": 148.75,
         "rod": "F003"
       },
       {
         "id": "R039",
-        "delta": -88.75,
+        "delta": -148.75,
         "rod": "F003"
       },
       {
@@ -5592,28 +5578,23 @@
       },
       {
         "id": "R028",
-        "delta": -118.75,
+        "delta": -178.75,
         "rod": "F005"
       },
       {
-        "id": "R139",
-        "delta": 118.75,
+        "id": "R115",
+        "delta": -178.75,
         "rod": "F006"
       },
       {
-        "id": "R065",
-        "delta": -118.75,
+        "id": "R053",
+        "delta": -58.75,
         "rod": "F007"
       },
       {
-        "id": "R087",
+        "id": "R065",
         "delta": 58.75,
-        "rod": "F008"
-      },
-      {
-        "id": "R111",
-        "delta": -118.75,
-        "rod": "F008"
+        "rod": "F007"
       },
       {
         "id": "R088",
@@ -5622,7 +5603,7 @@
       },
       {
         "id": "R096",
-        "delta": -178.75,
+        "delta": -118.75,
         "rod": "F009"
       },
       {
@@ -5646,13 +5627,13 @@
         "rod": "F011"
       },
       {
-        "id": "R072",
-        "delta": -178.75,
+        "id": "R078",
+        "delta": -118.75,
         "rod": "F012"
       },
       {
-        "id": "R099",
-        "delta": -118.75,
+        "id": "R063",
+        "delta": 118.75,
         "rod": "F013"
       },
       {
@@ -5662,7 +5643,7 @@
       },
       {
         "id": "R026",
-        "delta": 58.75,
+        "delta": 118.75,
         "rod": "F014"
       },
       {
@@ -5687,13 +5668,18 @@
       },
       {
         "id": "R013",
-        "delta": 58.75,
+        "delta": 118.75,
         "rod": "F017"
       },
       {
         "id": "R017",
         "delta": -118.75,
         "rod": "F017"
+      },
+      {
+        "id": "R068",
+        "delta": 58.75,
+        "rod": "F018"
       },
       {
         "id": "R081",
@@ -5719,7 +5705,7 @@
       "silkOnly": 10,
       "both": 0,
       "silkEdges": 12,
-      "routeSteps": 202,
+      "routeSteps": 201,
       "remaining": 0,
       "ownedClaspRingCounts": {
         "1": 29,
