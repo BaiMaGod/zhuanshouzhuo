@@ -215,7 +215,7 @@ function buildOwnerOrder(sources,bursts,spec){
 export function generateAdvancedLevel(number,{design,campaignLayout,createCore}){
  const spec=design.levels.find(x=>x.level===number);
  if(!spec)throw Error('设计文档缺少第'+number+'关');
- const rng=seeded(number*7919+17),cells=campaignLayout(number);
+ const rng=seeded(number*7919+17+(number===145?2:0)),cells=campaignLayout(number);
  if(cells.length!==spec.ringCount)throw Error('玉镯数量与设计配额不一致');
  const adj=cells.map((p,i)=>cells.map((q,j)=>j).filter(j=>j!==i&&Math.abs(distance(p,cells[j])-92.0001)<.05));
  const m0=spec.ownedClaspRingCounts[0],quota=[];
@@ -259,14 +259,14 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
  const ownerTargets=new Map(sources.map(i=>[i,[]])),incomingCount=new Map(targets.map(i=>[i,0]));
  const possible=new Map(targets.map(t=>[t,sources.filter(s=>adj[s].includes(t))]));
  for(const target of [...targets].sort((a,b)=>possible.get(a).length-possible.get(b).length)){
-  const choices=possible.get(target).filter(s=>capacity.get(s)>0).sort((a,b)=>capacity.get(b)-capacity.get(a));
+  const choices=possible.get(target).filter(s=>capacity.get(s)>0).sort((a,b)=>capacity.get(b)-capacity.get(a)||(number===145?rng()-.5:0));
   if(!choices.length)throw Error('存在没有活动扣入口的玉镯 '+ringId(target+1));
   const owner=choices[0];ownerTargets.get(owner).push(target);
   capacity.set(owner,capacity.get(owner)-1);incomingCount.set(target,incomingCount.get(target)+1);
  }
  for(const owner of sources)while(capacity.get(owner)>0){
   const choices=adj[owner].filter(t=>best.has(t)&&!ownerTargets.get(owner).includes(t))
-   .sort((a,b)=>incomingCount.get(a)-incomingCount.get(b));
+   .sort((a,b)=>incomingCount.get(a)-incomingCount.get(b)||(number===145?rng()-.5:0));
   if(!choices.length)throw Error('自带扣数量无法补齐 '+ringId(owner+1));
   const target=choices[0];ownerTargets.get(owner).push(target);
   capacity.set(owner,capacity.get(owner)-1);incomingCount.set(target,incomingCount.get(target)+1);
