@@ -4,6 +4,14 @@ import {buildLevel107GeometryCandidate} from './level107-geometry-candidate.js';
 import {advanced110113} from './advanced-campaign-110-113.js';
 import {advanced108109} from './advanced-campaign-108-109.js';
 import {earlyBoards,source107,route107} from './advanced-campaign-data.js';
+import {advancedCampaign114117} from './advanced-campaign-114-117.js';
+import {advancedCampaign118121} from './advanced-campaign-118-121.js';
+import {advancedCampaign122125} from './advanced-campaign-122-125.js';
+import {advancedCampaign126129} from './advanced-campaign-126-129.js';
+import {advancedCampaign130133} from './advanced-campaign-130-133.js';
+import {advancedCampaign134137} from './advanced-campaign-134-137.js';
+import {advancedCampaign138141} from './advanced-campaign-138-141.js';
+import {advancedCampaign142145} from './advanced-campaign-142-145.js';
 
 const cells=campaignLayout(109);
 const norm=angle=>((angle%360)+360)%360;
@@ -37,5 +45,13 @@ export const advancedCampaign=[
  withRoute({...board107,name:'第107关',kind:'formal',revision:1,
   tip:'消除第一枚烈焰玉镯，火焰花瓣命中第二枚后会继续扩散。'},route107),
  ...advanced108109,
- ...advanced110113
+ ...advanced110113,
+ ...advancedCampaign114117,
+ ...advancedCampaign118121,
+ ...advancedCampaign122125,
+ ...advancedCampaign126129,
+ ...advancedCampaign130133,
+ ...advancedCampaign134137,
+ ...advancedCampaign138141,
+ ...advancedCampaign142145
 ];
