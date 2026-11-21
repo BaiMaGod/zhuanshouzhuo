@@ -19,7 +19,7 @@ export function silkWrapPaths(
  const inner=Math.max(.001,radius-band/2);
  const halfGap=Math.asin(Math.min(.999,gap/(2*inner)));
  const start=halfGap+.055,end=Math.PI*2-halfGap-.055;
- const amplitude=band*.27;
+ const amplitude=band*.34;
  const steps=Math.max(24,Math.floor(samples));
  return Array.from({length:count},(_,index)=>{
   const phase=PHASES[index],points:SilkPoint[]=[];
