@@ -39,7 +39,7 @@ test('逐层松开时，尚未松开的丝线位置保持稳定',()=>{
 
 test('正式渲染器不再把缠字或层数绘制在玉镯中心',()=>{
  const source=readFileSync(new URL('../src/renderer.ts',import.meta.url),'utf8');
- assert.doesNotMatch(source,/special\\.text\\s*=/);
+ assert.equal(source.includes('v.special'),false);
  assert.match(source,/drawSilkWrap/);
- assert.match(source,/silk-release/);
+ assert.match(source,/silkReleases/);
 });
