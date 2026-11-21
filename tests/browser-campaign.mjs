@@ -19,6 +19,10 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}),args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--enable-webgl','--ignore-gpu-blocklist']});
 const report={errors:[],profiles:[]};
 async function button(page,label){
+ if(label.startsWith('formal-level:'))await page.evaluate(label=>{
+  const g=window.jadeDebug.game,number=Number(label.slice('formal-level:'.length));
+  g.scrollAtlas(Math.floor((number-1)/20)*g.atlasHeight);
+ },label);
  await page.waitForFunction(label=>{
   const g=window.jadeDebug?.game;if(!g||g.modalOpen&&g.modalCard?.alpha<.99)return false;
   const walk=n=>{if(n.visible===false)return false;if(n.name===label||n.label?.text===label||(label==='提示'&&n.label?.text?.startsWith('提示 ×')))return n.enabled!==false;for(let i=0;i<n.numChildren;i++)if(walk(n.getChildAt(i)))return true;return false};
