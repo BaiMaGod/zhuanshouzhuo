@@ -27,7 +27,7 @@ test('所有正式关完整外缘均在不同屏幕的玉盘内，密铺行没�
   }
  }
  const version=JSON.parse(readFileSync('dist/version.json','utf8'));
- assert.equal(version.levels,123);assert.equal(version.teachingLevels,10);assert.equal(version.formalLevels,113);
+ assert.equal(version.levels,155);assert.equal(version.teachingLevels,10);assert.equal(version.formalLevels,145);
 });
 
 test('旧54镯成绩只迁移到第45关一次，新的第1关和教学存档独立保存',()=>{
