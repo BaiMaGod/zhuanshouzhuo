@@ -99,7 +99,7 @@ try{
 
   await p.evaluate(()=>{
    const key='jade-bracelet-laya-v1',progress=JSON.parse(localStorage.getItem(key));
-   for(let i=10;i<109;i++)progress.records[i]??={steps:i-9,stars:2};
+   for(let i=10;i<154;i++)progress.records[i]??={steps:i-9,stars:2};
    localStorage.setItem(key,JSON.stringify(progress));
   });
   await p.reload();await p.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot')&&(!document.querySelector('#splash')||getComputedStyle(document.querySelector('#splash')).display==='none'));
