@@ -8,16 +8,46 @@ import {trayFit} from './tray-layout.js';
 import {TEACHING_COUNT} from './levels.js';
 import {THEME} from './ui.js';
 import {FEEDBACK,reducedMotion,easeOut,glint} from './feedback.js';
+import {silkWrapPaths} from './silk-wrap.js';
 const C=C0 as unknown as CoreAPI;
 export interface Ghost {r:Ring;start:number;glow:Laya.Sprite|null;fiery:boolean}
 interface FlameHit {id:string;at:number;point?:Point;burst?:FlameBurst}
-interface RingView {material:JadeName;root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite;special:Laya.Text|null;fire:BurstFire|null}
+interface SilkRelease {center:Point;at:number;phase:number}
+interface RingView {material:JadeName;root:Laya.Sprite;body:Laya.Sprite;halo:Laya.Sprite;focus:Laya.Sprite;label:Laya.Text;shadow:Laya.Sprite;silk:Laya.Sprite|null;silkLayers:number;fire:BurstFire|null}
 const RELEASE_GLOW:Record<JadeName,string> = {
  amber:'252,210,72', peach:'253,179,158', celadon:'174,221,164',
  ice:'166,231,219', ivory:'255,244,207'
 };
 const HALF_GAP = Math.asin(C.GAP/(2*(C.R-C.BAND/2)))/C.D;
 const SHADOW_SIZE=110;
+function silkCommands(points:Point[],dx=0,dy=0):unknown[]{
+ const commands:unknown[]=[];
+ points.forEach((p,i)=>commands.push([i===0?'moveTo':'lineTo',p.x+dx,p.y+dy]));
+ return commands;
+}
+function drawSilkWrap(g:Laya.Graphics,layers:number):void{
+ g.clear();
+ for(const points of silkWrapPaths(layers,C.R,C.BAND,C.GAP)){
+  // Soft shadow, satin body and narrow specular line give the thread a raised
+  // textile surface while leaving most of the original jade visible.
+  g.drawPath(0,0,silkCommands(points,0,.8),undefined,{strokeStyle:'rgba(108,77,67,0.36)',lineWidth:5.0});
+  g.drawPath(0,0,silkCommands(points),undefined,{strokeStyle:'rgba(230,201,181,0.98)',lineWidth:3.8});
+  g.drawPath(0,0,silkCommands(points,-.2,-.4),undefined,{strokeStyle:'rgba(255,251,245,0.96)',lineWidth:1.1});
+  g.drawPath(0,0,silkCommands(points,0,.55),undefined,{strokeStyle:'rgba(186,137,122,0.48)',lineWidth:.65});
+  // Fine cross-grain glints make the satin read as woven silk at close zoom.
+  const grain:unknown[]=[];
+  for(let i=7;i<points.length-7;i+=8){
+   const a=points[i-1],b=points[i+1],p=points[i],length=Math.max(.001,Math.hypot(b.x-a.x,b.y-a.y));
+   const nx=-(b.y-a.y)/length,ny=(b.x-a.x)/length;
+   grain.push(['moveTo',p.x-nx*1.05,p.y-ny*1.05],['lineTo',p.x+nx*1.05,p.y+ny*1.05]);
+  }
+  if(grain.length)g.drawPath(0,0,grain,undefined,{strokeStyle:'rgba(255,255,255,0.30)',lineWidth:.45});
+  for(const end of [points[0],points[points.length-1]]){
+   g.drawCircle(end.x,end.y,1.45,'rgba(194,157,132,0.82)');
+   g.drawCircle(end.x-.25,end.y-.3,.55,'rgba(255,252,241,0.95)');
+  }
+ }
+}
 // The shadow texture has a transparent center and corners. Keep enough padding
 // for linear sampling and draw only the annulus containing the soft shadow.
 const shadowMesh=(()=>{
@@ -38,6 +68,7 @@ export class Board {
  viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();fixedRods=new Laya.Sprite();effects=new Laya.Sprite();
  private petals=new JadePetals(this.effects);
  private flameHits:FlameHit[]=[];
+ private silkReleases:SilkRelease[]=[];
  private flameClaspUntil=new Map<string,number>();
  private flameFlashes:{point:Point;at:number}[]=[];
  private flameBefore:State|null=null;
@@ -81,7 +112,7 @@ export class Board {
   // The bundled LayaAir 3.4 runtime accepts only 'bitmap' and 'none' for cacheAs.
   // Keep this scene live-rendered; the legacy 'normal' value does not enable caching.
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
-  this.ghosts=[];this.sparks=[];this.flashes=[];this.clearAt=-Infinity;this.releaseAt=-Infinity;this.streak=0;
+  this.ghosts=[];this.sparks=[];this.flashes=[];this.silkReleases=[];this.clearAt=-Infinity;this.releaseAt=-Infinity;this.streak=0;
   this.flameHits=[];this.flameClaspUntil.clear();this.flameFlashes=[];this.flameBefore=null;this.flameView=null;
   this.quiet=reducedMotion();this.hint=null;this.blocked=null;this.blockedRing=null;this.blockUntil=0;
   this.effects.graphics.clear();
@@ -126,14 +157,14 @@ export class Board {
    }
    focus.cacheAs='none';root.addChild(focus);
    const label=new Laya.Text();label.name='ring-id:'+r.id;label.text=s.index>=TEACHING_COUNT||!this.showLabels?'':r.id;label.fontSize=12;label.color=THEME.ink;label.font='serif';label.align='center';label.valign='middle';label.size(36,28);label.pivot(18,14);label.rotation=-this.turn;root.addChild(label);
-   const special=r.silkRemaining?new Laya.Text():null;
-   if(special){
-    special.name='mechanic:'+r.id;
-    special.size(82,44);special.pos(-41,-22);special.align='center';special.valign='middle';
-    special.fontSize=24;special.color='#996b45';special.bold=true;
-    special.mouseEnabled=false;root.addChild(special);
+   const silkLayers=r.silkRemaining||0,silk=silkLayers>0?new Laya.Sprite():null;
+   if(silk){
+    silk.name='silk-wrap:'+r.id;silk.mouseEnabled=false;
+    drawSilkWrap(silk.graphics,silkLayers);
+    // The wrap belongs to the jade surface, so it follows the bangle's rotation.
+    body.addChild(silk);
    }
-   this.rings.set(r.id,{material,root,body,halo,focus,label,shadow,special,fire});
+   this.rings.set(r.id,{material,root,body,halo,focus,label,shadow,silk,silkLayers,fire});
   });
  }
  focus(id:string|null):void{
@@ -320,7 +351,7 @@ export class Board {
  get hasVisibleFixedRods():boolean{return this.fixedRods.visible}
  get hasVisibleClaspLayer():boolean{return this.rods.visible||this.hasVisibleFixedRods}
  get animating():boolean {return this.pendingFlameHits>0||this.ghosts.length>0||performance.now()-this.clearAt<(this.quiet?180:FEEDBACK.clear)}
- get hasFeedback():boolean{return this.animating||this.petals.count>0||this.sparks.length>0||this.flashes.length>0||this.flameFlashes.length>0}
+ get hasFeedback():boolean{return this.animating||this.petals.count>0||this.sparks.length>0||this.flashes.length>0||this.flameFlashes.length>0||this.silkReleases.length>0}
  private line(g:Laya.Graphics,p:Point,q:Point,c:string,w:number):void{g.drawLine(p.x,p.y,q.x,q.y,c,w)}
  private sleeve(g:Laya.Graphics,p:Point,a:number,state:string):void{
   // Rounded silver sleeve retains its hollow opening, pose and complete outline.
@@ -434,6 +465,7 @@ export class Board {
   this.sparks=this.sparks.filter(p=>now-p.start<FEEDBACK.particles);
   this.flashes=this.flashes.filter(p=>now-p.start<(this.quiet?140:FEEDBACK.alignment));
   this.flameFlashes=this.flameFlashes.filter(f=>now-f.at<240);
+  this.silkReleases=this.silkReleases.filter(f=>now-f.at<520);
   this.petals.draw(now,C.rot({x:0,y:-1},-this.turn));
   const ghosts=new Map(this.ghosts.map(g=>[g.r.id,g]));
   for(const r of s.rings){
@@ -454,12 +486,15 @@ export class Board {
     v.fire.rotation=r.a;
     v.fire.update(now,this.quiet,t);
    }
-   if(v.special){
-    v.special.visible=!!r.silkRemaining;
-    if(v.special.visible){
-     v.special.text=' 缠'+r.silkRemaining;
-     v.special.rotation=-this.turn;
+   const silkLayers=r.silkRemaining||0;
+   if(v.silk&&silkLayers!==v.silkLayers){
+    if(silkLayers<v.silkLayers&&!this.quiet){
+     const ringNumber=Number(r.id.slice(1))||1;
+     this.silkReleases.push({center:{x:r.x,y:r.y},at:now,phase:ringNumber*137.5*C.D});
     }
+    v.silkLayers=silkLayers;
+    v.silk.visible=silkLayers>0;
+    drawSilkWrap(v.silk.graphics,silkLayers);
    }
    if(r.id===this.blockedRing&&now<this.blockUntil){
     if(!v.halo.name){
@@ -503,6 +538,23 @@ export class Board {
     const q=C.point(point,k*137.5,3+easeOut(t)*(9+k%3*4));
     g.drawCircle(q.x,q.y,(1-t)*(k%2?1.3:2.2),'rgba(255,155,40,'+alpha+')');
    }
+  }
+  for(const release of this.silkReleases){
+   const t=Math.min(1,(now-release.at)/520),progress=easeOut(t),alpha=(1-t)**1.25;
+   const path:unknown[]=[];
+   const steps=Math.max(2,Math.ceil(28*progress));
+   for(let i=0;i<=steps;i++){
+    const u=i/28,angle=release.phase+u*Math.PI*2*1.2;
+    const radius=C.R+C.BAND/2+1.2+u*(2+progress*18);
+    const x=release.center.x+Math.cos(angle)*radius,y=release.center.y+Math.sin(angle)*radius;
+    path.push([i===0?'moveTo':'lineTo',x,y]);
+   }
+   const g=this.effects.graphics;
+   g.drawPath(0,0,path,undefined,{strokeStyle:'rgba(108,77,67,'+(alpha*.30)+')',lineWidth:4.4});
+   g.drawPath(0,0,path,undefined,{strokeStyle:'rgba(221,196,171,'+(alpha*.95)+')',lineWidth:3});
+   g.drawPath(0,0,path,undefined,{strokeStyle:'rgba(255,250,239,'+(alpha*.9)+')',lineWidth:.85});
+   const tip=release.center;
+   glint(g,tip.x+Math.cos(release.phase)*(C.R+C.BAND/2+1.2),tip.y+Math.sin(release.phase)*(C.R+C.BAND/2+1.2),2.2*alpha,'rgba(255,249,232,'+alpha+')');
   }
   for(const ghost of this.ghosts){
    const age=now-ghost.start;
