@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import C from '../../dist/js/core.js';
 import solutions from '../../dist/js/solutions.js';
 import {FORMAL_INDEX,FORMAL_COUNT,LEGACY_FORMAL_INDEX} from '../../dist/js/levels.js';
-test('113个正式关卡的盘面与无道具旋转路线',()=>{
- assert.equal(C.levels.length,123);assert.equal(FORMAL_COUNT,113);assert.equal(solutions.length,C.levels.length);
+test('145个正式关卡的盘面与无道具旋转路线',()=>{
+ assert.equal(C.levels.length,155);assert.equal(FORMAL_COUNT,145);assert.equal(solutions.length,C.levels.length);
  assert.equal(C.levels[LEGACY_FORMAL_INDEX].name,'第45关');
  for(let number=1;number<=FORMAL_COUNT;number++){
   const index=FORMAL_INDEX+number-1,s=C.make(index),level=C.levels[index];
