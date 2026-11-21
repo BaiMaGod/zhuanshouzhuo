@@ -113,7 +113,7 @@ export class Board {
   // Keep this scene live-rendered; the legacy 'normal' value does not enable caching.
   for(const v of this.rings.values())v.root.destroy(true);this.rings.clear();
   this.ghosts=[];this.sparks=[];this.flashes=[];this.silkReleases=[];this.clearAt=-Infinity;this.releaseAt=-Infinity;this.streak=0;
-  this.flameHits=[];this.flameClaspUntil.clear();this.flameFlashes=[];this.flameBefore=null;this.flameView=null;this.silkReleases=[];
+  this.flameHits=[];this.flameClaspUntil.clear();this.flameFlashes=[];this.flameBefore=null;this.flameView=null;
   this.quiet=reducedMotion();this.hint=null;this.blocked=null;this.blockedRing=null;this.blockUntil=0;
   this.effects.graphics.clear();
   this.petals.reset();
