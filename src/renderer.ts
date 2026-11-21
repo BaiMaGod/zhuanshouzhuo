@@ -30,13 +30,13 @@ function drawSilkWrap(g:Laya.Graphics,layers:number):void{
  for(const points of silkWrapPaths(layers,C.R,C.BAND,C.GAP)){
   // Soft shadow, satin body and narrow specular line give the thread a raised
   // textile surface while leaving most of the original jade visible.
-  g.drawPath(0,0,silkCommands(points,0,.8),undefined,{strokeStyle:'rgba(108,77,67,0.34)',lineWidth:4.8});
-  g.drawPath(0,0,silkCommands(points),undefined,{strokeStyle:'rgba(221,196,171,0.98)',lineWidth:3.35});
-  g.drawPath(0,0,silkCommands(points,-.2,-.4),undefined,{strokeStyle:'rgba(255,250,239,0.96)',lineWidth:1.05});
-  g.drawPath(0,0,silkCommands(points,0,.55),undefined,{strokeStyle:'rgba(171,130,108,0.45)',lineWidth:.55});
+  g.drawPath(0,0,silkCommands(points,0,.8),undefined,{strokeStyle:'rgba(108,77,67,0.36)',lineWidth:5.0});
+  g.drawPath(0,0,silkCommands(points),undefined,{strokeStyle:'rgba(230,201,181,0.98)',lineWidth:3.8});
+  g.drawPath(0,0,silkCommands(points,-.2,-.4),undefined,{strokeStyle:'rgba(255,251,245,0.96)',lineWidth:1.1});
+  g.drawPath(0,0,silkCommands(points,0,.55),undefined,{strokeStyle:'rgba(186,137,122,0.48)',lineWidth:.65});
   // Fine cross-grain glints make the satin read as woven silk at close zoom.
   const grain:unknown[]=[];
-  for(let i=7;i<points.length-7;i+=10){
+  for(let i=7;i<points.length-7;i+=8{
    const a=points[i-1],b=points[i+1],p=points[i],length=Math.max(.001,Math.hypot(b.x-a.x,b.y-a.y));
    const nx=-(b.y-a.y)/length,ny=(b.x-a.x)/length;
    grain.push(['moveTo',p.x-nx*1.05,p.y-ny*1.05],['lineTo',p.x+nx*1.05,p.y+ny*1.05]);
