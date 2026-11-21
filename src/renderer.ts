@@ -36,7 +36,7 @@ function drawSilkWrap(g:Laya.Graphics,layers:number):void{
   g.drawPath(0,0,silkCommands(points,0,.55),undefined,{strokeStyle:'rgba(186,137,122,0.48)',lineWidth:.65});
   // Fine cross-grain glints make the satin read as woven silk at close zoom.
   const grain:unknown[]=[];
-  for(let i=7;i<points.length-7;i+=8{
+  for(let i=7;i<points.length-7;i+=8){
    const a=points[i-1],b=points[i+1],p=points[i],length=Math.max(.001,Math.hypot(b.x-a.x,b.y-a.y));
    const nx=-(b.y-a.y)/length,ny=(b.x-a.x)/length;
    grain.push(['moveTo',p.x-nx*1.05,p.y-ny*1.05],['lineTo',p.x+nx*1.05,p.y+ny*1.05]);
