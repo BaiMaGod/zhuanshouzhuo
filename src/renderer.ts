@@ -463,7 +463,7 @@ export class Board {
  }
  animateIdleFire(now:number):void{
   if(this.quiet)return;
-  if(this.lastState)this.heartLinks.draw(this.lastState,now,false);
+  if(this.lastState)this.heartLinks.draw(this.lastState,now,false,this.zoom);
   for(const view of this.rings.values()){
    if(view.fire&&view.root.visible)view.fire.update(now,false,0);
   }
@@ -471,7 +471,7 @@ export class Board {
  draw(s:State,now=performance.now()):void{
   this.lastState=s;
   s=this.visibleState(s);
-  this.heartLinks.draw(s,now,this.quiet);
+  this.heartLinks.draw(s,now,this.quiet,this.zoom);
   const releaseMs=this.quiet?150:FEEDBACK.release;
   this.ghosts=this.ghosts.filter(g=>{if(now-g.start<releaseMs)return true;this.disposeGhost(g);return false});
   this.sparks=this.sparks.filter(p=>now-p.start<FEEDBACK.particles);

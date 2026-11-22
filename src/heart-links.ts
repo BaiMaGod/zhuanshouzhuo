@@ -10,6 +10,7 @@ export class HeartLinks extends Laya.Sprite {
  private groups:string[][]=[];
  private flights:Flight[]=[];
  private origin:Point={x:0,y:0};
+ private weight=1;
  constructor(){super();this.name='heart-links';this.mouseEnabled=false;this.zOrder=12;}
  load(s:State,origin:Point):void{
   this.started=performance.now();this.origin={...origin};
@@ -30,18 +31,20 @@ export class HeartLinks extends Laya.Sprite {
   const path:unknown[]=[];
   for(let i=0;i<=20;i++){const p=this.point(a,b,end*i/20,bend);path.push([i?'lineTo':'moveTo',p.x,p.y]);}
   for(const [width,color,k] of [[8,'249,159,195',.12],[3.5,'255,204,214',.4],[1.1,'255,249,215',.95]] as const)
-   this.graphics.drawPath(0,0,path,undefined,{strokeStyle:`rgba(${color},${alpha*k})`,lineWidth:width});
+   this.graphics.drawPath(0,0,path,undefined,{strokeStyle:`rgba(${color},${alpha*k})`,lineWidth:width*this.weight});
  }
  private star(p:Point,strength:number,size=4):void{
-  const g=this.graphics;
+  const g=this.graphics;size*=this.weight;
   g.drawCircle(p.x,p.y,size*2.5,`rgba(255,170,202,${strength*.09})`);
   g.drawCircle(p.x,p.y,size,`rgba(255,219,190,${strength*.3})`);
   g.drawLine(p.x-size,p.y,p.x+size,p.y,`rgba(255,245,217,${strength})`,1.1);
   g.drawLine(p.x,p.y-size,p.x,p.y+size,`rgba(255,245,217,${strength})`,1.1);
-  g.drawCircle(p.x,p.y,1.5,`rgba(255,255,244,${strength})`);
+  g.drawCircle(p.x,p.y,1.5*this.weight,`rgba(250,223,174,${strength})`);
  }
- draw(s:State,now:number,quiet:boolean):void{
+ draw(s:State,now:number,quiet:boolean,zoom=1):void{
   const g=this.graphics;g.clear();
+  // Keep a legible core when a dense campaign is fitted to a phone screen.
+  this.weight=Math.min(2.6,Math.max(1,1.4/Math.max(.1,zoom)));
   const rings=new Map(s.rings.map(r=>[r.id,r]));
   const progress=quiet?1:Math.min(1,Math.max(0,(now-this.started)/INTRO_MS));
   for(const group of this.groups){
