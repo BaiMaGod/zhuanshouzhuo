@@ -117,3 +117,25 @@ jobs:
             .release-out/zhuanshouzhuo-${{ steps.package.outputs.version }}-taptap.zip.sha256
           if-no-files-found: error
           retention-days: 7
+
+  heart-links-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: npm install --no-save --no-audit --no-fund playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/browser-heart-links.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: heart-links-browser-${{ github.run_id }}
+          path: tests/results/heart-links/browser/
+          if-no-files-found: warn
+          retention-days: 7

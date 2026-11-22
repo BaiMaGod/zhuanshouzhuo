@@ -6,7 +6,7 @@ import {chromium} from 'playwright';
 const out=resolve('tests/results/heart-links/browser');await mkdir(out,{recursive:true});
 const server=createServer(async(req,res)=>{try{const path=new URL(req.url,'http://local').pathname;res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.json':'application/json','.png':'image/png','.webp':'image/webp','.woff':'font/woff','.wav':'audio/wav','.mp3':'audio/mpeg'})[extname(path)]||'application/octet-stream');res.end(await readFile(resolve('dist','.'+(path==='/'?'/index.html':path))));}catch{res.writeHead(404).end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
-const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']});
+const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||chromium.executablePath(),args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']});
 const report={errors:[],profiles:[]};
 async function button(page,name){
  const p=await page.evaluate(name=>{const g=jadeDebug.game;const walk=(n,x=0,y=0,k=1)=>{if(!n.visible)return null;x+=n.x*k;y+=n.y*k;k*=n.scaleX;if(n.name===name||n.label?.text===name)return{x:x+n.width*k/2,y:y+n.height*k/2};for(let i=0;i<n.numChildren;i++){const p=walk(n.getChildAt(i),x,y,k);if(p)return p;}return null;};const p=walk(g.modalOpen?g.overlay:g.scene);if(!p)throw Error('Missing '+name);const box=document.querySelector('canvas').getBoundingClientRect();return{x:box.left+p.x/g.scene.width*box.width,y:box.top+p.y/g.scene.height*box.height};},name);
