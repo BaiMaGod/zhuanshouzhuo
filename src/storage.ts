@@ -369,6 +369,7 @@ function inspectRun(value:unknown,index:number):{valid:boolean;reason?:string}{
    if(s.rods.some(z=>z.broken!==undefined&&typeof z.broken!=='boolean'))return invalid('烈焰玉镯断扣状态无效');
    if(stableJson(structural(s.rods))!==stableJson(structural(initial.rods)))return invalid('锁扣布局已变化');
    if(!s.special||!Array.isArray(s.special.processedRemovals)||stableJson(s.special.silkEdges)!==stableJson(initial.special.silkEdges))return invalid('特殊镯来源关系已变化');
+   if(!!s.special.linked!==!!initial.special.linked||stableJson(s.special.linkGroups||[])!==stableJson(initial.special.linkGroups||[]))return invalid('连心玉镯组关系已变化');
    const processed=new Set(s.special.processedRemovals),removed=new Set(s.rings.filter(r=>r.life==='removed').map(r=>r.id));
    if(processed.size!==s.special.processedRemovals.length||processed.size!==removed.size||[...processed].some(id=>!removed.has(id)))return invalid('特殊镯消除事件记录不匹配');
    for(let i=0;i<s.rings.length;i++){

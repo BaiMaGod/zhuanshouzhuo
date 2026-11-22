@@ -1186,11 +1186,13 @@ class Game {
  help():void{
   this.cancel();this.guide?.clear();
   const flame=this.model?.state.rings.some(r=>r.burst);
-  this.modal(flame?'玩法说明':'记住三件小事',[
+  const linked=!!this.model?.state.special?.linked;
+  this.modal(flame||linked?'玩法说明':'记住三件小事',[
    '① 拖动环体，让细缺口对准空心扣。点击只选中，不会转动。',
    '② 实心座随所属镯转动；带 × 的背景锁杆留在原地。被卡住，先解旁边的镯。',
    '③ 对齐后要保持，转离会重新扣合。剩下的完整锁杆仍会挡住转动。',
-   ...(flame?['④ 烈焰玉镯碎成火焰花瓣，命中并消除周围一圈玉镯。']:[])
+   ...(flame?['④ 烈焰玉镯碎成火焰花瓣，命中并消除周围一圈玉镯。']:[]),
+   ...(linked?['连心玉镯：镯心流光连接的玉镯是一组，解开其中任意一只，即可触发整组连消。']:[])
   ],[
    {label:'继续拆解',action:()=>this.hideModal(),primary:true},
    {label:this.formal?'观察全盘':'重看这一步',action:()=>{this.hideModal();if(this.formal){this.board?.resetView();this.syncView()}else if(this.model&&this.model.index<3)this.startGuide();else void this.hint()},primary:false}
