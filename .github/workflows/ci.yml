@@ -130,7 +130,16 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run build
       - run: npm install --no-save --no-audit --no-fund playwright
-      - run: npx playwright install --with-deps chromium
+      - name: Use installed Chrome when available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+            npx playwright install ffmpeg
+          else
+            npx playwright install --with-deps chromium
+          fi
       - run: node tests/browser-heart-links.mjs
       - uses: actions/upload-artifact@v4
         if: always()
