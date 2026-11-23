@@ -13,27 +13,29 @@ async function button(page,name){
  await page.mouse.click(p.x,p.y);
 }
 try{
- for(const [width,height,quiet] of [[390,844,false],[360,640,true]]){
+ for(const [width,height,quiet] of [[390,844,false],[360,640,false],[360,640,true]]){
+  const tag=width+(quiet?'-reduced':'');
   const context=await browser.newContext({viewport:{width,height},deviceScaleFactor:2,recordVideo:{dir:out,size:{width,height}},reducedMotion:quiet?'reduce':'no-preference'});
   const p=await context.newPage();p.on('pageerror',e=>report.errors.push(e.message));p.on('response',r=>{if(r.status()>=400)report.errors.push(r.status()+' '+r.url());});
   await p.goto('http://127.0.0.1:'+server.address().port+'/?debug');
   await p.waitForFunction(()=>window.jadeDebug?.game&&!document.querySelector('#boot')&&!document.querySelector('#splash'));
   // Fixture setup only; all removal, victory and restart go through real input.
   const index=await p.evaluate(()=>{const {Core:C,game:g}=jadeDebug;const h=92.0001;const index=C.levels.push({name:'连心玉镯样板',kind:'formal',revision:1,tip:'解开任意一只，触发整组连消',points:[['A',-h,0,150],['B',0,0,25],['C',h,0,25]],links:[['b','A','B'],['b','B','C']],special:{linked:true,rings:[{id:'B',attribute:'silk',silkLayers:2}],silkEdges:[{sourceId:'A',targetId:'B'},{sourceId:'C',targetId:'B'}]},hintGraph:{kind:'stages',stages:[{id:'S1',ringId:'A',targetAngle:0,requires:[]}]}})-1;g.load(index,true);return index;});
-  await p.waitForTimeout(450);await p.screenshot({path:resolve(out,width+'-opening.png')});
-  await p.waitForTimeout(1200);await p.screenshot({path:resolve(out,width+'-idle.png')});
+  await p.waitForTimeout(450);await p.screenshot({path:resolve(out,tag+'-opening.png')});
+  await p.waitForTimeout(1200);await p.screenshot({path:resolve(out,tag+'-idle.png')});
   assert.equal(await p.evaluate(()=>jadeDebug.game.model.state.rings.every(r=>r.silkRemaining===0)),true);
   const points=await p.evaluate(()=>{const {game:g,Core:C}=jadeDebug,r=C.ring(g.model.state,'A'),box=document.querySelector('canvas').getBoundingClientRect();return Array.from({length:61},(_,i)=>{const q=g.board.toScreen(C.point(r,200-i*2.5));return{x:box.left+q.x/g.scene.width*box.width,y:box.top+q.y/g.scene.height*box.height};});});
   await p.mouse.move(points[0].x,points[0].y);await p.mouse.down();for(const q of points.slice(1)){await p.mouse.move(q.x,q.y);}
   await p.mouse.up();
   await p.waitForFunction(()=>jadeDebug.game.model.cleared,null,{timeout:5000});
-  await p.screenshot({path:resolve(out,width+'-chain.png')});
+  await p.screenshot({path:resolve(out,tag+'-chain.png')});
   await p.waitForFunction(()=>jadeDebug.game.settled&&jadeDebug.game.modalOpen);
-  await p.screenshot({path:resolve(out,width+'-win.png')});
+  await p.screenshot({path:resolve(out,tag+'-win.png')});
   await button(p,'再挑战一次');
   await p.waitForFunction(index=>jadeDebug.game.model.index===index&&!jadeDebug.game.modalOpen&&jadeDebug.game.model.state.rings.every(r=>r.life==='active'),index);
   await p.evaluate(()=>jadeDebug.game.load(140,true));
-  await p.waitForTimeout(1600);await p.screenshot({path:resolve(out,width+'-level131.png')});
+  await p.waitForTimeout(450);await p.screenshot({path:resolve(out,tag+'-level131-opening.png')});
+  await p.waitForTimeout(1600);await p.screenshot({path:resolve(out,tag+'-level131.png')});
   report.profiles.push({width,height,quiet,realDragCleared:true,restart:true});
   await context.close();
  }
