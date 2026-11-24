@@ -24,7 +24,9 @@
     "release:taptap": "node scripts/build-taptap.mjs",
     "package:taptap": "node scripts/package-taptap.mjs",
     "verify:taptap": "node scripts/verify-taptap.mjs",
-    "levels:verify-advanced": "npm run build && node scripts/verify-advanced-samples.mjs"
+    "levels:verify-advanced": "npm run build && node scripts/verify-advanced-samples.mjs",
+    "levels:regenerate-advanced": "node scripts/regenerate-advanced-campaign.mjs",
+    "levels:audit-tray": "node scripts/audit-background-clasp-tray.mjs"
   },
   "devDependencies": {
     "typescript": "5.9.3"

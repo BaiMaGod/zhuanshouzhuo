@@ -16,7 +16,7 @@ const hash=s=>createHash('sha256').update(JSON.stringify({
  rods:s.rods.map(z=>[z.id,z.kind,z.owner,z.targets,z.broken===true]),
  processed:s.special?.processedRemovals||[]
 })).digest('hex');
-function checkTray(rings){
+function checkTray(rings,level){
  const center={x:(Math.min(...rings.map(r=>r.x))+Math.max(...rings.map(r=>r.x)))/2,
   y:(Math.min(...rings.map(r=>r.y))+Math.max(...rings.map(r=>r.y)))/2};
  for(const height of [936,1200]){
@@ -26,6 +26,16 @@ function checkTray(rings){
    const x=(r.x-center.x+RING_ENVELOPE*Math.cos(a))*zoom/(710*TRAY_SURFACE.rx);
    const y=(r.y-center.y+RING_ENVELOPE*Math.sin(a))*zoom/(height*TRAY_SURFACE.ry);
    if(x*x+y*y>1+1e-6)throw Error('Ring outside jade tray: '+r.id);
+  }
+  const rx=710*TRAY_SURFACE.rx,ry=height*TRAY_SURFACE.ry;
+  const contains=(p,padding)=>{
+   const normalized=Math.hypot((p.x-center.x)*zoom/rx,(p.y-center.y)*zoom/ry);
+   return normalized+padding*zoom/Math.min(rx,ry)<=1+1e-5;
+  };
+  for(const piece of level.backgroundPieces||[])if(piece.heads>=4){
+   if(!contains(piece.anchorWorld,14))throw Error('Background clasp anchor outside jade tray: '+level.name+'/'+piece.id);
+   for(const path of piece.branchPaths)for(const point of path)
+    if(!contains(point,3))throw Error('Background clasp branch outside jade tray: '+level.name+'/'+piece.id);
   }
  }
 }
@@ -38,7 +48,7 @@ for(const spec of specs){
  try{
   const s=C.make(index),errors=C.validate(s);
   if(errors.length)throw Error('Physics geometry: '+errors.slice(0,8).join(' | '));
-  checkTray(s.rings);
+  checkTray(s.rings,level);
   if(C.settle(C.clone(s)).length)throw Error('Board clears before a player action');
   const initial=hash(s);
   if(initial!==spec.verifiedRoute.initialStateHash)throw Error('Initial state hash mismatch; resimulate');

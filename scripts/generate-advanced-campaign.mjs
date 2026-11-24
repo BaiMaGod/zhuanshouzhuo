@@ -7,24 +7,116 @@ const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const angle=(a,b)=>norm(Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI);
 const ringId=n=>'R'+String(n).padStart(3,'0');
 function seeded(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}}
-function makeBackgroundGroups(n,adj,targetSet,counts,cells,rng){
+const pointSegmentDistance=(p,a,b)=>{
+ const dx=b.x-a.x,dy=b.y-a.y,den=dx*dx+dy*dy;
+ const t=den?Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/den)):0;
+ return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);
+};
+function buildTrayAnchorCandidates(cells){
+ const groups=new Map([4,5,6].map(h=>[h,[]]));
+ const minX=Math.min(...cells.map(p=>p.x),),maxX=Math.max(...cells.map(p=>p.x));
+ const minY=Math.min(...cells.map(p=>p.y)),maxY=Math.max(...cells.map(p=>p.y));
+ const center={x:(minX+maxX)/2,y:(minY+maxY)/2};
+ const surfaceRx=710*.455;
+ const fitForHeight=height=>{
+  const surfaceRy=height*.405;
+  let extent=0;
+  for(const p of cells)for(let degree=0;degree<360;degree++){
+   const a=degree*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
+   extent=Math.max(extent,((p.x-center.x)*c/surfaceRx+(p.y-center.y)*s/surfaceRy)+56*Math.hypot(c/surfaceRx,s/surfaceRy));
+  }
+  const zoom=Math.cos(Math.PI/360)/extent,worldRx=surfaceRx/zoom,worldRy=surfaceRy/zoom;
+  return{worldRx,worldRy,minAxis:Math.min(worldRx,worldRy)};
+ };
+ const fit936=fitForHeight(936),fit1200=fitForHeight(1200);
+ const contains=(p,padding=0)=>[fit936,fit1200].every(fit=>
+  Math.hypot((p.x-center.x)/fit.worldRx,(p.y-center.y)/fit.worldRy)+padding/fit.minAxis<=1+1e-9
+ );
+ const bucketSize=92,buckets=new Map();
+ for(let i=0;i<cells.length;i++){
+  const p=cells[i],key=Math.floor(p.x/bucketSize)+':'+Math.floor(p.y/bucketSize);
+  if(!buckets.has(key))buckets.set(key,[]);
+  buckets.get(key).push(i);
+ }
+ const blocked=(a,b,targetIndex)=>{
+  const minBx=Math.floor((Math.min(a.x,b.x)-50)/bucketSize),maxBx=Math.floor((Math.max(a.x,b.x)+50)/bucketSize);
+  const minBy=Math.floor((Math.min(a.y,b.y)-50)/bucketSize),maxBy=Math.floor((Math.max(a.y,b.y)+50)/bucketSize);
+  for(let bx=minBx;bx<=maxBx;bx++)for(let by=minBy;by<=maxBy;by++){
+   const nearby=buckets.get(bx+':'+by);if(!nearby)continue;
+   for(const j of nearby)if(j!==targetIndex&&pointSegmentDistance(cells[j],a,b)<50)return true;
+  }
+  return false;
+ };
+ const seen=new Set,step=10;
+ const gridMinX=center.x-fit936.worldRx+15,gridMaxX=center.x+fit936.worldRx-15;
+ const gridMinY=center.y-fit936.worldRy+15,gridMaxY=center.y+fit936.worldRy-15;
+ // Four offset grids give a five-unit search resolution without favoring one axis.
+ for(const offsetX of [0,5])for(const offsetY of [0,5]){
+  const firstX=Math.ceil((gridMinX-offsetX)/step)*step+offsetX;
+  const firstY=Math.ceil((gridMinY-offsetY)/step)*step+offsetY;
+  for(let x=firstX;x<=gridMaxX;x+=step)for(let y=firstY;y<=gridMaxY;y+=step){
+   const anchor={x,y};
+   if(!contains(anchor,14))continue;
+   let nearest=Infinity;
+   for(const p of cells){const d=distance(p,anchor);if(d<nearest)nearest=d;if(nearest<67)break}
+   if(nearest<67||nearest>180)continue;
+   const key='tray:'+Math.round(x*10)+':'+Math.round(y*10);
+   if(seen.has(key))continue;seen.add(key);
+   const visible=[];
+   for(let i=0;i<cells.length;i++){
+    const p=cells[i],dx=anchor.x-p.x,dy=anchor.y-p.y,d=Math.hypot(dx,dy);
+    if(d<40.1)continue;
+    const endpoint={x:p.x+40*dx/d,y:p.y+40*dy/d};
+    if(!blocked(anchor,endpoint,i))visible.push(i);
+   }
+   if(visible.length<4)continue;
+   visible.sort((a,b)=>Math.atan2(cells[a].y-anchor.y,cells[a].x-anchor.x)-Math.atan2(cells[b].y-anchor.y,cells[b].x-anchor.x));
+   for(let h=4;h<=6;h++)if(visible.length>=h){
+    for(let first=0;first<=visible.length-h;first++){
+     const members=visible.slice(first,first+h);
+     const length=members.reduce((sum,i)=>sum+Math.max(0,distance(anchor,cells[i])-40),0);
+     groups.get(h).push({members,anchor,key,length});
+    }
+   }
+  }
+ }
+ for(const h of [4,5,6])groups.get(h).sort((a,b)=>a.length-b.length);
+ return{groups,contains};
+}
+function seedBackgroundTargets(targetCount,ringCount,counts,trayGeometry,rng){
+ const selected=new Set,usedAnchors=new Set;
+ for(const h of [6,5,4]){
+  const need=counts?.[h-2]||0;
+  for(let k=0;k<need;k++){
+   const options=trayGeometry.groups.get(h).filter(g=>!usedAnchors.has(g.key)&&g.members.every(i=>!selected.has(i)));
+   if(!options.length)return null;
+   const pick=options[Math.floor(rng()*Math.min(500,options.length))];
+   pick.members.forEach(i=>selected.add(i));usedAnchors.add(pick.key);
+  }
+ }
+ if(selected.size>targetCount)return null;
+ while(selected.size<targetCount)selected.add(Math.floor(rng()*ringCount));
+ return selected;
+}
+function makeBackgroundGroups(n,adj,targetSet,counts,cells,rng,trayGeometry){
  const shuffle=items=>{const a=[...items];for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
  const groupsBySize=new Map([2,3,4,5,6].map(h=>[h,[]]));
- const add=(members,anchor,key)=>{
-  const sorted=[...members].sort((a,b)=>a-b),membersSet=new Set(sorted);
+ const add=(members,anchor,key,prevalidated=false)=>{
+  const sorted=[...members].sort((a,b)=>a-b);
   if(sorted.length<2||new Set(sorted).size!==sorted.length)return;
   for(const i of sorted)if(!targetSet.has(i))return;
-  // Every branch must approach its own receiver without crossing another jade ring.
+  if(sorted.length>=4&&!trayGeometry.contains(anchor,14))return;
   for(const i of sorted){
    const p=cells[i],dx=anchor.x-p.x,dy=anchor.y-p.y,d=Math.hypot(dx,dy);
    if(d<40.1)return;
-   const end={x:p.x+40*dx/d,y:p.y+40*dy/d},vx=end.x-anchor.x,vy=end.y-anchor.y,den=vx*vx+vy*vy;
-   for(let j=0;j<n;j++)if(j!==i){
-    const q=cells[j],t=Math.max(0,Math.min(1,((q.x-anchor.x)*vx+(q.y-anchor.y)*vy)/den));
-    if(Math.hypot(q.x-anchor.x-t*vx,q.y-anchor.y-t*vy)<45.8)return;
-   }
+   if(sorted.length>=4&&d<67)return;
+   if(prevalidated)continue;
+   const end={x:p.x+40*dx/d,y:p.y+40*dy/d};
+   const clearance=sorted.length>=4?50:45.8;
+   for(let j=0;j<n;j++)if(j!==i&&pointSegmentDistance(cells[j],anchor,end)<clearance)return;
   }
-  groupsBySize.get(sorted.length).push({members:sorted,anchor,key});
+  const length=sorted.reduce((sum,i)=>sum+Math.max(0,distance(anchor,cells[i])-40),0);
+  groupsBySize.get(sorted.length).push({members:sorted,anchor,key,length});
  };
  // Two- and three-head clasps use compact local junctions.
  for(let a=0;a<n;a++)if(targetSet.has(a))for(const b of adj[a])if(b>a&&targetSet.has(b)){
@@ -35,41 +127,12 @@ function makeBackgroundGroups(n,adj,targetSet,counts,cells,rng){
    add(tri,center,'local:'+tri.join(':'));
   }
  }
- // Four-to-six head clasps are placed outside the packed board perimeter.
- // Their independent branches enter from unobstructed outer approaches.
- const minX=Math.min(...cells.map(p=>p.x)),maxX=Math.max(...cells.map(p=>p.x));
- const minY=Math.min(...cells.map(p=>p.y)),maxY=Math.max(...cells.map(p=>p.y));
- const anchors=[],step=30;
- for(const offset of [62,78,96,118]){
-  for(let y=minY-120;y<=maxY+120;y+=step){
-   anchors.push({x:minX-offset,y},{x:maxX+offset,y});
-  }
-  for(let x=minX-120;x<=maxX+120;x+=step){
-   anchors.push({x,y:minY-offset},{x,y:maxY+offset});
-  }
- }
- const seenAnchors=new Set;
- for(const anchor of anchors){
-  const key='outer:'+Math.round(anchor.x)+':'+Math.round(anchor.y);
-  if(seenAnchors.has(key))continue;seenAnchors.add(key);
-  if(cells.some(p=>distance(p,anchor)<46.2))continue;
-  const visible=[...targetSet].filter(i=>{
-   const p=cells[i],dx=anchor.x-p.x,dy=anchor.y-p.y,d=Math.hypot(dx,dy);
-   if(d<40.1)return false;
-   const end={x:p.x+40*dx/d,y:p.y+40*dy/d},vx=end.x-anchor.x,vy=end.y-anchor.y,den=vx*vx+vy*vy;
-   for(let j=0;j<n;j++)if(j!==i){
-    const q=cells[j],t=Math.max(0,Math.min(1,((q.x-anchor.x)*vx+(q.y-anchor.y)*vy)/den));
-    if(Math.hypot(q.x-anchor.x-t*vx,q.y-anchor.y-t*vy)<46.2)return false;
-   }
-   return true;
-  }).sort((a,b)=>Math.atan2(cells[a].y-anchor.y,cells[a].x-anchor.x)-Math.atan2(cells[b].y-anchor.y,cells[b].x-anchor.x));
-  for(let h=4;h<=6;h++)if(visible.length>=h){
-   for(let start=0;start<=visible.length-h;start++)add(visible.slice(start,start+h),anchor,key);
-  }
- }
+ // Four-to-six head clasps use prevalidated anchors and branches inside both mobile tray fits.
+ for(let h=4;h<=6;h++)for(const group of trayGeometry.groups.get(h))
+  if(group.members.every(i=>targetSet.has(i)))add(group.members,group.anchor,group.key,true);
  const sizes=[6,5,4,3,2],required=counts||[];
  for(let h=2;h<=6;h++)if(required[h-2]&&!groupsBySize.get(h).length)return null;
- for(const h of sizes)groupsBySize.set(h,shuffle(groupsBySize.get(h)));
+ for(const h of sizes)groupsBySize.set(h,shuffle(groupsBySize.get(h)).sort((a,b)=>a.length-b.length));
  function search(sizeIndex,available,chosen,usedAnchors){
   if(sizeIndex>=sizes.length)return chosen;
   const h=sizes[sizeIndex],need=required[h-2]||0;
@@ -219,7 +282,7 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
  const rng=seeded(number*7919+17+(number===145?2:0)),cells=campaignLayout(number);
  if(cells.length!==spec.ringCount)throw Error('玉镯数量与设计配额不一致');
  const adj=cells.map((p,i)=>cells.map((q,j)=>j).filter(j=>j!==i&&Math.abs(distance(p,cells[j])-92.0001)<.05));
- const m0=spec.ownedClaspRingCounts[0],quota=[];
+ const m0=spec.ownedClaspRingCounts[0],trayGeometry=buildTrayAnchorCandidates(cells),quota=[];
  for(let k=1;k<=6;k++)for(let j=0;j<spec.ownedClaspRingCounts[k];j++)quota.push(k);
  quota.sort((a,b)=>b-a);
  const score=set=>{
@@ -232,8 +295,9 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
   return penalty;
  };
  let best=null,bestScore=Infinity,bestGroups=null;
- for(let attempt=0;attempt<60;attempt++){
-  const set=new Set();while(set.size<m0)set.add(Math.floor(rng()*number));
+ for(let attempt=0;attempt<120;attempt++){
+  let set=seedBackgroundTargets(m0,number,spec.backgroundPieceCounts,trayGeometry,rng);
+  if(!set){set=new Set();while(set.size<m0)set.add(Math.floor(rng()*number));}
   let current=score(set);
   for(let it=0;it<1800;it++){
    const outs=[...set],ins=cells.map((_,i)=>i).filter(i=>!set.has(i));
@@ -244,14 +308,14 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
    else{set.delete(b);set.add(a)}
    if(current<bestScore){bestScore=current;best=new Set(set)}
    if(current===0){
-    const packed=makeBackgroundGroups(number,adj,set,spec.backgroundPieceCounts,cells,rng);
+    const packed=makeBackgroundGroups(number,adj,set,spec.backgroundPieceCounts,cells,rng,trayGeometry);
     if(packed){best=new Set(set);bestGroups=packed;break}
    }
   }
   if(bestGroups)break;
  }
  if(bestScore!==0||!best)throw Error('无法满足自带扣配额的相邻几何分区：'+bestScore);
- if(!bestGroups)bestGroups=makeBackgroundGroups(number,adj,best,spec.backgroundPieceCounts,cells,rng);
+ if(!bestGroups)bestGroups=makeBackgroundGroups(number,adj,best,spec.backgroundPieceCounts,cells,rng,trayGeometry);
  if(!bestGroups)throw Error('无法满足背景扣的端点数量与几何排布：'+number);
  const targets=[...best],sources=cells.map((_,i)=>i).filter(i=>!best.has(i));
  const ranked=sources.map(i=>({i,degree:adj[i].filter(j=>best.has(j)).length})).sort((a,b)=>b.degree-a.degree||a.i-b.i);
@@ -289,46 +353,11 @@ export function generateAdvancedLevel(number,{design,campaignLayout,createCore})
   });
   return{id:pieceId,heads:group.members.length,anchorWorld:anchor,endpoints,branchPaths:endpoints.map(e=>[anchor,e.pointWorld])};
  });
- // Reposition large fixed-clasp junctions after candidate grouping. The original
- // visibility test is intentionally loose for discovery; this final pass uses
- // the actual rod width plus ring band clearance so another branch cannot sweep
- // through a neighboring ring during a physical rotation.
- const boardMinX=Math.min(...cells.map(p=>p.x)),boardMaxX=Math.max(...cells.map(p=>p.x));
- const boardMinY=Math.min(...cells.map(p=>p.y)),boardMaxY=Math.max(...cells.map(p=>p.y));
- const anchorCandidates=[],anchorKeys=new Set();
- const addAnchor=(x,y)=>{const key=Math.round(x*10)+':'+Math.round(y*10);if(!anchorKeys.has(key)){anchorKeys.add(key);anchorCandidates.push({x,y})}};
- for(const offset of [62,78,96,118,140,160,180,200,230,260,300]){
-  for(let y=boardMinY-180;y<=boardMaxY+180;y+=20){addAnchor(boardMinX-offset,y);addAnchor(boardMaxX+offset,y)}
-  for(let x=boardMinX-180;x<=boardMaxX+180;x+=20){addAnchor(x,boardMinY-offset);addAnchor(x,boardMaxY+offset)}
- }
- const pointSegmentDistance=(p,a,b)=>{
-  const dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy)));
-  return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);
- };
+ // Keep large clasp anchors and every branch point inside both mobile tray fits.
  for(const piece of backgroundPieces.filter(p=>p.heads>=4)){
-  let best=null;
-  for(const anchor of anchorCandidates){
-   if(cells.some(p=>distance(p,anchor)<50))continue;
-   let clearance=Infinity,valid=true;
-   const endpoints=[];
-   for(const e of piece.endpoints){
-    const index=Number(e.receiverId.slice(1))-1,p=cells[index],dx=anchor.x-p.x,dy=anchor.y-p.y,d=Math.hypot(dx,dy);
-    if(d<40.1){valid=false;break}
-    const pointWorld={x:p.x+40*dx/d,y:p.y+40*dy/d};
-    for(let j=0;j<cells.length;j++)if(j!==index){
-     const gap=pointSegmentDistance(cells[j],anchor,pointWorld);
-     clearance=Math.min(clearance,gap);
-     if(gap<50){valid=false;break}
-    }
-    if(!valid)break;
-    endpoints.push({...e,pointWorld,endpointWorldAngle:norm(Math.atan2(dy,dx)*180/Math.PI)});
-   }
-   if(valid&&(!best||clearance>best.clearance))best={anchor,clearance,endpoints};
-  }
-  if(!best)throw Error('无法为 '+piece.id+' 找到无环体碰撞的多头扣锚点');
-  piece.anchorWorld=best.anchor;
-  piece.endpoints=best.endpoints;
-  piece.branchPaths=best.endpoints.map(e=>[best.anchor,e.pointWorld]);
+  if(!trayGeometry.contains(piece.anchorWorld,14))throw Error('多头背景扣锚点超出玉盘安全区域：'+number+'/'+piece.id);
+  for(const path of piece.branchPaths)for(const point of path)
+   if(!trayGeometry.contains(point,3))throw Error('多头背景扣支杆超出玉盘安全区域：'+number+'/'+piece.id);
  }
  const incomingAngles=Array.from({length:number},()=>[]);
  for(const [,owner,target] of links){

@@ -1,0 +1,67 @@
+name: Regenerate tray-safe advanced campaign
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/generate-advanced-campaign.mjs'
+      - 'scripts/regenerate-advanced-campaign.mjs'
+      - 'scripts/audit-background-clasp-tray.mjs'
+      - 'scripts/verify-advanced-samples.mjs'
+      - 'docs/levels-101-200-design.json'
+      - 'package.json'
+      - '.github/workflows/regenerate-advanced-campaign.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/generate-advanced-campaign.mjs'
+      - 'scripts/regenerate-advanced-campaign.mjs'
+      - 'scripts/audit-background-clasp-tray.mjs'
+      - 'scripts/verify-advanced-samples.mjs'
+      - 'docs/levels-101-200-design.json'
+      - 'package.json'
+      - '.github/workflows/regenerate-advanced-campaign.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Generate levels 131-145 with tray-bounded 4-6 head clasps
+        run: npm run levels:regenerate-advanced
+      - name: Replay all game regression tests
+        run: npm run test:fast
+      - name: Audit anchors and branches against both mobile tray layouts
+        run: npm run levels:audit-tray
+      - name: Commit regenerated level JSON and runtime bundles
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -B main
+          git fetch origin main
+          git rebase origin/main
+          git add data/advanced-campaign-{131..145}.json \
+            src/advanced-campaign-130-133.js \
+            src/advanced-campaign-134-137.js \
+            src/advanced-campaign-138-141.js \
+            src/advanced-campaign-142-145.js
+          if git diff --cached --quiet; then
+            echo "Generated advanced level data is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(levels): keep multi-head clasps inside jade tray"
+          git push origin main
