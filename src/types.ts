@@ -1,7 +1,7 @@
 export interface Ring { id:string; x:number; y:number; a:number; life:'active'|'removed'; color:string; attribute?:'ordinary'|'burst'|'silk'|'burst+silk'; burst?:boolean; silkRemaining?:number }
 export interface Point {x:number;y:number}
 export interface Rod {id:string; kind:'m'|'b'; owner?:string; targets:string[];local?:Point;end?:Point;p?:Point;q?:Point; broken?:boolean; anchor?:Point;headPoints?:{id:string;p:Point}[];paths?:Point[][]}
-export interface State {index:number;rings:Ring[];rods:Rod[];steps:number;states:Record<string,('latched'|'aligned'|'inactive')[]>;events:unknown[];special?:{silkEdges:{sourceId:string;targetId:string}[];processedRemovals:string[]};challengeClock?:{started:boolean;elapsedMs:number;result:string|null}}
+export interface State {index:number;rings:Ring[];rods:Rod[];steps:number;states:Record<string,('latched'|'aligned'|'inactive')[]>;events:unknown[];special?:{linked?:boolean;linkGroups?:string[][];silkEdges:{sourceId:string;targetId:string}[];processedRemovals:string[]};challengeClock?:{started:boolean;elapsedMs:number;result:string|null}}
 export interface Action {id:string;delta:number;rod:string;targetAngle?:number}
 export interface HintNode {id:string;requires:string[];claspId?:string|null}
 export interface HintStage {id:string;ringId:string;targetAngle:number;requires:string[];claspId?:string;releaseId?:string}

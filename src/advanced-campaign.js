@@ -1,3 +1,4 @@
+import {heartLinkRoutes} from './heart-link-routes.js';
 import {campaignLayout} from './campaign-layout.js';
 import {challengeDuration} from './advanced-mechanics.js';
 import {buildLevel107GeometryCandidate} from './level107-geometry-candidate.js';
@@ -55,3 +56,20 @@ export const advancedCampaign=[
  ...advancedCampaign138141,
  ...advancedCampaign142145
 ];
+
+// Existing geometry stays in place; the former silk dependency becomes a local
+// reward link. Replacement routes have been replayed with continuous physics.
+for(const entry of advancedCampaign){
+ if(!entry.level.special?.silkEdges?.length)continue;
+ entry.level.special={...entry.level.special,linked:true};
+ entry.level.revision=(entry.level.revision||1)+1;
+ entry.level.tip='连心玉镯：解开流光相连的任意一只，即可触发整组连消。';
+ const number=Number(entry.level.name.match(/\d+/)?.[0]),route=heartLinkRoutes[number];
+ if(!route)throw Error('Missing verified heart-link route '+number);
+ const adapted=withRoute(entry.level,route);
+ entry.level=adapted.level;entry.solution=route;
+ if(entry.level.timed){
+  const seconds=challengeDuration({steps:route.length,secondsPerStep:3.5,thinkingSeconds:25,routeVerified:true});
+  entry.level.timed={...entry.level.timed,routeSteps:route.length,formulaSeconds:seconds,durationSeconds:seconds};
+ }
+}

@@ -6,6 +6,25 @@ const own=(array,id)=>array.find(item=>item.id===id);
 const attributeBurst=a=>a==='burst'||a==='burst+silk';
 const attributeSilk=a=>a==='silk'||a==='burst+silk';
 
+// Upgrade old local silk dependencies into disjoint, readable reward groups.
+// Never merge shared sources into an unbounded whole-board component.
+export function makeLinkGroups(rings,edges){
+ const groups=[],used=new Set(),byId=new Map(rings.map(r=>[r.id,r]));
+ for(const targetId of new Set(edges.map(e=>e.targetId))){
+  if(used.has(targetId))continue;
+  const target=byId.get(targetId);if(!target)continue;
+  const ids=[targetId];
+  for(const edge of edges){
+   const source=byId.get(edge.sourceId);
+   if(edge.targetId!==targetId||!source||used.has(source.id)||ids.includes(source.id)||!near(source,target))continue;
+   ids.push(source.id);if(ids.length===5)break;
+  }
+  if(ids.length<2)continue;
+  ids.forEach(id=>used.add(id));groups.push(ids);
+ }
+ return groups;
+}
+
 export function prepareSpecial(s,level){
  const special=level.special;
  if(!special)return;
@@ -14,10 +33,12 @@ export function prepareSpecial(s,level){
   const entry=attributes.get(ring.id);
   ring.attribute=entry?.attribute||'ordinary';
   ring.burst=attributeBurst(ring.attribute);
-  ring.silkRemaining=attributeSilk(ring.attribute)?entry.silkLayers:0;
+  ring.silkRemaining=special.linked?0:(attributeSilk(ring.attribute)?entry.silkLayers:0);
  }
  s.special={
   silkEdges:(special.silkEdges||[]).map(e=>({sourceId:e.sourceId,targetId:e.targetId})),
+  linked:!!special.linked,
+  linkGroups:special.linked?makeLinkGroups(s.rings,special.silkEdges||[]):[],
   processedRemovals:[]
  };
 }
@@ -27,10 +48,18 @@ export function processSpecialRemoval(s,removedIds){
  const queue=[...removedIds],hits=[];
  for(const id of queue){
   if(processed.has(id))continue;
-  processed.add(id);
   const source=own(s.rings,id);
-  if(!source)continue;
-  for(const edge of s.special.silkEdges){
+  if(!source||source.life!=='removed')continue;
+  processed.add(id);
+  if(s.special.linked){
+   for(const group of s.special.linkGroups||[]){
+    if(!group.includes(id))continue;
+    const targets=group.filter(targetId=>own(s.rings,targetId)?.life==='active');
+    for(const targetId of targets){own(s.rings,targetId).life='removed';queue.push(targetId);hits.push(targetId);}
+    if(targets.length)s.events.push({kind:'link-chain',source:id,targetIds:targets});
+   }
+  }
+  for(const edge of s.special.linked?[]:s.special.silkEdges){
    if(edge.sourceId!==id)continue;
    const target=own(s.rings,edge.targetId);
    if(!target||target.life!=='active'||!near(source,target))continue;
@@ -77,7 +106,7 @@ export function validateSpecial(s){
  }
  for(const r of s.rings){
   const expected=layerCount.get(r.id)||0,amount=r.silkRemaining||0;
-  if(expected!==amount)errors.push('缠丝层数不一致 '+r.id+' expected='+expected+' actual='+amount);
+  if(!cfg.linked&&expected!==amount)errors.push('缠丝层数不一致 '+r.id+' expected='+expected+' actual='+amount);
   if(!Number.isInteger(amount)||amount<0||amount>3)errors.push('非法缠丝层数 '+r.id);
   if(r.burst!==attributeBurst(r.attribute))errors.push('爆裂属性不一致 '+r.id);
  }

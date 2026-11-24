@@ -8,6 +8,7 @@ import {trayFit} from './tray-layout.js';
 import {TEACHING_COUNT} from './levels.js';
 import {THEME} from './ui.js';
 import {FEEDBACK,reducedMotion,easeOut,glint} from './feedback.js';
+import {HeartLinks,CHAIN_MS} from './heart-links.js';
 import {silkWrapPaths} from './silk-wrap.js';
 const C=C0 as unknown as CoreAPI;
 export interface Ghost {r:Ring;start:number;glow:Laya.Sprite|null;fiery:boolean}
@@ -67,6 +68,7 @@ const shadowMesh=(()=>{
 export class Board {
  viewport=new Laya.Sprite();root=new Laya.Sprite();space=new Laya.Sprite();rods=new Laya.Sprite();fixedRods=new Laya.Sprite();effects=new Laya.Sprite();
  private petals=new JadePetals(this.effects);
+ private heartLinks=new HeartLinks();
  private flameHits:FlameHit[]=[];
  private silkReleases:SilkRelease[]=[];
  private flameClaspUntil=new Map<string,number>();
@@ -100,7 +102,7 @@ export class Board {
   // batch is rebuilt only when endpoint lifecycle, clasp state or camera changes.
   this.fixedRods.name='board-fixed-rods';this.fixedRods.cacheAs='none';
   this.effects.name='board-effects';
-  this.space.addChild(this.rods);this.space.addChild(this.fixedRods);this.space.addChild(this.effects);
+  this.space.addChild(this.rods);this.space.addChild(this.fixedRods);this.space.addChild(this.effects);this.space.addChild(this.heartLinks);
   this.rods.zOrder=10;this.fixedRods.zOrder=11;this.effects.zOrder=20;this.root.mouseEnabled=false;
  }
  load(s:State,traySize?:{w:number;h:number}):void{
@@ -128,6 +130,7 @@ export class Board {
    if(!this.traySize)throw new Error('Formal layout requires the actual tray dimensions');
    this.fitZoom=Math.min(this.fitZoom,trayFit(s.rings,this.center,this.traySize.w,this.traySize.h));
   }
+  this.heartLinks.load(s,this.center);
   this.resetView();
   this.space.pos(-this.center.x,-this.center.y);
   s.rings.forEach((r,i)=>{
@@ -233,17 +236,24 @@ export class Board {
   const bySource=new Map(bursts.map(event=>[event.source,event]));
   const sourceOf=new Map<string,string>();
   const times=new Map<string,number>();
-  if(!this.quiet&&bursts.length){
+  const chains=after.events.filter((e):e is {kind:string;source:string;targetIds:string[]}=>{
+   const event=e as {kind?:string;source?:string};
+   return event.kind==='link-chain'&&!!event.source&&ids.includes(event.source)&&C.ring(before,event.source)?.life==='active';
+  });
+  const linkSource=new Map<string,string>(),linkOrder=new Map<string,number>();
+  for(const event of chains)event.targetIds.forEach((id,i)=>{linkSource.set(id,event.source);linkOrder.set(id,i+1);});
+  if(!this.quiet&&(bursts.length||chains.length)){
    for(const event of bursts)for(const id of event.targetIds)sourceOf.set(id,event.source);
    // An indirectly unlocked bracelet follows the wave that broke its clasp.
    let latestHit=now;
    for(const id of ids){
-    const source=sourceOf.get(id);
-    const at=source?(times.get(source)??now)+FLAME_FLIGHT_MS:latestHit;
+    const linked=linkSource.get(id),source=sourceOf.get(id)||linked;
+    const at=source?(times.get(source)??now)+(linked?CHAIN_MS*(linkOrder.get(id)||1):FLAME_FLIGHT_MS):latestHit;
     latestHit=Math.max(latestHit,at);
     if(at===now)continue;
     times.set(id,at);
-    const point=source?this.flameContact(C.ring(after,source)!,C.ring(after,id)!):undefined;
+    if(linked)this.heartLinks.send(C.ring(after,linked)!,C.ring(after,id)!,at-CHAIN_MS);
+    const point=source&&!linked?this.flameContact(C.ring(after,source)!,C.ring(after,id)!):undefined;
     this.flameHits.push({id,at,point,burst:bySource.get(id)});
    }
    for(const event of bursts){
@@ -351,7 +361,7 @@ export class Board {
  get hasVisibleFixedRods():boolean{return this.fixedRods.visible}
  get hasVisibleClaspLayer():boolean{return this.rods.visible||this.hasVisibleFixedRods}
  get animating():boolean {return this.pendingFlameHits>0||this.ghosts.length>0||performance.now()-this.clearAt<(this.quiet?180:FEEDBACK.clear)}
- get hasFeedback():boolean{return this.animating||this.petals.count>0||this.sparks.length>0||this.flashes.length>0||this.flameFlashes.length>0||this.silkReleases.length>0}
+ get hasFeedback():boolean{return (!this.quiet&&this.heartLinks.animating)||this.animating||this.petals.count>0||this.sparks.length>0||this.flashes.length>0||this.flameFlashes.length>0||this.silkReleases.length>0}
  private line(g:Laya.Graphics,p:Point,q:Point,c:string,w:number):void{g.drawLine(p.x,p.y,q.x,q.y,c,w)}
  private sleeve(g:Laya.Graphics,p:Point,a:number,state:string):void{
   // Rounded silver sleeve retains its hollow opening, pose and complete outline.
@@ -453,6 +463,7 @@ export class Board {
  }
  animateIdleFire(now:number):void{
   if(this.quiet)return;
+  if(this.lastState)this.heartLinks.draw(this.lastState,now,false,this.zoom);
   for(const view of this.rings.values()){
    if(view.fire&&view.root.visible)view.fire.update(now,false,0);
   }
@@ -460,6 +471,7 @@ export class Board {
  draw(s:State,now=performance.now()):void{
   this.lastState=s;
   s=this.visibleState(s);
+  this.heartLinks.draw(s,now,this.quiet,this.zoom);
   const releaseMs=this.quiet?150:FEEDBACK.release;
   this.ghosts=this.ghosts.filter(g=>{if(now-g.start<releaseMs)return true;this.disposeGhost(g);return false});
   this.sparks=this.sparks.filter(p=>now-p.start<FEEDBACK.particles);
