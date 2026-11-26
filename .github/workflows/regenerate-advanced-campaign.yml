@@ -33,11 +33,16 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Fast-forward main before generating output
         if: github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
+          git checkout -B main
+          git fetch origin main
+          git merge --ff-only origin/main
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -54,14 +59,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git checkout -B main
-          git fetch origin main
-          git rebase origin/main
           git add data/advanced-campaign-{131..145}.json \
             src/advanced-campaign-130-133.js \
             src/advanced-campaign-134-137.js \
             src/advanced-campaign-138-141.js \
-            src/advanced-campaign-142-145.js
+            src/advanced-campaign-142-145.js \
+            src/heart-link-routes.js
           if git diff --cached --quiet; then
             echo "Generated advanced level data is already current."
             exit 0

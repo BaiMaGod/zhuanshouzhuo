@@ -1,12 +1,13 @@
-import {writeFileSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import C from '../src/core.js';
-import solutions from '../src/solutions.js';
+mkdirSync('tests/results/heart-links',{recursive:true});
 const verified={};
 for(let n=131;n<=145;n++){
  const index=n+9,s=C.make(index),route=[];
  if(C.settle(C.clone(s)).length)throw Error('Initial auto clear '+n);
  const errors=C.validate(s);if(errors.length)throw Error(JSON.stringify(errors));
- for(const a of solutions[index]){
+ const data=JSON.parse(readFileSync('data/advanced-campaign-'+n+'.json','utf8'));
+ for(const a of data.solutions[0]){
   if(C.ring(s,a.id).life!=='active')continue;
   const result=C.request(s,a.id,a.delta);
   if(result.blocked)throw Error(n+': '+JSON.stringify(result.blocked));

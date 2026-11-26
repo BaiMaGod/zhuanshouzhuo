@@ -276,10 +276,20 @@ function buildOwnerOrder(sources,bursts,spec){
  bursts.forEach((b,i)=>{const at=Math.floor((i+1)*normal.length/(bursts.length+1));order.push(...normal.slice(cursor,at),b);cursor=at});
  order.push(...normal.slice(cursor));return order;
 }
-export function generateAdvancedLevel(number,{design,campaignLayout,createCore}){
+export function generateAdvancedLevel(number,options){
+ let lastError;
+ for(let seedAttempt=0;seedAttempt<24;seedAttempt++){
+  try{return generateAdvancedCandidate(number,options,seedAttempt)}catch(error){
+   if(!String(error.message).includes('布置无循环的缠丝来源/爆裂区域'))throw error;
+   lastError=error;
+  }
+ }
+ throw lastError;
+}
+function generateAdvancedCandidate(number,{design,campaignLayout,createCore},seedAttempt){
  const spec=design.levels.find(x=>x.level===number);
  if(!spec)throw Error('设计文档缺少第'+number+'关');
- const rng=seeded(number*7919+17+(number===145?2:0)),cells=campaignLayout(number);
+ const rng=seeded(number*7919+17+(number===145?2:0)+seedAttempt),cells=campaignLayout(number);
  if(cells.length!==spec.ringCount)throw Error('玉镯数量与设计配额不一致');
  const adj=cells.map((p,i)=>cells.map((q,j)=>j).filter(j=>j!==i&&Math.abs(distance(p,cells[j])-92.0001)<.05));
  const m0=spec.ownedClaspRingCounts[0],trayGeometry=buildTrayAnchorCandidates(cells),quota=[];

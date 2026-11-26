@@ -3,6 +3,7 @@
 // Every generated level is validated and physically replayed by generateAdvancedLevel.
 import {readFileSync,writeFileSync} from 'node:fs';
 import Core from '../src/core.js';
+import {execFileSync} from 'node:child_process';
 import {campaignLayout} from '../src/campaign-layout.js';
 import {generateAdvancedLevel} from './generate-advanced-campaign.mjs';
 
@@ -35,3 +36,6 @@ for(const bundle of bundles){
  writeFileSync(new URL(bundle.path,import.meta.url),source);
  console.log('Updated runtime bundle '+bundle.start+'-'+bundle.end);
 }
+
+// Rebuild the linked-mechanic routes after the geometry bundles change.
+execFileSync(process.execPath,['scripts/verify-heart-link-routes.mjs'],{stdio:'inherit'});
